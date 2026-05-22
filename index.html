@@ -22,6 +22,10 @@
           <span class="stat-label">Dia</span>
           <span class="stat-value" id="stat-day">1</span>
         </div>
+        <div class="stat">
+          <span class="stat-label">Pesquisa</span>
+          <span class="stat-value" id="stat-rp" title="Pontos de Pesquisa">0 PP</span>
+        </div>
         <div class="stat approval">
           <span class="stat-label">Aprovação</span>
           <div class="approval-bar">
@@ -36,56 +40,81 @@
         <button data-speed="2" class="speed-btn" title="Rápido">2x</button>
         <button data-speed="4" class="speed-btn" title="Muito rápido">4x</button>
       </div>
+      <div class="save-controls">
+        <button id="save-btn" class="save-btn" title="Salvar agora">💾 Salvar</button>
+        <button id="newgame-btn" class="save-btn danger" title="Apaga a partida atual">↻ Novo Jogo</button>
+        <span class="save-status" id="save-status">—</span>
+      </div>
     </header>
 
     <main class="play-area">
       <canvas id="game" width="1280" height="720"></canvas>
 
       <aside class="sidebar">
-        <section class="panel">
-          <h3>Contrato Atual</h3>
-          <div id="contract-box" class="contract">
-            <div class="contract-empty">Aguardando pedido da cidade…</div>
+        <nav class="tabs" id="tabs">
+          <button data-tab="contract" class="tab active">Contrato</button>
+          <button data-tab="mine" class="tab">Mina</button>
+          <button data-tab="factory" class="tab">Fábricas</button>
+          <button data-tab="shop" class="tab">Loja</button>
+          <button data-tab="research" class="tab">Pesquisa</button>
+          <button data-tab="log" class="tab">Registro</button>
+        </nav>
+
+        <section class="tab-panel active" data-panel="contract">
+          <div class="panel">
+            <h3>Contrato Atual</h3>
+            <div id="contract-box" class="contract">
+              <div class="contract-empty">Aguardando pedido da cidade…</div>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Produção Pronta (entregar)</h3>
+            <ul id="products-list" class="stockpile compact"></ul>
+          </div>
+          <div class="panel">
+            <h3>Armazém Central (matérias-primas)</h3>
+            <ul id="warehouse-list" class="stockpile compact"></ul>
           </div>
         </section>
 
-        <section class="panel">
-          <h3>Estoques</h3>
-          <ul class="stockpile">
-            <li><span class="dot coal"></span>Carvão (mina) <strong id="stock-coal-mine">0</strong></li>
-            <li><span class="dot iron"></span>Ferro (mina) <strong id="stock-iron-mine">0</strong></li>
-            <li><span class="dot coal"></span>Carvão (fábrica) <strong id="stock-coal-factory">0</strong></li>
-            <li><span class="dot iron"></span>Ferro (fábrica) <strong id="stock-iron-factory">0</strong></li>
-            <li><span class="dot steel"></span>Aço (fábrica) <strong id="stock-steel-factory">0</strong></li>
-          </ul>
-        </section>
-
-        <section class="panel">
-          <h3>Contratar</h3>
-          <div class="hire-buttons">
-            <button id="hire-coal" class="hire-btn">
-              <span class="hire-title">+ Minerador de Carvão</span>
-              <span class="hire-cost">$80</span>
-            </button>
-            <button id="hire-iron" class="hire-btn">
-              <span class="hire-title">+ Minerador de Ferro</span>
-              <span class="hire-cost">$80</span>
-            </button>
-            <button id="upgrade-cart" class="hire-btn">
-              <span class="hire-title">Melhorar Carrinho</span>
-              <span class="hire-cost" id="cart-cost">$200</span>
-            </button>
-            <button id="upgrade-wagon" class="hire-btn">
-              <span class="hire-title">Melhorar Carruagem</span>
-              <span class="hire-cost" id="wagon-cost">$250</span>
-            </button>
+        <section class="tab-panel" data-panel="mine">
+          <div class="panel">
+            <h3>Depósitos da Mina (6 slots)</h3>
+            <div id="deposits-list" class="deposits"></div>
+            <p class="hint">Cada slot é um veio. Contrate mineradores para acelerar a extração. Recursos ficam parados se a pilha encher.</p>
           </div>
-          <p class="hint">Dica: se o carrinho subir devagar, a fábrica para. Logística importa.</p>
         </section>
 
-        <section class="panel log-panel">
-          <h3>Registro</h3>
-          <ul id="log" class="log"></ul>
+        <section class="tab-panel" data-panel="factory">
+          <div class="panel">
+            <h3>Fábricas</h3>
+            <div id="factories-list" class="factories"></div>
+            <button id="buy-factory-btn" class="big-btn">Comprar Nova Fábrica</button>
+            <p class="hint">Cada fábrica processa 1 receita por vez. Você pode trocar a receita a qualquer momento.</p>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-panel="shop">
+          <div class="panel">
+            <h3>Loja de Equipamentos</h3>
+            <div id="equipment-list" class="equipment"></div>
+            <p class="hint">Cada melhoria é permanente e afeta toda a operação.</p>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-panel="research">
+          <div class="panel">
+            <h3>Árvore de Pesquisa</h3>
+            <p class="hint">Você ganha PP a cada dia (+2) e por contrato cumprido (+5 base + bônus). Pesquisas são permanentes.</p>
+            <div id="research-list" class="equipment"></div>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-panel="log">
+          <div class="panel log-panel">
+            <h3>Registro de Eventos</h3>
+            <ul id="log" class="log"></ul>
+          </div>
         </section>
       </aside>
     </main>
@@ -93,17 +122,38 @@
     <footer class="bottombar">
       <span>Carrinho: <strong id="cart-status">parado</strong></span>
       <span>Carruagem: <strong id="wagon-status">parada</strong></span>
-      <span>Mineradores Carvão: <strong id="miners-coal">0</strong></span>
-      <span>Mineradores Ferro: <strong id="miners-iron">0</strong></span>
+      <span>Fábricas: <strong id="factory-count">1</strong>/3</span>
+      <span>Depósitos ativos: <strong id="deposit-count">2</strong>/6</span>
       <span class="spacer"></span>
-      <span class="tip">Clique e segure os botões para contratar — começou com $500.</span>
+      <span class="tip">Começou com $600. Estratégia: abra novos depósitos antes de comprar nova fábrica.</span>
     </footer>
   </div>
 
+  <!-- Modal: Abrir Depósito (escolher recurso) -->
+  <div id="modal-deposit" class="modal hidden">
+    <div class="modal-card wide">
+      <button class="modal-close" data-close="modal-deposit">×</button>
+      <h2>Abrir Depósito</h2>
+      <p class="modal-sub">Escolha o recurso a ser extraído neste slot:</p>
+      <div id="deposit-options" class="grid-options"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Escolher Receita -->
+  <div id="modal-recipe" class="modal hidden">
+    <div class="modal-card wide">
+      <button class="modal-close" data-close="modal-recipe">×</button>
+      <h2>Escolher Receita</h2>
+      <p class="modal-sub">Selecione o que esta fábrica vai produzir:</p>
+      <div id="recipe-options" class="grid-options"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Game Over -->
   <div id="game-over" class="modal hidden">
     <div class="modal-card">
       <h2 id="end-title">A população te destituiu</h2>
-      <p id="end-text">A aprovação caiu a zero. O governo central revogou seu mandato.</p>
+      <p id="end-text">A aprovação caiu a zero.</p>
       <button id="restart-btn">Recomeçar</button>
     </div>
   </div>
