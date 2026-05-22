@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tapuia — Protótipo</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-title">TAPUIA</span>
+        <span class="brand-sub">Companhia de Mineração &amp; Indústria — Gov. de Santa Catarina</span>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">Tesouro</span>
+          <span class="stat-value" id="stat-money">$0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Dia</span>
+          <span class="stat-value" id="stat-day">1</span>
+        </div>
+        <div class="stat approval">
+          <span class="stat-label">Aprovação</span>
+          <div class="approval-bar">
+            <div class="approval-fill" id="approval-fill"></div>
+            <span class="approval-text" id="approval-text">50%</span>
+          </div>
+        </div>
+      </div>
+      <div class="speed-controls">
+        <button data-speed="0" class="speed-btn" title="Pausar">II</button>
+        <button data-speed="1" class="speed-btn active" title="Normal">1x</button>
+        <button data-speed="2" class="speed-btn" title="Rápido">2x</button>
+        <button data-speed="4" class="speed-btn" title="Muito rápido">4x</button>
+      </div>
+    </header>
+
+    <main class="play-area">
+      <canvas id="game" width="1280" height="720"></canvas>
+
+      <aside class="sidebar">
+        <section class="panel">
+          <h3>Contrato Atual</h3>
+          <div id="contract-box" class="contract">
+            <div class="contract-empty">Aguardando pedido da cidade…</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3>Estoques</h3>
+          <ul class="stockpile">
+            <li><span class="dot coal"></span>Carvão (mina) <strong id="stock-coal-mine">0</strong></li>
+            <li><span class="dot iron"></span>Ferro (mina) <strong id="stock-iron-mine">0</strong></li>
+            <li><span class="dot coal"></span>Carvão (fábrica) <strong id="stock-coal-factory">0</strong></li>
+            <li><span class="dot iron"></span>Ferro (fábrica) <strong id="stock-iron-factory">0</strong></li>
+            <li><span class="dot steel"></span>Aço (fábrica) <strong id="stock-steel-factory">0</strong></li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h3>Contratar</h3>
+          <div class="hire-buttons">
+            <button id="hire-coal" class="hire-btn">
+              <span class="hire-title">+ Minerador de Carvão</span>
+              <span class="hire-cost">$80</span>
+            </button>
+            <button id="hire-iron" class="hire-btn">
+              <span class="hire-title">+ Minerador de Ferro</span>
+              <span class="hire-cost">$80</span>
+            </button>
+            <button id="upgrade-cart" class="hire-btn">
+              <span class="hire-title">Melhorar Carrinho</span>
+              <span class="hire-cost" id="cart-cost">$200</span>
+            </button>
+            <button id="upgrade-wagon" class="hire-btn">
+              <span class="hire-title">Melhorar Carruagem</span>
+              <span class="hire-cost" id="wagon-cost">$250</span>
+            </button>
+          </div>
+          <p class="hint">Dica: se o carrinho subir devagar, a fábrica para. Logística importa.</p>
+        </section>
+
+        <section class="panel log-panel">
+          <h3>Registro</h3>
+          <ul id="log" class="log"></ul>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="bottombar">
+      <span>Carrinho: <strong id="cart-status">parado</strong></span>
+      <span>Carruagem: <strong id="wagon-status">parada</strong></span>
+      <span>Mineradores Carvão: <strong id="miners-coal">0</strong></span>
+      <span>Mineradores Ferro: <strong id="miners-iron">0</strong></span>
+      <span class="spacer"></span>
+      <span class="tip">Clique e segure os botões para contratar — começou com $500.</span>
+    </footer>
+  </div>
+
+  <div id="game-over" class="modal hidden">
+    <div class="modal-card">
+      <h2 id="end-title">A população te destituiu</h2>
+      <p id="end-text">A aprovação caiu a zero. O governo central revogou seu mandato.</p>
+      <button id="restart-btn">Recomeçar</button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
