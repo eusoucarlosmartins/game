@@ -94,16 +94,16 @@ function drawSilo(x, baseY, w, resourceId) {
   ctx.strokeRect(x + 3, top + 3, w - 6, h - 6);
   // placa com nome (curto)
   ctx.fillStyle = '#c69042';
-  ctx.fillRect(x + 4, top + 6, w - 8, 14);
+  ctx.fillRect(x + 4, top + 6, w - 8, 16);
   ctx.fillStyle = '#1a0e06';
-  ctx.font = 'bold 9px Georgia';
+  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const short = res.name.length > 12 ? res.name.slice(0, 11) + '…' : res.name;
-  ctx.fillText(short, x + w / 2, top + 13);
+  ctx.fillText(short, x + w / 2, top + 14);
   // contador
   ctx.fillStyle = '#1a0e06';
-  ctx.font = 'bold 10px Georgia';
+  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
   ctx.textBaseline = 'top';
   const cheio = fillPct >= 0.99;
   ctx.fillText(`${Math.floor(stock)}/${cap}${cheio ? ' ★' : ''}`, x + w / 2, baseY + 2);
@@ -121,8 +121,9 @@ function drawFactories() {
     ctx.fillRect(rect.x, rect.y, rect.w, 6);
     // janelas
     ctx.fillStyle = '#f1e3c2';
-    for (let j = 0; j < 2; j++) {
-      ctx.fillRect(rect.x + 10 + j * 30, rect.y + 22, 18, 16);
+    const winsPerRow = Math.max(2, Math.floor((rect.w - 20) / 26));
+    for (let j = 0; j < winsPerRow; j++) {
+      ctx.fillRect(rect.x + 10 + j * 26, rect.y + 22, 16, 14);
     }
     // chaminé com fumaça
     ctx.fillStyle = '#3a1f0a';
@@ -142,7 +143,7 @@ function drawFactories() {
     ctx.fillStyle = '#c69042';
     ctx.fillRect(rect.x + 4, rect.y + rect.h - 22, rect.w - 8, 16);
     ctx.fillStyle = '#1a0e06';
-    ctx.font = 'bold 9px Georgia';
+    ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(recipeName.length > 14 ? recipeName.slice(0, 13) + '…' : recipeName, rect.x + rect.w / 2, rect.y + rect.h - 14);
@@ -163,12 +164,12 @@ function drawFactories() {
     ctx.lineWidth = 2;
     ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
     ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(90,52,22,0.5)';
-    ctx.font = '10px Georgia';
+    ctx.fillStyle = 'rgba(90,52,22,0.7)';
+    ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('SLOT', rect.x + rect.w / 2, rect.y + rect.h / 2);
-    ctx.fillText(fmtMoney(CFG.factoryCosts[i]), rect.x + rect.w / 2, rect.y + rect.h / 2 + 14);
+    ctx.fillText('SLOT', rect.x + rect.w / 2, rect.y + rect.h / 2 - 6);
+    ctx.fillText(fmtMoney(CFG.factoryCosts[i]), rect.x + rect.w / 2, rect.y + rect.h / 2 + 10);
   }
 }
 
@@ -202,14 +203,14 @@ function drawCity() {
   }
   // placa com nome
   const cityLabel = (state.currentCity || 'Florianópolis').toUpperCase();
-  ctx.font = 'bold 10px Georgia';
-  const labelW = Math.max(110, ctx.measureText(cityLabel).width + 12);
+  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+  const labelW = Math.max(120, ctx.measureText(cityLabel).width + 16);
   ctx.fillStyle = '#c69042';
-  ctx.fillRect(CITY.x + CITY.w / 2 - labelW / 2, CITY.y, labelW, 16);
+  ctx.fillRect(CITY.x + CITY.w / 2 - labelW / 2, CITY.y, labelW, 18);
   ctx.fillStyle = '#1a0e06';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(cityLabel, CITY.x + CITY.w / 2, CITY.y + 8);
+  ctx.fillText(cityLabel, CITY.x + CITY.w / 2, CITY.y + 9);
 }
 
 // ---------- Estrada + carruagem ----------
@@ -351,48 +352,68 @@ function drawTile(px, py, cell, t) {
   }
   if (t.type === 'ore') {
     const res = R[t.resource];
-    ctx.fillStyle = '#6a4a30';
+    // fundo levemente mais escuro pra destacar chips coloridos
+    ctx.fillStyle = '#4a3020';
     ctx.fillRect(px, py, cell, cell);
+    // chips coloridos do minério
     ctx.fillStyle = res.color;
-    const n = Math.max(3, Math.floor(t.amount / 5));
+    const n = Math.max(4, Math.floor(t.amount / 4));
     for (let i = 0; i < n; i++) {
-      const dx = (px * 7 + i * 5) % (cell - 6);
-      const dy = (py * 11 + i * 7) % (cell - 6);
-      ctx.fillRect(px + 3 + dx, py + 3 + dy, 5, 4);
+      const dx = (px * 7 + i * 5) % (cell - 10);
+      const dy = (py * 11 + i * 7) % (cell - 14);
+      ctx.fillRect(px + 4 + dx, py + 14 + dy, 6, 5);
     }
     const era = eraData(currentEra());
     const locked = !era.deposits.includes(t.resource);
+    // moldura amarela quando minerador alocado
     if (t.worker) {
       ctx.strokeStyle = '#ffd44a';
       ctx.lineWidth = 2;
       ctx.strokeRect(px + 2, py + 2, cell - 4, cell - 4);
     }
-    // abreviação
-    ctx.fillStyle = '#f1e3c2';
-    ctx.font = 'bold 10px Georgia';
+    // === Label de identificação (pílula escura + texto dourado) ===
+    const label = resAbbrev(t.resource);
+    ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+    const labelW = Math.max(22, ctx.measureText(label).width + 8);
+    ctx.fillStyle = 'rgba(20,10,5,0.88)';
+    ctx.fillRect(px + cell / 2 - labelW / 2, py + 1, labelW, 14);
+    ctx.fillStyle = locked ? '#9a8a6a' : '#ffd44a';
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillText(resAbbrev(t.resource), px + cell / 2, py + 2);
-    if (t.worker) drawMinerSprite(px + cell / 2, py + cell - 4);
-    // sobreposição de cadeado se bloqueado pela era
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, px + cell / 2, py + 8);
+    // === Quantidade restante (canto inferior direito, pequeno) ===
+    if (!locked) {
+      const amt = Math.ceil(t.amount);
+      ctx.font = 'bold 10px Arial, sans-serif';
+      const amtTxt = amt + '';
+      const amtW = ctx.measureText(amtTxt).width + 4;
+      ctx.fillStyle = 'rgba(20,10,5,0.75)';
+      ctx.fillRect(px + cell - amtW - 1, py + cell - 12, amtW, 11);
+      ctx.fillStyle = '#f1e3c2';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(amtTxt, px + cell - 3, py + cell - 6);
+    }
+    if (t.worker) drawMinerSprite(px + 8, py + cell - 4);
+    // === Cadeado se bloqueado pela era ===
     if (locked) {
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(px, py, cell, cell);
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(px, py + 16, cell, cell - 16);
       ctx.fillStyle = '#ffd44a';
-      ctx.font = 'bold 16px Georgia';
+      ctx.font = 'bold 18px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('🔒', px + cell / 2, py + cell / 2);
+      ctx.fillText('🔒', px + cell / 2, py + cell / 2 + 8);
     }
   }
 }
 
 function resAbbrev(id) {
   return ({
-    coal:'C', iron_ore:'Fe', copper_ore:'Cu', zinc_ore:'Zn', lead:'Pb',
-    silver_ore:'Ag', gold_ore:'Au', sulfur:'S', saltpeter:'Sa', oil:'Oil',
-    wood:'Wd', stone:'St', clay:'Cl', sand:'Sd', diamond:'Di', ruby:'Ru',
-  })[id] || id.slice(0, 2);
+    coal:'CVO', iron_ore:'FRO', copper_ore:'CBR', zinc_ore:'ZNC', lead:'CHB',
+    silver_ore:'PRT', gold_ore:'OUR', sulfur:'ENX', saltpeter:'SLT', oil:'PET',
+    wood:'MAD', stone:'PED', clay:'ARG', sand:'ARE', diamond:'DIA', ruby:'RUB',
+  })[id] || id.slice(0, 3).toUpperCase();
 }
 
 function drawMinerSprite(cx, by) {
@@ -426,14 +447,14 @@ function drawToolbar() {
     ctx.fillStyle = '#1a0e06';
     ctx.fillRect(x, y, TOOLBAR.w, TOOLBAR.w);
     ctx.fillStyle = selected ? '#ffd44a' : '#f1e3c2';
-    ctx.font = 'bold 18px Georgia';
+    ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(icons[id], x + TOOLBAR.w / 2, y + TOOLBAR.w / 2);
     ctx.fillStyle = '#f1e3c2';
-    ctx.font = '9px Georgia';
+    ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
     ctx.textBaseline = 'top';
-    ctx.fillText(TOOLS[id].name, x + TOOLBAR.w / 2, y + TOOLBAR.w + 2);
+    ctx.fillText(TOOLS[id].name, x + TOOLBAR.w / 2, y + TOOLBAR.w + 3);
   }
 }
 
