@@ -8,6 +8,7 @@ import { initMine, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, 
 import { buyFactory, setRecipe, updateFactories } from './factories.js';
 import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
+import { updateEvents } from './events.js';
 import { draw } from './draw.js';
 import { syncUI, openRecipeModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
@@ -36,6 +37,7 @@ function tick(dt) {
   updateFactories(dt);
   updateWagon(dt);
   updateContract(dt);
+  updateEvents(dt);
   updateDay(dt);
   checkEnd();
 }
@@ -63,12 +65,26 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-// ---------- Canvas: click handler (tools + grid) ----------
+// ---------- Canvas: mouse + click handler (tools + grid) ----------
 const canvas = document.getElementById('game');
-canvas.addEventListener('click', (e) => {
+function canvasCoords(e) {
   const rect = canvas.getBoundingClientRect();
-  const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-  const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+  return {
+    x: (e.clientX - rect.left) * (canvas.width / rect.width),
+    y: (e.clientY - rect.top) * (canvas.height / rect.height),
+  };
+}
+canvas.addEventListener('mousemove', (e) => {
+  const p = canvasCoords(e);
+  state.mouseX = p.x;
+  state.mouseY = p.y;
+});
+canvas.addEventListener('mouseleave', () => {
+  state.mouseX = -1;
+  state.mouseY = -1;
+});
+canvas.addEventListener('click', (e) => {
+  const { x, y } = canvasCoords(e);
 
   // Toolbar (lado direito do grid)
   if (x >= TOOLBAR.x && x < TOOLBAR.x + TOOLBAR.w && y >= TOOLBAR.y) {
@@ -91,6 +107,22 @@ canvas.addEventListener('click', (e) => {
     else if (tool === 'tnt') tryTNT(r, c);
     else if (tool === 'compass') tryCompass(r, c);
     else if (tool === 'miner') tryPlaceWorker(r, c);
+  }
+});
+
+// ---------- Atalhos de teclado ----------
+document.addEventListener('keydown', (e) => {
+  // Ignora se estiver digitando em input/textarea ou se modal aberto
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if (document.querySelector('.modal:not(.hidden)')) return;
+  switch (e.key) {
+    case '1': setTool('pick'); break;
+    case '2': setTool('tnt'); break;
+    case '3': setTool('compass'); break;
+    case '4': setTool('miner'); break;
+    case ' ': e.preventDefault(); state.speed = state.speed > 0 ? 0 : 1; break;
+    case 'u': case 'U': openUpgradesModal(); break;
   }
 });
 

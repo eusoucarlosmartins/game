@@ -34,15 +34,18 @@ export function deliverProduct(amount) {
   state.contract.delivered += amount;
   if (state.contract.delivered >= state.contract.need) {
     const p = R[state.contract.product];
-    const reward = CFG.contractReward + p.price * state.contract.need;
+    const bonus = state.eventContractBonus || 0;
+    const reward = Math.round((CFG.contractReward + p.price * state.contract.need) * (1 + bonus));
     const rpGain = 5 + Math.floor(state.contract.need * 0.6 + p.price * 0.02);
     state.money += reward;
     state.rp += rpGain;
     state.approval = clamp(state.approval + CFG.contractApprovalGain, 0, CFG.approvalMax);
     state.contractsCompleted++;
-    log(`${state.contract.city}: ${p.name} entregue! +${fmtMoney(reward)}, +${rpGain} PP e +${CFG.contractApprovalGain} aprovação.`, 'good');
+    const bonusTxt = bonus > 0 ? ` (+${Math.round(bonus*100)}% evento!)` : '';
+    log(`${state.contract.city}: ${p.name} entregue! +${fmtMoney(reward)}${bonusTxt}, +${rpGain} PP e +${CFG.contractApprovalGain} aprovação.`, 'good');
     state.contract = null;
     state.nextContractIn = rand(5, 9);
+    if (bonus > 0) state.eventContractBonus = 0; // consome o bônus
     checkEraProgression();
   }
 }

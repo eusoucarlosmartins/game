@@ -66,7 +66,7 @@ export const cartCapacity   = () => Math.floor(CFG.cartCapacityBase * (1 + eqMod
 export const cartSpeed      = () => CFG.cartSpeedBase * (1 + eqMod('cartSpd'));
 export const wagonCapacity  = () => Math.floor(CFG.wagonCapacityBase * (1 + eqMod('wagonCap')));
 export const wagonSpeed     = () => CFG.wagonSpeedBase * (1 + eqMod('wagonSpd'));
-export const mineRateMul    = () => 1 + eqMod('mineRate');
+export const mineRateMul    = () => (1 + eqMod('mineRate')) * (state.eventMineMul !== undefined ? state.eventMineMul : 1);
 export const factSpdMul     = () => 1 + eqMod('factSpd');
 export const pileMaxMul     = () => 1 + eqMod('pileMax');
 export const pileMax        = () => Math.floor(CFG.minePileMaxBase * pileMaxMul());

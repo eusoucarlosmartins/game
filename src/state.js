@@ -40,6 +40,14 @@ export const state = {
   rp: 0,
   eraReached: 1,
   log: [],
+
+  // Estado transitório (não persistido)
+  mouseX: -1,
+  mouseY: -1,
+  activeEvent: null,
+  nextEventIn: 45,
+  eventMineMul: 1,
+  eventContractBonus: 0,
 };
 
 export function log(msg, kind = '') {

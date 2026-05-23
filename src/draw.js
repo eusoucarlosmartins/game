@@ -557,20 +557,40 @@ function resAbbrev(id) {
 }
 
 function drawMinerSprite(cx, by) {
-  const t = performance.now() / 200;
+  const t = performance.now() / 220;
   const swing = Math.sin(t) * 3;
+  // pernas
+  ctx.fillStyle = '#2a1810';
+  ctx.fillRect(cx - 4, by - 6, 3, 6);
+  ctx.fillRect(cx + 1, by - 6, 3, 6);
+  // tronco azul
+  ctx.fillStyle = '#3a4a7a';
+  ctx.fillRect(cx - 4, by - 14, 8, 9);
+  // cinto
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(cx - 4, by - 7, 8, 2);
+  // cabeça rosada
+  ctx.fillStyle = '#d8a878';
+  ctx.fillRect(cx - 3, by - 19, 6, 5);
+  // bigode
   ctx.fillStyle = '#3a2a1a';
-  ctx.fillRect(cx - 3, by - 12, 6, 8);
-  ctx.fillStyle = '#8a6a4d';
-  ctx.fillRect(cx - 3, by - 18, 6, 5);
+  ctx.fillRect(cx - 2, by - 16, 4, 1);
+  // chapéu dourado
   ctx.fillStyle = '#c69042';
-  ctx.fillRect(cx - 4, by - 19, 8, 2);
-  ctx.strokeStyle = '#cccccc';
-  ctx.lineWidth = 1.5;
+  ctx.fillRect(cx - 5, by - 20, 10, 2);
+  ctx.fillRect(cx - 3, by - 22, 6, 2);
+  // picareta com cabo de madeira + ponta de aço
+  ctx.strokeStyle = '#5a3416';
+  ctx.lineWidth = 2;
+  const hx = cx + 4, hy = by - 12;
+  const px = hx + 8 + swing;
+  const py = hy - 6 - Math.abs(swing);
   ctx.beginPath();
-  ctx.moveTo(cx + 3, by - 8);
-  ctx.lineTo(cx + 8 + swing, by - 14 - Math.abs(swing));
+  ctx.moveTo(hx, hy);
+  ctx.lineTo(px, py);
   ctx.stroke();
+  ctx.fillStyle = '#8c95a1';
+  ctx.fillRect(px - 2, py - 2, 5, 3);
 }
 
 // ---------- Toolbar ----------
@@ -598,6 +618,91 @@ function drawToolbar() {
   }
 }
 
+// ---------- Tooltip do tile sob o mouse ----------
+function drawTileTooltip() {
+  if (state.mouseX < 0 || state.mouseY < 0) return;
+  if (!state.mine.grid) return;
+  if (state.mouseY < MINE.y) return;
+  if (state.mouseX >= MINE.x + MINE.cols * MINE.cell) return;
+  if (state.mouseY >= MINE.y + MINE.rows * MINE.cell) return;
+  const c = Math.floor((state.mouseX - MINE.x) / MINE.cell);
+  const r = Math.floor((state.mouseY - MINE.y) / MINE.cell);
+  if (c < 0 || c >= MINE.cols || r < 0 || r >= MINE.rows) return;
+  const t = state.mine.grid[r][c];
+  if (!t.revealed) return;
+  // monta as linhas do tooltip
+  let title, sub, color = '#f1e3c2';
+  if (t.type === 'air') { title = 'Túnel'; sub = 'Vazio (pode atravessar)'; }
+  else if (t.type === 'dirt') { title = 'Terra'; sub = 'Cavar: $5'; }
+  else if (t.type === 'stone') { title = 'Pedra'; sub = 'Cavar: $12'; }
+  else if (t.type === 'ore') {
+    const era = eraData(currentEra());
+    const locked = !era.deposits.includes(t.resource);
+    title = R[t.resource].name;
+    sub = `Quantidade: ${Math.ceil(t.amount)} · ${t.worker ? 'minerador ativo' : 'sem trabalhador'}`;
+    if (locked) { sub += ' · 🔒 era bloqueia'; color = '#ffb060'; }
+    else color = R[t.resource].color;
+  }
+  // posiciona o tooltip (evita sair da tela)
+  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+  const titleW = ctx.measureText(title).width;
+  ctx.font = '11px "Segoe UI", Arial, sans-serif';
+  const subW = ctx.measureText(sub).width;
+  const ttW = Math.max(titleW, subW) + 16;
+  const ttH = 38;
+  let tx = state.mouseX + 14;
+  let ty = state.mouseY + 14;
+  if (tx + ttW > W) tx = state.mouseX - ttW - 8;
+  if (ty + ttH > MINE.y + MINE.rows * MINE.cell) ty = state.mouseY - ttH - 4;
+  ctx.fillStyle = 'rgba(20,10,5,0.92)';
+  ctx.fillRect(tx, ty, ttW, ttH);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(tx, ty, ttW, ttH);
+  ctx.fillStyle = color;
+  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(title, tx + 8, ty + 6);
+  ctx.fillStyle = '#f1e3c2';
+  ctx.font = '11px "Segoe UI", Arial, sans-serif';
+  ctx.fillText(sub, tx + 8, ty + 22);
+}
+
+// ---------- Banner do evento ativo ----------
+function drawEventBanner() {
+  if (!state.activeEvent) return;
+  const e = state.activeEvent;
+  const cx = W / 2;
+  const baseY = 0;
+  const bw = 360, bh = 36;
+  // moldura
+  const bg = e.kind === 'bad' ? 'rgba(120,40,30,0.92)'
+            : e.kind === 'good' ? 'rgba(40,80,50,0.92)'
+            : 'rgba(60,40,20,0.92)';
+  ctx.fillStyle = bg;
+  ctx.fillRect(cx - bw / 2, baseY, bw, bh);
+  // barra de progresso de tempo
+  const pct = clamp(e.timeLeft / (e.total || 1), 0, 1);
+  ctx.fillStyle = e.kind === 'bad' ? '#d05a3a' : '#c69042';
+  ctx.fillRect(cx - bw / 2, baseY + bh - 4, bw * pct, 4);
+  // texto
+  const icon = e.kind === 'good' ? '✨' : e.kind === 'bad' ? '⚠' : '📰';
+  ctx.fillStyle = '#f1e3c2';
+  ctx.font = 'bold 13px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${icon} ${e.name}`, cx - bw / 2 + 10, baseY + 12);
+  ctx.font = '11px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = 'rgba(241,227,194,0.85)';
+  ctx.fillText(e.desc, cx - bw / 2 + 10, baseY + 26);
+  // contador
+  ctx.fillStyle = '#f1e3c2';
+  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(`${Math.ceil(e.timeLeft)}s`, cx + bw / 2 - 10, baseY + 18);
+}
+
 // ---------- Entry ----------
 export function draw() {
   drawSky();
@@ -608,4 +713,6 @@ export function draw() {
   drawWagon();
   drawMineGrid();
   drawToolbar();
+  drawEventBanner();
+  drawTileTooltip();
 }
