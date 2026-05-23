@@ -1,7 +1,7 @@
 // mine.test.js — múltiplas minas, geração de grid, workers globais
 import { describe, it, expect, beforeEach } from 'vitest';
 import { state } from '../src/state.js';
-import { initMines, tryHireWorker, workersAvailable, workersActive, activeMine } from '../src/mine.js';
+import { initMines, tryHireWorker, workersAvailable, workersActive, activeMine, buyMine, isMineOwned, canBuyMine } from '../src/mine.js';
 import { MINE } from '../src/data.js';
 
 beforeEach(() => {
@@ -92,6 +92,64 @@ describe('activeMine', () => {
     expect(activeMine().name).toBe('Mina Central');
     state.activeMineIdx = 1;
     expect(activeMine().name).toBe('Mina do Vale');
+  });
+});
+
+describe('buyMine (catálogo de minas pagas)', () => {
+  it('isMineOwned reconhece minas iniciais como possuídas', () => {
+    initMines();
+    expect(isMineOwned('central')).toBe(true);
+    expect(isMineOwned('vale')).toBe(true);
+    expect(isMineOwned('mar')).toBe(false);
+    expect(isMineOwned('serra')).toBe(false);
+  });
+
+  it('canBuyMine bloqueia se era atual insuficiente', () => {
+    initMines();
+    state.contractsCompleted = 0; // era 1
+    state.money = 10000;
+    expect(canBuyMine('mar')).toBe(false); // requer era 3
+    expect(canBuyMine('serra')).toBe(false); // requer era 4
+  });
+
+  it('canBuyMine bloqueia se dinheiro insuficiente', () => {
+    initMines();
+    state.contractsCompleted = 30; // era 5+
+    state.money = 100;
+    expect(canBuyMine('mar')).toBe(false);
+    expect(canBuyMine('serra')).toBe(false);
+  });
+
+  it('buyMine adiciona mina ao estado, gasta dinheiro e aplica viés', () => {
+    initMines();
+    state.contractsCompleted = 30;
+    state.money = 5000;
+    expect(state.mines.length).toBe(2);
+    buyMine('mar');
+    expect(state.mines.length).toBe(3);
+    expect(state.mines[2].id).toBe('mar');
+    expect(state.mines[2].name).toBe('Mina do Mar');
+    expect(state.money).toBe(5000 - 1500);
+    // viés: deve ter ao menos um veio dos recursos do mar
+    const found = new Set();
+    for (let r = 0; r < state.mines[2].grid.length; r++) {
+      for (let c = 0; c < state.mines[2].grid[r].length; c++) {
+        const t = state.mines[2].grid[r][c];
+        if (t.type === 'ore') found.add(t.resource);
+      }
+    }
+    // ao menos 1 dos recursos com viés deve existir
+    const biased = ['sand', 'sulfur', 'saltpeter', 'oil'];
+    expect(biased.some((b) => found.has(b))).toBe(true);
+  });
+
+  it('buyMine é no-op se já possui', () => {
+    initMines();
+    state.money = 5000;
+    state.contractsCompleted = 30;
+    buyMine('central'); // já possuída
+    expect(state.mines.length).toBe(2); // não mudou
+    expect(state.money).toBe(5000);
   });
 });
 

@@ -5,7 +5,7 @@ import { $ } from './util.js';
 import { ROMAN, CFG, MINE } from './data.js';
 import { currentEra } from './progression.js';
 import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL } from './save.js';
-import { initMines, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine } from './mine.js';
+import { initMines, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine } from './mine.js';
 import { buyFactory, setRecipe, updateFactories } from './factories.js';
 import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
@@ -13,7 +13,7 @@ import { updateEvents } from './events.js';
 import { updateProjects, activateProject, cancelProject } from './projects.js';
 import { play, toggleMute, unlockOnFirstGesture } from './audio.js';
 import { draw } from './draw.js';
-import { syncUI, openRecipeModal, closeModal } from './ui.js';
+import { syncUI, openRecipeModal, openBuyMineModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
 import { sellRaw, sellAllRaw, sellProduct, sellAllProduct } from './market.js';
 import { W, TOOLBAR, MINE_BACK_BTN, OVERWORLD, factoryRect } from './geometry.js';
@@ -112,17 +112,22 @@ canvas.addEventListener('click', (e) => {
   const { x, y } = canvasCoords(e);
 
   if (state.scene === 'overworld') {
-    // Click em qualquer entrada de mina → seleciona essa mina e entra na cena
+    // Click em entrada de mina (ocupada → entra; vazia → abre catálogo)
     for (let i = 0; i < OVERWORLD.mineEntrances.length; i++) {
       if (hitTest(x, y, OVERWORLD.mineEntrances[i])) {
-        setActiveMine(i);
-        state.scene = 'mine';
-        if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 0) {
-          state.tutorial.step = 1;
-        }
-        play('whoosh');
         const m = state.mines[i];
-        log(`Entrou em ${m ? m.name : 'mina'}. Aloque mineradores em veios descobertos.`);
+        if (m) {
+          setActiveMine(i);
+          state.scene = 'mine';
+          if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 0) {
+            state.tutorial.step = 1;
+          }
+          play('whoosh');
+          log(`Entrou em ${m.name}. Aloque mineradores em veios descobertos.`);
+        } else {
+          openBuyMineModal();
+          play('click');
+        }
         return;
       }
     }
@@ -267,6 +272,11 @@ document.addEventListener('click', (e) => {
     case 'project-start':  activateProject(t.dataset.id); break;
     case 'project-cancel': cancelProject(); break;
     case 'tool-select':    setTool(t.dataset.tool); play('click'); break;
+    case 'confirm-buy-mine': {
+      buyMine(t.dataset.id);
+      closeModal('modal-buy-mine');
+      break;
+    }
   }
 });
 

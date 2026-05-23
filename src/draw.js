@@ -944,7 +944,40 @@ function drawMineEntrances() {
   for (let i = 0; i < OVERWORLD.mineEntrances.length; i++) {
     const rect = OVERWORLD.mineEntrances[i];
     const mine = state.mines[i];
-    drawMineEntrance(rect, mine, i);
+    if (mine) {
+      drawMineEntrance(rect, mine, i);
+    } else {
+      drawEmptyMineSlot(rect, i);
+    }
+  }
+}
+
+function drawEmptyMineSlot(e, idx) {
+  // outline tracejado
+  ctx.strokeStyle = 'rgba(122,75,37,0.55)';
+  ctx.setLineDash([8, 6]);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(e.x, e.y, e.w, e.h);
+  ctx.setLineDash([]);
+  // ícone "+" central
+  ctx.fillStyle = 'rgba(90,52,22,0.55)';
+  ctx.font = 'bold 38px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('+', e.x + e.w / 2, e.y + e.h / 2 - 10);
+  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+  ctx.fillText('NOVA MINA', e.x + e.w / 2, e.y + e.h / 2 + 18);
+  ctx.font = '9px "Segoe UI"';
+  ctx.fillStyle = 'rgba(90,52,22,0.7)';
+  ctx.fillText(`SLOT ${idx + 1}`, e.x + e.w / 2, e.y + 14);
+  // hover destaca
+  const hovering =
+    state.mouseX >= e.x && state.mouseX < e.x + e.w &&
+    state.mouseY >= e.y && state.mouseY < e.y + e.h;
+  if (hovering) {
+    ctx.strokeStyle = 'rgba(255,220,80,0.7)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(e.x - 3, e.y - 3, e.w + 6, e.h + 6);
   }
 }
 

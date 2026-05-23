@@ -1,8 +1,8 @@
 // mine.js — múltiplas minas com grid próprio, fog of war, ferramentas,
 // poço de elevador animado e depleção de recursos.
 import { state, log } from './state.js';
-import { R, DEPOSIT_TYPES, MINE, TOOLS, SILO_DEFAULT_CAP, WORKER_COST } from './data.js';
-import { irand } from './util.js';
+import { R, DEPOSIT_TYPES, MINE, TOOLS, SILO_DEFAULT_CAP, WORKER_COST, MINE_CATALOG } from './data.js';
+import { irand, fmtMoney } from './util.js';
 import { mineRateMul, currentEra, eraData } from './progression.js';
 import { play } from './audio.js';
 
@@ -12,27 +12,63 @@ export function isResourceUnlocked(resource) {
 
 // ----- Setup das minas no boot -----
 export function initMines() {
-  state.mines = [
-    createMine('mina_central', 'Mina Central'),
-    createMine('mina_do_vale', 'Mina do Vale'),
-  ];
+  // Cria automaticamente todas as minas com cost=0 (iniciais)
+  state.mines = MINE_CATALOG
+    .filter((c) => c.cost === 0)
+    .map((c) => createMineFromCatalog(c));
   state.activeMineIdx = 0;
 }
 
-function createMine(id, name) {
+function createMineFromCatalog(catalog) {
   const mine = {
-    id,
-    name,
+    id: catalog.id,
+    name: catalog.name,
     grid: [],
     tntFx: null,
     exhausted: false,
     elevator: { y: 0, dir: 1 },
   };
-  buildMineGrid(mine);
+  buildMineGrid(mine, catalog.oreBias);
   return mine;
 }
 
-function buildMineGrid(mine) {
+// ----- Compra de novas minas -----
+export function buyMine(catalogId) {
+  const catalog = MINE_CATALOG.find((c) => c.id === catalogId);
+  if (!catalog) return;
+  if (isMineOwned(catalogId)) return;
+  if (state.money < catalog.cost) {
+    log(`Sem dinheiro pra abrir ${catalog.name}.`, 'bad');
+    return;
+  }
+  if (currentEra() < catalog.eraReq) {
+    log(`${catalog.name} requer era ${catalog.eraReq}.`, 'bad');
+    return;
+  }
+  state.money -= catalog.cost;
+  state.mines.push(createMineFromCatalog(catalog));
+  log(`✨ Nova mina aberta: ${catalog.name} por ${fmtMoney(catalog.cost)}.`, 'good');
+  play('success');
+}
+
+export function isMineOwned(catalogId) {
+  return state.mines.some((m) => m.id === catalogId);
+}
+
+export function canBuyMine(catalogId) {
+  const catalog = MINE_CATALOG.find((c) => c.id === catalogId);
+  if (!catalog) return false;
+  if (isMineOwned(catalogId)) return false;
+  if (state.money < catalog.cost) return false;
+  if (currentEra() < catalog.eraReq) return false;
+  return true;
+}
+
+export function getMineCatalog() {
+  return MINE_CATALOG;
+}
+
+function buildMineGrid(mine, oreBias) {
   mine.grid = [];
   for (let r = 0; r < MINE.rows; r++) {
     const row = [];
@@ -45,7 +81,7 @@ function buildMineGrid(mine) {
     }
     mine.grid.push(row);
   }
-  placeOreVeins(mine.grid);
+  placeOreVeins(mine.grid, oreBias);
   // Túnel inicial: 5 colunas no topo central já cavadas + 2 veios expostos
   const cc = Math.floor(MINE.cols / 2);
   for (let c = cc - 2; c <= cc + 2; c++) mine.grid[0][c] = airTile(true);
@@ -63,7 +99,7 @@ function oreTile(resource, amount, revealed) {
   return { type: 'ore', resource, amount, revealed: !!revealed, worker: false };
 }
 
-function placeOreVeins(grid) {
+function placeOreVeins(grid, oreBias) {
   for (const dep of DEPOSIT_TYPES) {
     const cost = dep.cost;
     let veinCount, minDepth, veinSize;
@@ -72,9 +108,19 @@ function placeOreVeins(grid) {
     else if (cost < 500)       { veinCount = 4; minDepth = 4;  veinSize = 4; }
     else if (cost < 1000)      { veinCount = 3; minDepth = 6;  veinSize = 3; }
     else                       { veinCount = 2; minDepth = 8;  veinSize = 3; }
+    // Aplica viés regional: minérios "biased" dobram e ficam mais rasos;
+    // outros minérios pagos reduzem pela metade.
+    if (oreBias && oreBias.length > 0) {
+      if (oreBias.includes(dep.id)) {
+        veinCount = Math.floor(veinCount * 2);
+        minDepth = Math.max(1, minDepth - 2);
+      } else if (cost > 0) {
+        veinCount = Math.max(1, Math.floor(veinCount * 0.45));
+      }
+    }
     for (let v = 0; v < veinCount; v++) {
       const sr = irand(minDepth, MINE.rows - 1);
-      const sc = irand(2, MINE.cols - 2); // pula col 0 (shaft) e col 1
+      const sc = irand(2, MINE.cols - 2);
       carveVein(grid, sr, sc, dep.id, veinSize);
     }
   }

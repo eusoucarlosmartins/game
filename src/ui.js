@@ -1,7 +1,8 @@
 // @ts-nocheck
 // ui.js — renderização da sidebar e modais (receita)
 import { state } from './state.js';
-import { R, RECIPE_BY_ID, RECIPES_BY_TIER, EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY_ID, RES_CATS, ERAS, ROMAN, CFG, TOOLS, WORKER_COST } from './data.js';
+import { R, RECIPE_BY_ID, RECIPES_BY_TIER, EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY_ID, RES_CATS, ERAS, ROMAN, CFG, TOOLS, WORKER_COST, MINE_CATALOG } from './data.js';
+import { isMineOwned } from './mine.js';
 import { $, fmtMoney } from './util.js';
 import { currentEra, eraData, isRecipeUnlocked } from './progression.js';
 import { ingredientHave } from './factories.js';
@@ -419,6 +420,35 @@ export function syncUI() {
 }
 
 export { openModal, closeModal };
+
+export function openBuyMineModal() {
+  const opts = $('buy-mine-options');
+  if (!opts) return;
+  const era = currentEra();
+  let html = '';
+  for (const cat of MINE_CATALOG) {
+    const owned = isMineOwned(cat.id);
+    const eraOk = era >= cat.eraReq;
+    const broke = state.money < cat.cost;
+    const disabled = owned || !eraOk || broke;
+    let status = '';
+    if (owned) status = ' — já aberta';
+    else if (!eraOk) status = ` — Era ${ROMAN[cat.eraReq - 1]} necessária`;
+    else if (broke) status = ' — sem dinheiro';
+    const biasTxt = cat.oreBias
+      ? `Viés: ${cat.oreBias.map((id) => R[id].name).join(', ')}`
+      : 'Distribuição balanceada';
+    html += `
+      <button class="grid-option" data-action="confirm-buy-mine" data-id="${cat.id}" ${disabled ? 'disabled' : ''}>
+        <div class="grid-option-title">⛏ ${cat.name}${owned ? ' ✓' : ''}</div>
+        <div class="grid-option-detail">${cat.desc}<br><em>${biasTxt}</em></div>
+        <div class="grid-option-cost">${cat.cost === 0 ? 'Inicial (grátis)' : fmtMoney(cat.cost)}${status}</div>
+      </button>
+    `;
+  }
+  opts.innerHTML = html;
+  openModal('modal-buy-mine');
+}
 
 export function openRecipeModal(factoryIndex) {
   const opts = $('recipe-options');

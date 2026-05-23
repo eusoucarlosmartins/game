@@ -224,6 +224,48 @@ export const TOOLS = {
 };
 export const SILO_DEFAULT_CAP = 400;
 export const WORKER_COST = 80;
+
+// ---------- CATÁLOGO DE MINAS ----------
+// id: chave única
+// name/desc: para UI
+// cost: $ para comprar (0 = inicial, ganha de graça)
+// eraReq: era mínima pra liberar a compra
+// oreBias: lista de recursos cuja densidade é aumentada nesta mina
+//   (e os outros recursos pagos têm densidade reduzida pra metade)
+export const MINE_CATALOG = [
+  {
+    id: 'central',
+    name: 'Mina Central',
+    desc: 'Mina balanceada inicial — bom pra começar.',
+    cost: 0,
+    eraReq: 1,
+    oreBias: null,
+  },
+  {
+    id: 'vale',
+    name: 'Mina do Vale',
+    desc: 'Segunda mina balanceada inicial.',
+    cost: 0,
+    eraReq: 1,
+    oreBias: null,
+  },
+  {
+    id: 'mar',
+    name: 'Mina do Mar',
+    desc: 'Litoral catarinense — abundante em areia, enxofre, salitre e petróleo.',
+    cost: 1500,
+    eraReq: 3,
+    oreBias: ['sand', 'sulfur', 'saltpeter', 'oil'],
+  },
+  {
+    id: 'serra',
+    name: 'Mina da Serra',
+    desc: 'Serra Geral — concentra prata, ouro, rubi e diamante (mais fundos).',
+    cost: 3000,
+    eraReq: 4,
+    oreBias: ['silver_ore', 'gold_ore', 'ruby', 'diamond'],
+  },
+];
 export const CFG = {
   startMoney: 700,
   minerCost: 60,

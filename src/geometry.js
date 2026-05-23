@@ -7,11 +7,13 @@ export const H = 720;
 
 // ---------- Overworld (mapa) ----------
 export const OVERWORLD = {
-  // Entradas de minas (múltiplas — empilhadas à esquerda)
-  // Cada uma corresponde a state.mines[idx] pelo índice.
+  // Entradas de minas (até 4 slots empilhados à esquerda)
+  // Slots vazios mostram "+ NOVA MINA" e abrem modal de compra.
   mineEntrances: [
-    { x: 30, y: 230, w: 190, h: 190 }, // Mina Central (cima)
-    { x: 30, y: 460, w: 190, h: 190 }, // Mina do Vale (baixo)
+    { x: 20, y: 130, w: 170, h: 150 }, // Mina Central
+    { x: 20, y: 295, w: 170, h: 150 }, // Mina do Vale
+    { x: 20, y: 460, w: 170, h: 150 }, // 3ª (Mina do Mar)
+    { x: 20, y: 620, w: 170, h: 95  }, // 4ª (Mina da Serra)
   ],
   // Cluster de fábricas no centro
   factoryArea:  { x: 380, y: 280, w: 380, h: 180, gap: 12, slots: 3 },
@@ -19,10 +21,12 @@ export const OVERWORLD = {
   city:         { x: 880, y: 200, w: 340, h: 420 },
   // Estrada por onde a carruagem vai/volta (entre fábricas e cidade)
   road:         { y: 490, x1: 770, x2: 880 },
-  // Linhas pontilhadas decorativas das minas até as fábricas
+  // Linhas pontilhadas decorativas das minas até as fábricas (uma por slot)
   dottedMineToFactory: [
-    { x1: 220, y1: 320, x2: 380, y2: 360 },
-    { x1: 220, y1: 550, x2: 380, y2: 460 },
+    { x1: 200, y1: 220, x2: 380, y2: 340 },
+    { x1: 200, y1: 380, x2: 380, y2: 380 },
+    { x1: 200, y1: 540, x2: 380, y2: 420 },
+    { x1: 200, y1: 660, x2: 380, y2: 450 },
   ],
   // Nodos clicáveis (atalhos visíveis no mapa pra abas do sidebar)
   mercadoNode:  { x: 300, y: 540, w: 90,  h: 64 },
