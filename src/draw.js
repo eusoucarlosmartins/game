@@ -173,44 +173,184 @@ function drawFactories() {
   }
 }
 
-// ---------- Cidade compacta ----------
+// ---------- Cidade colonial brasileira ----------
 function drawCity() {
+  const cx0 = CITY.x;
+  const w = CITY.w;
+
+  // base de terra (chão da cidade)
   ctx.fillStyle = '#a07a4a';
+  ctx.fillRect(cx0 - 6, GROUND_Y - 3, w + 12, 6);
+
+  // Casa esquerda (amarela com telha vermelha)
+  drawColonialHouse(cx0 + 4,  GROUND_Y, 32, 92, '#e8c87a', '#a82e1c');
+  // Igreja no centro (mais alta, com torre)
+  drawColonialChurch(cx0 + w / 2 - 20, GROUND_Y);
+  // Casa direita (verde com telha)
+  drawColonialHouse(cx0 + w - 36, GROUND_Y, 32, 85, '#b8c8a8', '#8a4a2a');
+
+  // Placa "WESTERN" no topo
+  drawCitySign(cx0 + w / 2, CITY.y);
+}
+
+function drawColonialHouse(x, baseY, w, h, faceColor, roofColor) {
+  const top = baseY - h;
+  // paredes
+  ctx.fillStyle = faceColor;
+  ctx.fillRect(x, top, w, h);
+  // rodapé escuro
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x, baseY - 5, w, 5);
+  // telhado triangular
+  ctx.fillStyle = roofColor;
   ctx.beginPath();
-  ctx.moveTo(CITY.x - 6, GROUND_Y);
-  ctx.lineTo(CITY.x + CITY.w / 2, CITY.y + 30);
-  ctx.lineTo(CITY.x + CITY.w + 6, GROUND_Y);
+  ctx.moveTo(x - 4, top);
+  ctx.lineTo(x + w / 2, top - 14);
+  ctx.lineTo(x + w + 4, top);
   ctx.closePath();
   ctx.fill();
-  const buildings = [
-    { x: 12, y: 60, w: 36, h: 130, c: '#a85a2a' },
-    { x: 52, y: 38, w: 40, h: 152, c: '#7a4b25' },
-    { x: 96, y: 70, w: 30, h: 120, c: '#5a3416' },
-  ];
-  for (const b of buildings) {
-    ctx.fillStyle = b.c;
-    ctx.fillRect(CITY.x + b.x, CITY.y + b.y, b.w, b.h);
-    ctx.fillStyle = '#3a1f0a';
-    ctx.fillRect(CITY.x + b.x - 2, CITY.y + b.y - 4, b.w + 4, 4);
-    ctx.fillStyle = '#f1e3c2';
-    for (let row = 0; row < Math.floor(b.h / 18); row++) {
-      for (let col = 0; col < Math.floor(b.w / 12); col++) {
-        if ((row + col) % 2 === 0) {
-          ctx.fillRect(CITY.x + b.x + 3 + col * 12, CITY.y + b.y + 6 + row * 18, 5, 7);
-        }
-      }
-    }
+  // beirado sombreado
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(x - 4, top, w + 8, 2);
+  // ripas do telhado (telhas)
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const r = i / 4;
+    const lx = x - 4 + (w + 8) * r;
+    const ly = top - 14 * (1 - Math.abs(r - 0.5) * 2);
+    ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx, top); ctx.stroke();
   }
-  // placa com nome
+  // porta central
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x + w / 2 - 4, baseY - 20, 8, 15);
+  // maçaneta
+  ctx.fillStyle = '#c69042';
+  ctx.fillRect(x + w / 2 + 2, baseY - 13, 1.5, 2);
+  // janelas (2 se cabe, 1 se for casa estreita)
+  const wins = w >= 28 ? 2 : 1;
+  for (let i = 0; i < wins; i++) {
+    const wx = wins === 2 ? (i === 0 ? x + 4 : x + w - 12) : x + w / 2 - 4;
+    const wy = top + 14;
+    ctx.fillStyle = '#a8c8d8';
+    ctx.fillRect(wx, wy, 8, 10);
+    ctx.strokeStyle = '#3a1f0a';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(wx, wy, 8, 10);
+    // cruz da janela
+    ctx.beginPath();
+    ctx.moveTo(wx + 4, wy); ctx.lineTo(wx + 4, wy + 10);
+    ctx.moveTo(wx, wy + 5); ctx.lineTo(wx + 8, wy + 5);
+    ctx.stroke();
+  }
+}
+
+function drawColonialChurch(x, baseY) {
+  const w = 40, h = 110;
+  const top = baseY - h;
+  // corpo branco (caiado)
+  ctx.fillStyle = '#f1e3c2';
+  ctx.fillRect(x, top, w, h);
+  // rodapé
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x, baseY - 5, w, 5);
+  // telhado triangular (vermelho)
+  ctx.fillStyle = '#a82e1c';
+  ctx.beginPath();
+  ctx.moveTo(x - 4, top);
+  ctx.lineTo(x + w / 2, top - 14);
+  ctx.lineTo(x + w + 4, top);
+  ctx.closePath();
+  ctx.fill();
+  // torre central (sobe acima do telhado)
+  const tx = x + w / 2 - 6;
+  const ty = top - 38;
+  ctx.fillStyle = '#f1e3c2';
+  ctx.fillRect(tx, ty, 12, 40);
+  // teto piramidal da torre
+  ctx.fillStyle = '#a82e1c';
+  ctx.beginPath();
+  ctx.moveTo(tx - 3, ty);
+  ctx.lineTo(tx + 6, ty - 14);
+  ctx.lineTo(tx + 15, ty);
+  ctx.closePath();
+  ctx.fill();
+  // arco do sino
+  ctx.fillStyle = '#1a0e06';
+  ctx.beginPath();
+  ctx.arc(tx + 6, ty + 12, 5, Math.PI, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(tx + 1, ty + 12, 10, 4);
+  // cruz no topo
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(tx + 5, ty - 22, 2, 10);
+  ctx.fillRect(tx + 3, ty - 18, 6, 2);
+  // porta arqueada principal
+  ctx.fillStyle = '#5a3416';
+  ctx.beginPath();
+  ctx.arc(x + w / 2, baseY - 14, 6, Math.PI, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(x + w / 2 - 6, baseY - 14, 12, 9);
+  // detalhe vertical na porta
+  ctx.strokeStyle = '#3a1f0a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x + w / 2, baseY - 20);
+  ctx.lineTo(x + w / 2, baseY - 5);
+  ctx.stroke();
+  // janela arqueada acima da porta
+  const jy = top + 30;
+  ctx.fillStyle = '#a8c8d8';
+  ctx.beginPath();
+  ctx.arc(x + w / 2, jy, 5, Math.PI, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(x + w / 2 - 5, jy, 10, 8);
+  ctx.strokeStyle = '#3a1f0a';
+  ctx.beginPath();
+  ctx.arc(x + w / 2, jy, 5, Math.PI, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeRect(x + w / 2 - 5, jy, 10, 8);
+}
+
+function drawCitySign(centerX, topY) {
   const cityLabel = (state.currentCity || 'Florianópolis').toUpperCase();
   ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
-  const labelW = Math.max(120, ctx.measureText(cityLabel).width + 16);
+  const labelW = Math.max(120, ctx.measureText(cityLabel).width + 18);
+  const labelH = 18;
+  // moldura escura
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(centerX - labelW / 2 - 2, topY - 2, labelW + 4, labelH + 4);
+  // tabuleta de madeira
   ctx.fillStyle = '#c69042';
-  ctx.fillRect(CITY.x + CITY.w / 2 - labelW / 2, CITY.y, labelW, 18);
+  ctx.fillRect(centerX - labelW / 2, topY, labelW, labelH);
+  // textura de grão da madeira
+  ctx.strokeStyle = 'rgba(122,75,37,0.4)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const y = topY + (labelH / 4) * i;
+    ctx.beginPath(); ctx.moveTo(centerX - labelW / 2 + 4, y); ctx.lineTo(centerX + labelW / 2 - 4, y); ctx.stroke();
+  }
+  // texto
   ctx.fillStyle = '#1a0e06';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(cityLabel, CITY.x + CITY.w / 2, CITY.y + 9);
+  ctx.fillText(cityLabel, centerX, topY + labelH / 2);
+  // pregos nos cantos
+  ctx.fillStyle = '#5a3416';
+  for (const dx of [-labelW / 2 + 5, labelW / 2 - 5]) {
+    ctx.beginPath();
+    ctx.arc(centerX + dx, topY + labelH / 2, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // cordas pendurando da tabuleta (efeito "western swing")
+  ctx.strokeStyle = '#3a1f0a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(centerX - labelW / 2, topY);
+  ctx.lineTo(centerX - labelW / 2 - 6, topY - 6);
+  ctx.moveTo(centerX + labelW / 2, topY);
+  ctx.lineTo(centerX + labelW / 2 + 6, topY - 6);
+  ctx.stroke();
 }
 
 // ---------- Estrada + carruagem ----------

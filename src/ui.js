@@ -289,6 +289,7 @@ function renderEraBanner() {
 
 // Hook do modal de upgrades (registrado por upgrades.js)
 let upgradesRefreshFn = null;
+let lastUpgRender = 0;
 export function registerUpgradesRefresh(fn) { upgradesRefreshFn = fn; }
 
 export function syncUI() {
@@ -315,7 +316,13 @@ export function syncUI() {
 
   const upgModal = $('modal-upgrades');
   if (upgModal && !upgModal.classList.contains('hidden') && upgradesRefreshFn) {
-    upgradesRefreshFn();
+    // Throttle: refresh full do modal a cada 600ms para não recriar
+    // os botões durante mousedown/mouseup (que cancelava o click).
+    const now = performance.now();
+    if (now - lastUpgRender > 600) {
+      upgradesRefreshFn();
+      lastUpgRender = now;
+    }
   }
 }
 
