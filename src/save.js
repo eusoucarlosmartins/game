@@ -13,7 +13,7 @@ const PERSIST_KEYS = [
   'contract','currentCity','nextContractIn','contractsCompleted',
   'equipment','research','rp','eraReached','log',
   'projects','permContractBonus','passiveIncome','approvalFloor',
-  'muted','scene',
+  'muted','scene','tutorial',
 ];
 
 let lastSaveTime = 0;

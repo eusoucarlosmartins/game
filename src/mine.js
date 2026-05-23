@@ -199,6 +199,10 @@ export function tryPlaceWorker(r, c) {
   t.worker = true;
   log(`Minerador alocado em ${R[t.resource].name}.`);
   play('click');
+  // Avança o tutorial quando o primeiro minerador é alocado
+  if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 1) {
+    state.tutorial.step = 2;
+  }
 }
 
 export function workersAvailable() {

@@ -1025,6 +1025,8 @@ function drawOverworld() {
   const d = OVERWORLD.dottedMineToFactory;
   drawDottedRoute(d.x1, d.y, d.x2, d.y);
   drawMineEntrance();
+  drawMercadoNode();
+  drawPesquisaNode();
   drawFactories();
   drawFactoryRecipePanels();
   drawCity();
@@ -1032,6 +1034,141 @@ function drawOverworld() {
   drawWagon();
   drawActiveProjectPanel();
   drawContractPanelOverworld();
+}
+
+// Nodo do Mercado — clicável (abre aba Mercado)
+function drawMercadoNode() {
+  const n = OVERWORLD.mercadoNode;
+  const { x, y, w, h } = n;
+  // base / fundo de tijolo
+  ctx.fillStyle = '#8a3a1a';
+  ctx.fillRect(x, y + 8, w, h - 8);
+  // padrão de tijolos
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.lineWidth = 1;
+  for (let yy = y + 14; yy < y + h - 4; yy += 6) {
+    ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + w, yy); ctx.stroke();
+  }
+  // toldo listrado amarelo/vermelho
+  ctx.fillStyle = '#e8c060';
+  ctx.fillRect(x - 6, y + 4, w + 12, 12);
+  ctx.fillStyle = '#a82e1c';
+  for (let i = 0; i < 5; i++) {
+    ctx.fillRect(x - 6 + i * (w + 12) / 5, y + 4, (w + 12) / 10, 12);
+  }
+  // mercadorias (caixas + barril)
+  ctx.fillStyle = '#7a4b25';
+  ctx.fillRect(x + 8, y + 26, 16, 18);
+  ctx.fillRect(x + 28, y + 26, 16, 18);
+  ctx.fillRect(x + 48, y + 26, 16, 18);
+  // moeda dourada na fachada
+  ctx.fillStyle = '#ffd700';
+  ctx.beginPath();
+  ctx.arc(x + w - 14, y + 32, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#1a0e06';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // placa "MERCADO"
+  drawNodeLabel(x, y + h, w, 'MERCADO', 'overworld');
+  drawNodeHoverHighlight(n);
+}
+
+// Nodo da Pesquisa — clicável (abre Upgrades)
+function drawPesquisaNode() {
+  const n = OVERWORLD.pesquisaNode;
+  const { x, y, w, h } = n;
+  // corpo branco (estilo colonial caiado)
+  ctx.fillStyle = '#f1e3c2';
+  ctx.fillRect(x, y, w, h);
+  // base escura
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x, y + h - 4, w, 4);
+  // telhado triangular azul (acadêmico)
+  ctx.fillStyle = '#2a4a7a';
+  ctx.beginPath();
+  ctx.moveTo(x - 6, y);
+  ctx.lineTo(x + w / 2, y - 16);
+  ctx.lineTo(x + w + 6, y);
+  ctx.closePath();
+  ctx.fill();
+  // livro/pergaminho na fachada
+  ctx.fillStyle = '#a82e1c';
+  ctx.fillRect(x + w / 2 - 14, y + 20, 28, 22);
+  ctx.fillStyle = '#f1e3c2';
+  ctx.fillRect(x + w / 2 - 12, y + 22, 24, 18);
+  ctx.strokeStyle = '#1a0e06';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x + w / 2, y + 22);
+  ctx.lineTo(x + w / 2, y + 40);
+  ctx.stroke();
+  // estrelas (pontos de pesquisa)
+  ctx.fillStyle = '#ffd44a';
+  ctx.font = 'bold 12px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('★', x + 12, y + 14);
+  ctx.fillText('★', x + w - 12, y + 14);
+  // placa "PESQUISA"
+  drawNodeLabel(x, y + h, w, 'PESQUISA', 'overworld');
+  drawNodeHoverHighlight(n);
+}
+
+function drawNodeLabel(x, y, w, text, scene) {
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x - 2, y + 2, w + 4, 16);
+  ctx.fillStyle = '#c69042';
+  ctx.fillRect(x, y + 4, w, 12);
+  ctx.fillStyle = '#1a0e06';
+  ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x + w / 2, y + 10);
+  void scene;
+}
+
+function drawNodeHoverHighlight(n) {
+  const hovering =
+    state.mouseX >= n.x && state.mouseX < n.x + n.w &&
+    state.mouseY >= n.y && state.mouseY < n.y + n.h + 22;
+  const t = performance.now() / 700;
+  const pulse = hovering ? 1 : (Math.sin(t) + 1) / 2 * 0.6;
+  if (pulse > 0.1) {
+    ctx.strokeStyle = `rgba(255,220,80,${0.25 + 0.55 * pulse})`;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(n.x - 4, n.y - 4, n.w + 8, n.h + 30);
+  }
+}
+
+// ---------- Tutorial inicial (auto-avança baseado em ações) ----------
+const TUTORIAL_STEPS = [
+  { scene: 'overworld', msg: '👋 Clique na ENTRADA DA MINA à esquerda para começar a cavar.' },
+  { scene: 'mine', msg: '⛏ Selecione a ferramenta MINERADOR (👤 ou tecla 4) e clique num veio descoberto (Fe ou C).' },
+  { scene: 'mine', msg: '✅ Boa! Minério já flui para os silos. Volte ao mapa para acompanhar contratos e fábricas.' },
+];
+
+function drawTutorial() {
+  if (!state.tutorial || state.tutorial.dismissed) return;
+  const step = state.tutorial.step ?? 0;
+  const t = TUTORIAL_STEPS[step];
+  if (!t || t.scene !== state.scene) return;
+  const w = 560;
+  const h = 56;
+  const tx = (W - w) / 2;
+  const ty = state.scene === 'overworld' ? 200 : 90;
+  drawScrollPanel(tx, ty, w, h);
+  ctx.fillStyle = '#3a1f0a';
+  ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(t.msg, tx + w / 2, ty + h / 2 - 4);
+  if (step === 2) {
+    const left = Math.max(0, state.tutorial.autoDismissIn ?? 0);
+    ctx.fillStyle = '#5a3416';
+    ctx.font = '10px "Segoe UI"';
+    ctx.fillText(`Fecha sozinho em ${Math.ceil(left)}s`, tx + w / 2, ty + h - 8);
+  }
 }
 
 // Vilarejo decorativo (não interativo) — só pra dar densidade ao mapa
@@ -1316,4 +1453,5 @@ export function draw() {
     drawOverworld();
   }
   drawEventBanner();
+  drawTutorial();
 }

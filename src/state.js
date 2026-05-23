@@ -55,6 +55,9 @@ export const state = {
   // Cena atual do canvas: 'overworld' (mapa) ou 'mine' (interior da mina)
   scene: 'overworld',
 
+  // Tutorial inicial (auto-avança baseado em ações)
+  tutorial: { step: 0, dismissed: false, autoDismissIn: 12 },
+
   // Estado transitório (não persistido)
   mouseX: -1,
   mouseY: -1,

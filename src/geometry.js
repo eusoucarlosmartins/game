@@ -17,6 +17,9 @@ export const OVERWORLD = {
   road:         { y: 490, x1: 770, x2: 880 },
   // Linha pontilhada decorativa entre mina e fábricas (raw materials "fluem")
   dottedMineToFactory: { y: 500, x1: 280, x2: 380 },
+  // Nodos clicáveis (atalhos visíveis no mapa pra abas do sidebar)
+  mercadoNode:  { x: 300, y: 540, w: 90,  h: 64 },
+  pesquisaNode: { x: 820, y: 540, w: 90,  h: 64 },
 };
 
 // Aliases pra manter compatibilidade com módulos existentes (wagon, draw)

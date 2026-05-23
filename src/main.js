@@ -43,6 +43,11 @@ function tick(dt) {
   updateEvents(dt);
   updateProjects(dt);
   updateDay(dt);
+  // Auto-dismiss do último passo do tutorial
+  if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 2) {
+    state.tutorial.autoDismissIn = (state.tutorial.autoDismissIn ?? 12) - dt;
+    if (state.tutorial.autoDismissIn <= 0) state.tutorial.dismissed = true;
+  }
   checkEnd();
 }
 
@@ -91,6 +96,18 @@ function hitTest(x, y, r) {
   return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 }
 
+function switchTab(name) {
+  const btn = document.querySelector(`.tab[data-tab="${name}"]`);
+  if (btn) btn.click();
+  // Em mobile, abre o drawer pra ver a aba imediatamente
+  const sb = document.querySelector('.sidebar');
+  const bd = document.getElementById('sidebar-backdrop');
+  if (sb && window.matchMedia('(max-width: 900px)').matches) {
+    sb.classList.add('open');
+    if (bd) bd.classList.add('show');
+  }
+}
+
 canvas.addEventListener('click', (e) => {
   const { x, y } = canvasCoords(e);
 
@@ -98,8 +115,23 @@ canvas.addEventListener('click', (e) => {
     // Click na entrada da mina → entra na cena mina
     if (hitTest(x, y, OVERWORLD.mineEntrance)) {
       state.scene = 'mine';
+      if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 0) {
+        state.tutorial.step = 1;
+      }
       play('whoosh');
       log('Entrou na mina. Use a picareta para cavar, e o minerador pra alocar trabalhadores em veios.');
+      return;
+    }
+    // Mercado node → abre aba Mercado
+    if (hitTest(x, y, OVERWORLD.mercadoNode)) {
+      switchTab('market');
+      play('click');
+      return;
+    }
+    // Pesquisa node → abre modal de Upgrades
+    if (hitTest(x, y, OVERWORLD.pesquisaNode)) {
+      openUpgradesModal();
+      play('click');
       return;
     }
     // Click numa fábrica (prédio ou painel acima) → abre modal de receita
@@ -122,6 +154,10 @@ canvas.addEventListener('click', (e) => {
     state.scene = 'overworld';
     play('whoosh');
     return;
+  }
+  // Click em qualquer lugar fecha o último passo do tutorial
+  if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 2) {
+    state.tutorial.dismissed = true;
   }
 
   // Toolbar lateral
@@ -273,6 +309,8 @@ const loaded = loadGame();
 if (loaded) {
   state.eraReached = Math.max(state.eraReached || 1, currentEra());
   if (!state.mine || !state.mine.grid) initMine();
+  // Saves antigos sem campo tutorial: marca como dismissed (não atrapalha)
+  if (!state.tutorial) state.tutorial = { step: 0, dismissed: true, autoDismissIn: 0 };
   log(`Partida carregada (dia ${state.day}, ${state.contractsCompleted} contratos, Era ${ROMAN[state.eraReached - 1]}).`, 'good');
   updateSaveStatus();
 } else {
