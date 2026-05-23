@@ -232,6 +232,28 @@ export const WORKER_COST = 80;
 // eraReq: era mínima pra liberar a compra
 // oreBias: lista de recursos cuja densidade é aumentada nesta mina
 //   (e os outros recursos pagos têm densidade reduzida pra metade)
+// ---------- CONQUISTAS ----------
+// Cada conquista tem: id, name, desc, emoji
+// Desbloqueada uma vez (state.achievements[id] = timestamp)
+export const ACHIEVEMENTS = [
+  { id: 'first_contract',    emoji: '📜', name: 'Primeiro Contrato',  desc: 'Cumpra seu primeiro contrato.' },
+  { id: 'contracts_10',      emoji: '📋', name: 'Burocrata',          desc: 'Complete 10 contratos.' },
+  { id: 'contracts_50',      emoji: '🎖', name: 'Estadista',          desc: 'Complete 50 contratos.' },
+  { id: 'first_project',     emoji: '🏗', name: 'Construtor',         desc: 'Conclua seu primeiro projeto de obra.' },
+  { id: 'era_3',             emoji: '🏘', name: 'Era da Indústria',   desc: 'Alcance a Era III.' },
+  { id: 'era_6',             emoji: '💎', name: 'Era do Luxo',        desc: 'Alcance a Era VI (final).' },
+  { id: 'tiles_100',         emoji: '🪨', name: 'Mineiro',            desc: 'Cave 100 tiles.' },
+  { id: 'tiles_500',         emoji: '⛏', name: 'Mineiro Veterano',   desc: 'Cave 500 tiles.' },
+  { id: 'earnings_10k',      emoji: '💰', name: 'Próspero',           desc: 'Acumule $10.000 em ganhos totais.' },
+  { id: 'earnings_50k',      emoji: '🏦', name: 'Magnata',            desc: 'Acumule $50.000 em ganhos totais.' },
+  { id: 'first_mine_bought', emoji: '🗺', name: 'Expansionista',      desc: 'Compre uma mina paga.' },
+  { id: 'all_mines',         emoji: '👑', name: 'Conquistador',       desc: 'Possua todas as 4 minas do mapa.' },
+  { id: 'mine_exhausted',    emoji: '🚫', name: 'Esgotamento',        desc: 'Esgote uma mina por completo.' },
+  { id: 'mine_regenerated',  emoji: '✨', name: 'Renascimento',       desc: 'Regenere uma mina esgotada.' },
+  { id: 'tnt_10',            emoji: '💥', name: 'Demolidor',          desc: 'Use a Dinamite 10 vezes.' },
+];
+export const ACH_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]));
+
 export const MINE_CATALOG = [
   {
     id: 'central',

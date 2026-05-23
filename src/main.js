@@ -55,21 +55,33 @@ let lastT = performance.now();
 let autosaveTimer = 0;
 let lastStatusSecond = 0;
 function frame(now) {
-  const dtReal = Math.min(0.1, (now - lastT) / 1000);
-  lastT = now;
-  const dt = dtReal * state.speed;
-  tick(dt);
-  autosaveTimer += dtReal;
-  if (autosaveTimer >= AUTOSAVE_INTERVAL) {
-    autosaveTimer = 0;
-    if (!state.over) saveGame();
+  try {
+    const dtReal = Math.min(0.1, (now - lastT) / 1000);
+    lastT = now;
+    const dt = dtReal * state.speed;
+    tick(dt);
+    autosaveTimer += dtReal;
+    if (autosaveTimer >= AUTOSAVE_INTERVAL) {
+      autosaveTimer = 0;
+      if (!state.over) saveGame();
+    }
+    if (Math.floor(performance.now() / 1000) !== lastStatusSecond) {
+      lastStatusSecond = Math.floor(performance.now() / 1000);
+      updateSaveStatus();
+    }
+  } catch (err) {
+    console.error('[tick]', err);
   }
-  if (Math.floor(performance.now() / 1000) !== lastStatusSecond) {
-    lastStatusSecond = Math.floor(performance.now() / 1000);
-    updateSaveStatus();
+  try {
+    draw();
+  } catch (err) {
+    console.error('[draw]', err);
   }
-  draw();
-  syncUI();
+  try {
+    syncUI();
+  } catch (err) {
+    console.error('[syncUI]', err);
+  }
   requestAnimationFrame(frame);
 }
 

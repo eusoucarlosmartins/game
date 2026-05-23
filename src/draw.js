@@ -617,6 +617,7 @@ function drawMineGrid() {
 }
 
 function drawTile(px, py, cell, t) {
+  if (!t) return;
   if (!t.revealed) {
     // neblina
     ctx.fillStyle = '#0a0604';

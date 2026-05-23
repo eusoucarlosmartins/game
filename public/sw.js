@@ -3,7 +3,8 @@
 //   - Servir do cache se houver
 //   - Atualizar o cache em background
 //   - Fallback offline retorna o index.html cacheado
-const CACHE = 'tapuia-v1';
+// IMPORTANTE: bumpe a versão sempre que tiver mudança quebra-cache.
+const CACHE = 'tapuia-v3';
 const APP_SHELL = ['./', './index.html', './manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
