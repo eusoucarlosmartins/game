@@ -23,6 +23,9 @@ export const R = {
   sand:        { name: 'Areia',              color: '#e8d4a4', kind: 'raw', tier: 1, price: 2 },
   diamond:     { name: 'Diamante Bruto',     color: '#b8e6e6', kind: 'raw', tier: 1, price: 300 },
   ruby:        { name: 'Rubi Bruto',         color: '#c8243c', kind: 'raw', tier: 1, price: 250 },
+  emerald:     { name: 'Esmeralda Bruta',    color: '#3aa860', kind: 'raw', tier: 1, price: 280 },
+  mercury:     { name: 'Mercúrio',           color: '#c0c8d0', kind: 'raw', tier: 1, price: 60 },
+  platinum_ore:{ name: 'Minério de Platina', color: '#d0d4d8', kind: 'raw', tier: 1, price: 90 },
   water:       { name: 'Água',               color: '#5a9fc8', kind: 'raw', tier: 1, price: 0, free: true },
 
   // NÍVEL 2 - PROCESSADOS
@@ -32,6 +35,7 @@ export const R = {
   gold_ingot:   { name: 'Lingote de Ouro',    color: '#ffd700', kind: 'prod', tier: 2, price: 130 },
   brass:        { name: 'Latão',              color: '#cd9b32', kind: 'prod', tier: 2, price: 28 },
   steel:        { name: 'Aço Base',           color: '#8c95a1', kind: 'prod', tier: 2, price: 45 },
+  platinum_ingot:{name: 'Lingote de Platina', color: '#e0e4e8', kind: 'prod', tier: 2, price: 220 },
   gunpowder:    { name: 'Pólvora',            color: '#2a2a2a', kind: 'prod', tier: 2, price: 32 },
   kerosene:     { name: 'Querosene',          color: '#c8a040', kind: 'prod', tier: 2, price: 26 },
   wood_plank:   { name: 'Tábua de Madeira',   color: '#c8954a', kind: 'prod', tier: 2, price: 14 },
@@ -46,6 +50,8 @@ export const R = {
   sulfuric_acid: { name: 'Ácido Sulfúrico',      color: '#d0e030', kind: 'prod', tier: 3, price: 40 },
   dynamite:      { name: 'Dinamite',             color: '#b8403a', kind: 'prod', tier: 3, price: 160 },
   jewel:         { name: 'Joia Lapidada',        color: '#ffe680', kind: 'prod', tier: 3, price: 420 },
+  emerald_jewel: { name: 'Joia de Esmeralda',     color: '#52d086', kind: 'prod', tier: 3, price: 550 },
+  mercury_vapor: { name: 'Vapor de Mercúrio',     color: '#d8e0e8', kind: 'prod', tier: 3, price: 120 },
 
   // NÍVEL 4 - ACABADOS (contratos)
   rails:        { name: 'Trilhos de Trem',         color: '#6a7080', kind: 'prod', tier: 4, price: 200 },
@@ -58,6 +64,8 @@ export const R = {
   rifle:        { name: 'Rifle de Repetição',      color: '#4a3020', kind: 'prod', tier: 4, price: 400 },
   pocket_watch: { name: 'Relógio de Bolso',        color: '#d4af37', kind: 'prod', tier: 4, price: 850 },
   bank_safe:    { name: 'Cofre de Banco',          color: '#303030', kind: 'prod', tier: 4, price: 1600 },
+  thermometer:  { name: 'Termômetro',              color: '#a8c8d8', kind: 'prod', tier: 4, price: 380 },
+  luxury_watch: { name: 'Relógio de Luxo',         color: '#f0d870', kind: 'prod', tier: 4, price: 2400 },
 };
 
 // ---------- RECEITAS ----------
@@ -69,6 +77,7 @@ export const RECIPES = [
   { id: 'gold_ingot',   in: { gold_ore: 1, coal: 1 },                 time: 2.5 },
   { id: 'brass',        in: { copper_ore: 1, zinc_ore: 1, coal: 1 },  time: 2.6 },
   { id: 'steel',        in: { iron_ingot: 1, coal: 1 },               time: 2.2 },
+  { id: 'platinum_ingot', in: { platinum_ore: 1, coal: 2 },           time: 3.5 },
   { id: 'gunpowder',    in: { saltpeter: 1, sulfur: 1, coal: 1 },     time: 3.0 },
   { id: 'kerosene',     in: { oil: 1 },                               time: 2.0 },
   { id: 'wood_plank',   in: { wood: 1 },                              time: 1.5 },
@@ -82,6 +91,8 @@ export const RECIPES = [
   { id: 'sulfuric_acid', in: { sulfur: 1, water: 1 },                 time: 2.0 },
   { id: 'dynamite',      in: { glass: 1, sulfuric_acid: 1, gunpowder: 1 }, time: 3.2 },
   { id: 'jewel',         in: { diamond: 1, silver_ingot: 1 },         time: 4.0 },
+  { id: 'emerald_jewel', in: { emerald: 1, gold_ingot: 1 },           time: 4.2 },
+  { id: 'mercury_vapor', in: { mercury: 1, coal: 1 },                 time: 2.4 },
   // Nível 4 (acabados)
   { id: 'rails',        in: { steel_beam: 1, wood_plank: 1 },                 time: 3.0 },
   { id: 'lantern',      in: { glass: 1, brass: 1, kerosene: 1 },              time: 3.4 },
@@ -93,6 +104,8 @@ export const RECIPES = [
   { id: 'rifle',        in: { steel: 1, wood_plank: 1, nails: 2 },            time: 4.0 },
   { id: 'pocket_watch', in: { bronze_gear: 1, gold_ingot: 1, glass: 1 },      time: 5.0 },
   { id: 'bank_safe',    in: { steel: 2, bronze_gear: 1, jewel: 1 },           time: 6.0 },
+  { id: 'thermometer',  in: { mercury_vapor: 1, glass: 1, brass: 1 },         time: 3.6 },
+  { id: 'luxury_watch', in: { pocket_watch: 1, emerald_jewel: 1, platinum_ingot: 1 }, time: 7.0 },
 ];
 export const RECIPE_BY_ID = Object.fromEntries(RECIPES.map(r => [r.id, r]));
 export const RECIPES_BY_TIER = { 2: [], 3: [], 4: [] };
@@ -113,8 +126,11 @@ export const DEPOSIT_TYPES = [
   { id: 'saltpeter',  cost: 320,  rate: 0.35 },
   { id: 'oil',        cost: 480,  rate: 0.35 },
   { id: 'silver_ore', cost: 750,  rate: 0.22 },
+  { id: 'mercury',    cost: 950,  rate: 0.18 },
   { id: 'gold_ore',   cost: 1300, rate: 0.15 },
+  { id: 'platinum_ore', cost: 1600, rate: 0.12 },
   { id: 'ruby',       cost: 1800, rate: 0.10 },
+  { id: 'emerald',    cost: 2100, rate: 0.09 },
   { id: 'diamond',    cost: 2400, rate: 0.08 },
 ];
 export const DEP_BY_ID = Object.fromEntries(DEPOSIT_TYPES.map(d => [d.id, d]));
@@ -184,14 +200,14 @@ const ERAS_RAW = [
     contracts: ['telegraph','rails','lantern','mining_tools','gunpowder','nails'],
     nextAt: 25 },
   { id: 5, name: 'Era do Aço', desc: 'Motores a vapor, carruagens robustas e armamento.',
-    deposits:  ['silver_ore','gold_ore'],
-    recipes:   ['silver_ingot','gold_ingot','steam_engine','cargo_wagon','bullets','rifle'],
-    contracts: ['steam_engine','cargo_wagon','bullets','rifle','telegraph','rails','lantern'],
+    deposits:  ['silver_ore','gold_ore','mercury'],
+    recipes:   ['silver_ingot','gold_ingot','steam_engine','cargo_wagon','bullets','rifle','mercury_vapor','thermometer'],
+    contracts: ['steam_engine','cargo_wagon','bullets','rifle','telegraph','rails','lantern','thermometer'],
     nextAt: 40 },
   { id: 6, name: 'Era do Luxo', desc: 'Joalheria, dinamite e a segurança dos cofres.',
-    deposits:  ['diamond','ruby'],
-    recipes:   ['sulfuric_acid','dynamite','jewel','pocket_watch','bank_safe'],
-    contracts: ['pocket_watch','bank_safe','rifle','steam_engine','cargo_wagon'],
+    deposits:  ['diamond','ruby','emerald','platinum_ore'],
+    recipes:   ['sulfuric_acid','dynamite','jewel','pocket_watch','bank_safe','platinum_ingot','emerald_jewel','luxury_watch'],
+    contracts: ['pocket_watch','bank_safe','rifle','steam_engine','cargo_wagon','luxury_watch','emerald_jewel'],
     nextAt: null },
 ];
 // Pré-calcula listas cumulativas de depósitos/receitas

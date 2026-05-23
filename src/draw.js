@@ -846,6 +846,7 @@ function resAbbrev(id) {
     coal:'CVO', iron_ore:'FRO', copper_ore:'CBR', zinc_ore:'ZNC', lead:'CHB',
     silver_ore:'PRT', gold_ore:'OUR', sulfur:'ENX', saltpeter:'SLT', oil:'PET',
     wood:'MAD', stone:'PED', clay:'ARG', sand:'ARE', diamond:'DIA', ruby:'RUB',
+    emerald:'ESM', mercury:'HG', platinum_ore:'PLT',
   })[id] || id.slice(0, 3).toUpperCase();
 }
 
