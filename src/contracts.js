@@ -37,11 +37,13 @@ export function deliverProduct(amount) {
     const p = R[state.contract.product];
     const bonus = (state.eventContractBonus || 0) + (state.permContractBonus || 0);
     const reward = Math.round((CFG.contractReward + p.price * state.contract.need) * (1 + bonus));
-    const rpGain = 5 + Math.floor(state.contract.need * 0.6 + p.price * 0.02);
+    const rpBase = 5 + Math.floor(state.contract.need * 0.6 + p.price * 0.02);
+    const rpGain = Math.round(rpBase * (1 + (state.rpBonus || 0)));
     state.money += reward;
     state.totalEarnings = (state.totalEarnings || 0) + reward;
     state.rp += rpGain;
-    state.approval = clamp(state.approval + CFG.contractApprovalGain, 0, CFG.approvalMax);
+    const apGain = Math.round(CFG.contractApprovalGain * (1 + (state.approvalPerContractBonus || 0)));
+    state.approval = clamp(state.approval + apGain, 0, CFG.approvalMax);
     state.contractsCompleted++;
     const bonusTxt = bonus > 0 ? ` (+${Math.round(bonus*100)}% evento!)` : '';
     log(`${state.contract.city}: ${p.name} entregue! +${fmtMoney(reward)}${bonusTxt}, +${rpGain} PP e +${CFG.contractApprovalGain} aprovação.`, 'good');
@@ -78,7 +80,7 @@ export function updateDay(dt) {
   if (state.dayTimer >= CFG.dayLengthSec) {
     state.dayTimer = 0;
     state.day++;
-    state.rp += 2;
+    state.rp += Math.round(2 * (1 + (state.rpBonus || 0)));
     // renda passiva diária (de projetos como Banco do Estado)
     if (state.passiveIncome && state.passiveIncome > 0) {
       state.money += state.passiveIncome;

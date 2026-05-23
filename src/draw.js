@@ -1060,9 +1060,6 @@ function drawNatureScatter() {
     drawSmallRock(x, y, 0.7 + rng() * 0.8);
     placed++;
   }
-  // 2 ranchos decorativos (não interativos)
-  drawRanch(310, 320, 'RANCHO');
-  drawRanch(720, 600, 'FAZENDA');
 }
 
 function drawTree(x, y, size = 1) {
@@ -1338,15 +1335,10 @@ function drawDottedRoute(x1, y1, x2, y2) {
 
 function drawOverworld() {
   drawOverworldBg();
-  // Vilarejos decorativos (entre as áreas principais)
-  drawVillage(480, 270, 'LAGES',         0.7);
-  drawVillage(680, 245, 'SÃO JOAQUIM',   0.6);
-  drawVillage(560, 660, 'CHAPECÓ',       0.7);
-  // Rotas pontilhadas decorativas para vilarejos
-  drawDottedRoute(280, 280, 470, 260);
-  drawDottedRoute(530, 270, 670, 250);
-  drawDottedRoute(380, 460, 540, 640);
-  // Rotas das minas até as fábricas (raw materials)
+  drawRiver();
+  // Landmarks decorativos (vilarejos, pueblos, fazendas) espalhados
+  drawDecorativeLandmarks();
+  // Rotas pontilhadas das minas até as fábricas (raw materials)
   for (const d of OVERWORLD.dottedMineToFactory) {
     drawDottedRoute(d.x1, d.y1, d.x2, d.y2);
   }
@@ -1360,6 +1352,69 @@ function drawOverworld() {
   drawWagon();
   drawActiveProjectPanel();
   drawContractPanelOverworld();
+}
+
+// Rio decorativo serpenteando pela direita do mapa (atrás da cidade)
+function drawRiver() {
+  // Faixa azul ondulada na borda direita
+  const baseX = 1230;
+  ctx.fillStyle = 'rgba(80,140,180,0.35)';
+  ctx.beginPath();
+  ctx.moveTo(baseX, 0);
+  for (let y = 0; y <= H; y += 14) {
+    const wave = Math.sin(y * 0.04) * 12;
+    ctx.lineTo(baseX + wave, y);
+  }
+  ctx.lineTo(W, H);
+  ctx.lineTo(W, 0);
+  ctx.closePath();
+  ctx.fill();
+  // Linhas de ondinhas pra dar movimento
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 1;
+  for (let y = 20; y < H; y += 28) {
+    const wave = Math.sin(y * 0.04) * 12;
+    ctx.beginPath();
+    ctx.moveTo(baseX + wave + 6, y);
+    ctx.lineTo(baseX + wave + 14, y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(baseX + wave + 20, y + 10);
+    ctx.lineTo(baseX + wave + 28, y + 10);
+    ctx.stroke();
+  }
+  // margem (areia escura)
+  ctx.fillStyle = 'rgba(120,80,40,0.4)';
+  ctx.beginPath();
+  ctx.moveTo(baseX - 4, 0);
+  for (let y = 0; y <= H; y += 14) {
+    const wave = Math.sin(y * 0.04) * 12;
+    ctx.lineTo(baseX - 4 + wave, y);
+  }
+  ctx.lineTo(baseX, H);
+  for (let y = H; y >= 0; y -= 14) {
+    const wave = Math.sin(y * 0.04) * 12;
+    ctx.lineTo(baseX + wave, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Landmarks decorativos espalhados pelo mapa (não interativos).
+// Estilo: vila colonial, pueblo, fazenda — pra dar a sensação de "rede de
+// cidades" tipo a referência (Rancho Longhorn, Pueblo Blanco, etc.).
+function drawDecorativeLandmarks() {
+  // 6 landmarks em posições que não conflitam com prédios funcionais
+  drawVillage(520, 200, 'TUBARÃO', 'pueblo', 0.85);
+  drawVillage(680, 280, 'JOINVILLE', 'village', 0.8);
+  drawVillage(370, 270, 'BLUMENAU', 'village', 0.75);
+  drawVillage(530, 640, 'LAGES', 'pueblo', 0.85);
+  drawVillage(870, 640, 'CHAPECÓ', 'fazenda', 0.85);
+  drawVillage(210, 320, 'RIO NEGRINHO', 'fazenda', 0.7);
+  // Rotas pontilhadas decorativas entre landmarks (dá impressão de rede)
+  drawDottedRoute(370, 280, 520, 210);
+  drawDottedRoute(520, 215, 680, 285);
+  drawDottedRoute(530, 650, 870, 650);
 }
 
 // Nodo do Mercado — clicável (abre aba Mercado)
@@ -1497,44 +1552,147 @@ function drawTutorial() {
   }
 }
 
-// Vilarejo decorativo (não interativo) — só pra dar densidade ao mapa
-function drawVillage(x, baseY, name, scale = 0.7) {
+// Landmark decorativo (não interativo). Estilos: 'village', 'pueblo', 'fazenda'
+function drawVillage(x, baseY, name, style = 'village', scale = 0.8) {
+  if (style === 'pueblo') drawPuebloStyle(x, baseY, scale);
+  else if (style === 'fazenda') drawFazendaStyle(x, baseY, scale);
+  else drawVillageStyle(x, baseY, scale);
+  // mini árvore ao lado
+  drawTree(x + 28 * scale, baseY + 2, 0.55);
+  // placa com nome (visível sobre qualquer fundo)
+  ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const tw = ctx.measureText(name).width + 10;
+  // moldura escura
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x - tw / 2 - 1, baseY + 6, tw + 2, 15);
+  ctx.fillStyle = '#c69042';
+  ctx.fillRect(x - tw / 2, baseY + 7, tw, 13);
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillText(name, x, baseY + 9);
+}
+
+// Vilarejo estilo colonial — casinhas com telhado triangular
+function drawVillageStyle(x, baseY, scale) {
   const houses = [
-    { dx: -14, dy: 0, w: 18, h: 22, face: '#e8c87a', roof: '#a82e1c' },
-    { dx: 6,   dy: -4, w: 14, h: 26, face: '#b8c8a8', roof: '#8a4a2a' },
+    { dx: -18, w: 18, h: 24, face: '#e8c87a', roof: '#a82e1c' },
+    { dx: 2,   w: 14, h: 28, face: '#b8c8a8', roof: '#8a4a2a' },
+    { dx: 20,  w: 16, h: 22, face: '#d8b878', roof: '#5a3416' },
   ];
   for (const b of houses) {
     const hx = x + b.dx * scale;
     const top = baseY - b.h * scale;
     const w = b.w * scale, h = b.h * scale;
+    // sombra
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(hx, baseY, w + 2, 3);
+    // parede
     ctx.fillStyle = b.face;
     ctx.fillRect(hx, top, w, h);
+    // rodapé
     ctx.fillStyle = '#3a1f0a';
     ctx.fillRect(hx, baseY - 2, w, 2);
-    // telhado
+    // telhado triangular
     ctx.fillStyle = b.roof;
     ctx.beginPath();
     ctx.moveTo(hx - 2, top);
-    ctx.lineTo(hx + w / 2, top - 6 * scale);
+    ctx.lineTo(hx + w / 2, top - 8 * scale);
     ctx.lineTo(hx + w + 2, top);
     ctx.closePath();
     ctx.fill();
-    // janelinha
+    // janela
     ctx.fillStyle = '#a8c8d8';
-    ctx.fillRect(hx + 2, top + 4 * scale, 3 * scale, 4 * scale);
+    ctx.fillRect(hx + 2 * scale, top + 6 * scale, 4 * scale, 5 * scale);
   }
-  // mini árvore ao lado
-  drawTree(x + 22 * scale, baseY + 2);
-  // placa com nome
+}
+
+// Pueblo — adobe + igrejinha branca no centro
+function drawPuebloStyle(x, baseY, scale) {
+  // casa adobe esquerda
+  const ax = x - 24 * scale;
+  const ah = 22 * scale, aw = 18 * scale;
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(ax, baseY, aw + 2, 3);
+  ctx.fillStyle = '#d8a868';
+  ctx.fillRect(ax, baseY - ah, aw, ah);
   ctx.fillStyle = '#3a1f0a';
-  ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  const tw = ctx.measureText(name).width + 8;
-  ctx.fillStyle = 'rgba(241,227,194,0.85)';
-  ctx.fillRect(x - tw / 2, baseY + 6, tw, 13);
+  ctx.fillRect(ax, baseY - 2, aw, 2);
+  // telhado plano adobe
+  ctx.fillStyle = '#8a5a30';
+  ctx.fillRect(ax - 1, baseY - ah - 2, aw + 2, 3);
+  // igrejinha branca central
+  const cx = x - 5 * scale;
+  const cw = 18 * scale, ch = 28 * scale;
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(cx, baseY, cw + 2, 3);
+  ctx.fillStyle = '#f1e3c2';
+  ctx.fillRect(cx, baseY - ch, cw, ch);
   ctx.fillStyle = '#3a1f0a';
-  ctx.fillText(name, x, baseY + 8);
+  ctx.fillRect(cx, baseY - 2, cw, 2);
+  // telhado triangular vermelho
+  ctx.fillStyle = '#a82e1c';
+  ctx.beginPath();
+  ctx.moveTo(cx - 2, baseY - ch);
+  ctx.lineTo(cx + cw / 2, baseY - ch - 8 * scale);
+  ctx.lineTo(cx + cw + 2, baseY - ch);
+  ctx.closePath();
+  ctx.fill();
+  // torre sineira pequena
+  const tx = cx + cw / 2 - 3 * scale;
+  ctx.fillStyle = '#f1e3c2';
+  ctx.fillRect(tx, baseY - ch - 14 * scale, 6 * scale, 8 * scale);
+  // cruz
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(tx + 2.5 * scale, baseY - ch - 22 * scale, 1.5 * scale, 8 * scale);
+  ctx.fillRect(tx + 1.5 * scale, baseY - ch - 19 * scale, 3.5 * scale, 1.5 * scale);
+  // casa adobe direita
+  const dx = x + 16 * scale;
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(dx, baseY, aw + 2, 3);
+  ctx.fillStyle = '#c69460';
+  ctx.fillRect(dx, baseY - ah * 0.85, aw, ah * 0.85);
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(dx, baseY - 2, aw, 2);
+  ctx.fillStyle = '#8a5a30';
+  ctx.fillRect(dx - 1, baseY - ah * 0.85 - 2, aw + 2, 3);
+}
+
+// Fazenda — celeiro vermelho com X branco + cerca
+function drawFazendaStyle(x, baseY, scale) {
+  // celeiro principal
+  const bw = 32 * scale, bh = 26 * scale;
+  const bx = x - bw / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(bx, baseY, bw + 2, 3);
+  ctx.fillStyle = '#a8442a';
+  ctx.fillRect(bx, baseY - bh, bw, bh);
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(bx, baseY - 2, bw, 2);
+  // telhado triangular escuro
+  ctx.fillStyle = '#3a1f0a';
+  ctx.beginPath();
+  ctx.moveTo(bx - 3, baseY - bh);
+  ctx.lineTo(bx + bw / 2, baseY - bh - 12 * scale);
+  ctx.lineTo(bx + bw + 3, baseY - bh);
+  ctx.closePath();
+  ctx.fill();
+  // X branco característico
+  ctx.strokeStyle = '#f1e3c2';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(bx + 4, baseY - bh + 4); ctx.lineTo(bx + bw - 4, baseY - 4);
+  ctx.moveTo(bx + bw - 4, baseY - bh + 4); ctx.lineTo(bx + 4, baseY - 4);
+  ctx.stroke();
+  // porta
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(bx + bw / 2 - 4, baseY - 14, 8, 12);
+  // cerca à direita
+  ctx.fillStyle = '#5a3416';
+  for (let i = 0; i < 4; i++) {
+    ctx.fillRect(bx + bw + 4 + i * 6 * scale, baseY - 14, 2, 14);
+  }
+  ctx.fillRect(bx + bw + 4, baseY - 8, 22 * scale, 1.5);
 }
 
 // ---------- Helpers: ícone de recurso + scroll/painel ----------

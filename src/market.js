@@ -12,7 +12,7 @@ export function sellRaw(resource, amount) {
   const have = state.warehouse[resource] || 0;
   const sell = Math.min(amount, Math.floor(have));
   if (sell <= 0) return;
-  const earn = Math.max(1, Math.round(sell * R[resource].price * MARKET_RAW_MULT));
+  const earn = Math.max(1, Math.round(sell * R[resource].price * MARKET_RAW_MULT * (1 + (state.marketBonus || 0))));
   state.warehouse[resource] -= sell;
   state.money += earn;
   state.totalEarnings = (state.totalEarnings || 0) + earn;
@@ -25,7 +25,7 @@ export function sellProduct(resource, amount) {
   const have = state.products[resource] || 0;
   const sell = Math.min(amount, Math.floor(have));
   if (sell <= 0) return;
-  const earn = Math.max(1, Math.round(sell * R[resource].price * MARKET_PROD_MULT));
+  const earn = Math.max(1, Math.round(sell * R[resource].price * MARKET_PROD_MULT * (1 + (state.marketBonus || 0))));
   state.products[resource] -= sell;
   state.money += earn;
   state.totalEarnings = (state.totalEarnings || 0) + earn;

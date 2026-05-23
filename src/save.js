@@ -14,6 +14,7 @@ const PERSIST_KEYS = [
   'contract','currentCity','nextContractIn','contractsCompleted',
   'equipment','research','rp','eraReached','log',
   'projects','permContractBonus','passiveIncome','approvalFloor',
+  'wagonSpeedBonus','wagonCapacityBonus','marketBonus','rpBonus','factorySpeedBonus','approvalPerContractBonus',
   'muted','scene','tutorial',
   'totalEarnings','oreMined',
 ];

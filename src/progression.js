@@ -64,9 +64,9 @@ export function transportTier() {
 // Modificadores derivados
 export const cartCapacity   = () => Math.floor(CFG.cartCapacityBase * (1 + eqMod('cartCap')));
 export const cartSpeed      = () => CFG.cartSpeedBase * (1 + eqMod('cartSpd'));
-export const wagonCapacity  = () => Math.floor(CFG.wagonCapacityBase * (1 + eqMod('wagonCap')));
-export const wagonSpeed     = () => CFG.wagonSpeedBase * (1 + eqMod('wagonSpd'));
+export const wagonCapacity  = () => Math.floor(CFG.wagonCapacityBase * (1 + eqMod('wagonCap') + (state.wagonCapacityBonus || 0)));
+export const wagonSpeed     = () => CFG.wagonSpeedBase * (1 + eqMod('wagonSpd') + (state.wagonSpeedBonus || 0));
 export const mineRateMul    = () => (1 + eqMod('mineRate')) * (state.eventMineMul !== undefined ? state.eventMineMul : 1);
-export const factSpdMul     = () => 1 + eqMod('factSpd');
+export const factSpdMul     = () => 1 + eqMod('factSpd') + (state.factorySpeedBonus || 0);
 export const pileMaxMul     = () => 1 + eqMod('pileMax');
 export const pileMax        = () => Math.floor(CFG.minePileMaxBase * pileMaxMul());

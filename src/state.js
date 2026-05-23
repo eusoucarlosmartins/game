@@ -50,6 +50,12 @@ export const state = {
   permContractBonus: 0,
   passiveIncome: 0,
   approvalFloor: 0,
+  wagonSpeedBonus: 0,
+  wagonCapacityBonus: 0,
+  marketBonus: 0,
+  rpBonus: 0,
+  factorySpeedBonus: 0,
+  approvalPerContractBonus: 0,
 
   // Estatísticas globais (acumuladas pra sempre)
   totalEarnings: 0,        // soma de tudo que entrou em $ (contratos + mercado + impostos + passivo)
