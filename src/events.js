@@ -195,6 +195,142 @@ export const EVENT_TYPES = [
     onTick() { },
     onEnd() { },
   },
+  // === Eventos históricos (sabor SC/Brasil 1850-1900) ===
+  {
+    id: 'guerra_paraguai',
+    name: 'Guerra do Paraguai',
+    desc: 'O Império convoca mais armamento. Próximo contrato +80% reward.',
+    duration: 0,
+    kind: 'neutral',
+    onStart() { state.eventContractBonus = 0.8; },
+    onTick() { },
+    onEnd() { },
+  },
+  {
+    id: 'imigracao_alema',
+    name: 'Imigração Alemã (Blumenau)',
+    desc: 'Famílias alemãs chegam! +2 mineradores grátis e fábricas +25% por 90s.',
+    duration: 90,
+    kind: 'good',
+    onStart() {
+      state.workersTotal = (state.workersTotal || 2) + 2;
+      state.eventFactoryMul = 0.25;
+    },
+    onTick() { },
+    onEnd() { state.eventFactoryMul = 0; },
+  },
+  {
+    id: 'imigracao_italiana',
+    name: 'Imigração Italiana (Urussanga)',
+    desc: 'Imigrantes italianos chegam — +1 minerador e mercado +20% por 60s.',
+    duration: 60,
+    kind: 'good',
+    onStart() {
+      state.workersTotal = (state.workersTotal || 2) + 1;
+      state.eventMarketMul = 0.2;
+    },
+    onTick() { },
+    onEnd() { state.eventMarketMul = 0; },
+  },
+  {
+    id: 'visita_imperador',
+    name: 'Visita de Pedro II',
+    desc: 'O Imperador visita Desterro! +25 aprovação imediato.',
+    duration: 0,
+    kind: 'good',
+    onStart() { state.approval = clamp((state.approval || 0) + 25, 0, CFG.approvalMax); },
+    onTick() { },
+    onEnd() { },
+  },
+  {
+    id: 'colera',
+    name: 'Surto de Cólera',
+    desc: 'Epidemia nas vilas. Mineração -50% por 90s e -15 aprovação.',
+    duration: 90,
+    kind: 'bad',
+    onStart() {
+      state.eventMineMul = 0.5;
+      state.approval = clamp((state.approval || 0) - 15, 0, CFG.approvalMax);
+    },
+    onTick() { },
+    onEnd() { state.eventMineMul = 1; },
+  },
+  {
+    id: 'descoberta_lages',
+    name: 'Descoberta em Lages',
+    desc: 'Tropeiros acham veio de prata! Veio extra revelado em mina aleatória.',
+    duration: 0,
+    kind: 'good',
+    onStart() {
+      const mines = state.mines || [];
+      const candidates = [];
+      for (const mine of mines) {
+        if (!mine.grid) continue;
+        for (let r = 8; r < MINE.rows; r++) {
+          for (let c = 1; c < MINE.cols; c++) {
+            const t = mine.grid[r][c];
+            if (t.type === 'dirt' || t.type === 'stone') candidates.push({ mine, r, c });
+          }
+        }
+      }
+      if (candidates.length === 0) return;
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      pick.mine.grid[pick.r][pick.c] = {
+        type: 'ore', resource: 'silver_ore', amount: 80, revealed: true, worker: false,
+      };
+    },
+    onTick() { },
+    onEnd() { },
+  },
+  {
+    id: 'greve_tropeiros',
+    name: 'Greve dos Tropeiros',
+    desc: 'Tropeiros param! Carruagens -60% velocidade por 60s.',
+    duration: 60,
+    kind: 'bad',
+    onStart() { state.eventWagonMul = -0.6; },
+    onTick() { },
+    onEnd() { state.eventWagonMul = 0; },
+  },
+  {
+    id: 'vapor_hamburgo',
+    name: 'Vapor de Hamburgo Atraca',
+    desc: 'Mercadorias europeias rendem +$1200 imediato.',
+    duration: 0,
+    kind: 'good',
+    onStart() {
+      state.money += 1200;
+      state.totalEarnings = (state.totalEarnings || 0) + 1200;
+    },
+    onTick() { },
+    onEnd() { },
+  },
+  {
+    id: 'revolta_federalista',
+    name: 'Revolta Federalista (1893)',
+    desc: 'Conflito civil! Aprovação -20 e mercado -30% por 60s.',
+    duration: 60,
+    kind: 'bad',
+    onStart() {
+      state.approval = clamp((state.approval || 0) - 20, 0, CFG.approvalMax);
+      state.eventMarketMul = -0.3;
+    },
+    onTick() { },
+    onEnd() { state.eventMarketMul = 0; },
+  },
+  {
+    id: 'abolicao',
+    name: 'Abolição da Escravatura (1888)',
+    desc: 'Lei Áurea! +40 aprovação e mineração +30% permanente por 60s.',
+    duration: 60,
+    kind: 'good',
+    onStart() {
+      state.approval = clamp((state.approval || 0) + 40, 0, CFG.approvalMax);
+      state.eventMineMul = 1.3;
+    },
+    onTick() { },
+    onEnd() { state.eventMineMul = 1; },
+  },
   {
     id: 'cave_in',
     name: 'Desabamento na Mina',
