@@ -332,6 +332,61 @@ export const EVENT_TYPES = [
     onEnd() { state.eventMineMul = 1; },
   },
   {
+    id: 'flooding',
+    name: 'Vazamento de Água',
+    desc: 'Um túnel inundou! Cave a água ($20) ou contorne.',
+    duration: 0,
+    kind: 'bad',
+    onStart() {
+      const candidates = [];
+      for (const mine of (state.mines || [])) {
+        if (!mine.grid || mine.exhausted) continue;
+        for (let r = 5; r < MINE.rows; r++) {
+          for (let c = 1; c < MINE.cols; c++) {
+            if (mine.grid[r][c].type === 'air') candidates.push({ mine, r, c });
+          }
+        }
+      }
+      if (candidates.length === 0) return;
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      pick.mine.grid[pick.r][pick.c] = { type: 'water', resource: null, amount: 0, revealed: true, worker: false };
+      pick.mine._connectivity = null;
+    },
+    onTick() { },
+    onEnd() { },
+  },
+  {
+    id: 'gas_pocket',
+    name: 'Bolsão de Gás',
+    desc: 'Gás tóxico! Cave ($40) pra dissipar — workers próximos correm risco.',
+    duration: 0,
+    kind: 'bad',
+    onStart() {
+      const candidates = [];
+      for (const mine of (state.mines || [])) {
+        if (!mine.grid || mine.exhausted) continue;
+        for (let r = 8; r < MINE.rows; r++) {
+          for (let c = 2; c < MINE.cols; c++) {
+            if (mine.grid[r][c].type === 'air') candidates.push({ mine, r, c });
+          }
+        }
+      }
+      if (candidates.length === 0) return;
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      pick.mine.grid[pick.r][pick.c] = { type: 'gas', resource: null, amount: 0, revealed: true, worker: false };
+      pick.mine._connectivity = null;
+      // Tira worker de tiles vizinhos (asfixia)
+      for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+        const nr = pick.r + dr, nc = pick.c + dc;
+        if (nr < 0 || nr >= MINE.rows || nc < 0 || nc >= MINE.cols) continue;
+        const t = pick.mine.grid[nr][nc];
+        if (t && t.worker) t.worker = false;
+      }
+    },
+    onTick() { },
+    onEnd() { },
+  },
+  {
     id: 'cave_in',
     name: 'Desabamento na Mina',
     desc: 'Um túnel desmoronou! Cave novamente pra liberar.',

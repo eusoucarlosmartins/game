@@ -963,6 +963,57 @@ function drawTile(px, py, cell, t) {
     ctx.fillRect(px + 18, py + 14, 5, 5);
     return;
   }
+  if (t.type === 'water') {
+    // Água: fundo escuro + azul ondulado animado
+    ctx.fillStyle = '#0a1820';
+    ctx.fillRect(px, py, cell, cell);
+    const phase = performance.now() / 600;
+    ctx.fillStyle = 'rgba(80,140,200,0.85)';
+    ctx.beginPath();
+    ctx.moveTo(px, py + cell);
+    for (let i = 0; i <= cell; i += 4) {
+      const wy = py + 8 + Math.sin((i + phase * 50) * 0.2) * 3;
+      ctx.lineTo(px + i, wy);
+    }
+    ctx.lineTo(px + cell, py + cell);
+    ctx.closePath();
+    ctx.fill();
+    // Reflexos brancos
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    for (let i = 0; i < 3; i++) {
+      const lx = px + 5 + ((i * 11 + phase * 8) % (cell - 10));
+      ctx.fillRect(lx, py + 14, 4, 1);
+    }
+    // Símbolo de aviso
+    ctx.fillStyle = '#ffd44a';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('💧', px + cell / 2, py + 1);
+    return;
+  }
+  if (t.type === 'gas') {
+    // Gás: fundo escuro + bolhas amarelo-esverdeadas animadas
+    ctx.fillStyle = '#1a0e06';
+    ctx.fillRect(px, py, cell, cell);
+    const phase = performance.now() / 400;
+    for (let i = 0; i < 6; i++) {
+      const bx = px + 4 + ((i * 7 + phase * 4) % (cell - 8));
+      const by = py + 6 + ((i * 5 + phase * 6) % (cell - 12));
+      const r = 4 + (i % 2) * 2;
+      ctx.fillStyle = `rgba(200,220,80,${0.3 + 0.15 * Math.sin(phase + i)})`;
+      ctx.beginPath();
+      ctx.arc(bx, by, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Símbolo de aviso
+    ctx.fillStyle = '#ff8030';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('☠', px + cell / 2, py + 1);
+    return;
+  }
   if (t.type === 'ore') {
     const res = R[t.resource];
     // fundo levemente mais escuro pra destacar chips coloridos
@@ -1111,6 +1162,8 @@ function drawTileTooltip() {
   else if (t.type === 'air') { title = 'Túnel'; sub = 'Vazio (pode atravessar)'; }
   else if (t.type === 'dirt') { title = 'Terra'; sub = 'Cavar: $5'; }
   else if (t.type === 'stone') { title = 'Pedra'; sub = 'Cavar: $12'; }
+  else if (t.type === 'water') { title = 'Vazamento de Água'; sub = 'Bombear: $20'; color = '#5a9fc8'; }
+  else if (t.type === 'gas') { title = 'Bolsão de Gás Tóxico'; sub = 'Ventilar: $40 · workers próximos saem'; color = '#d0e030'; }
   else if (t.type === 'ore') {
     const era = eraData(currentEra());
     const locked = !era.deposits.includes(t.resource);

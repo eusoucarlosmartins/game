@@ -245,6 +245,8 @@ export function tryDigClick(r, c) {
   if (t.type === 'dirt') cost = TOOLS.pick.costDirt;
   else if (t.type === 'stone') cost = TOOLS.pick.costStone;
   else if (t.type === 'ore') cost = TOOLS.pick.costOre;
+  else if (t.type === 'water') cost = 20; // bombear água
+  else if (t.type === 'gas') cost = 40;   // ventilar gás
   if (state.money < cost) { log('Dinheiro insuficiente para cavar.', 'bad'); return; }
   state.money -= cost;
   digTile(mine.grid, r, c);
@@ -253,19 +255,25 @@ export function tryDigClick(r, c) {
 function digTile(grid, r, c) {
   const t = tileAt(grid, r, c);
   if (!t) return;
-  // Poeira no centro do tile que tá sendo cavado
-  const px = MINE.x + (c + 0.5) * MINE.cell;
-  const py = MINE.y + (c + 0.5) * MINE.cell;
+  const cx = MINE.x + (c + 0.5) * MINE.cell;
+  const cy = MINE.y + (r + 0.5) * MINE.cell;
   if (t.type === 'dirt' || t.type === 'stone') {
     grid[r][c] = airTile(true);
     state.tilesDug++;
-    spawnDust(MINE.x + (c + 0.5) * MINE.cell, MINE.y + (r + 0.5) * MINE.cell, 'mine');
+    spawnDust(cx, cy, 'mine');
   } else if (t.type === 'ore') {
     t.revealed = true;
-    spawnBurst(MINE.x + (c + 0.5) * MINE.cell, MINE.y + (r + 0.5) * MINE.cell, 6, '255,212,74', 'mine');
+    spawnBurst(cx, cy, 6, '255,212,74', 'mine');
+  } else if (t.type === 'water') {
+    // Bombear: vira air, partículas azuis
+    grid[r][c] = airTile(true);
+    spawnBurst(cx, cy, 10, '80,140,200', 'mine');
+  } else if (t.type === 'gas') {
+    // Ventilar: vira air, partículas amareladas
+    grid[r][c] = airTile(true);
+    spawnBurst(cx, cy, 12, '220,200,80', 'mine');
   }
   revealAround(grid, r, c, 1);
-  void px; void py;
   play('pickaxe');
 }
 
