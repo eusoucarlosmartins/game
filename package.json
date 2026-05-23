@@ -1,0 +1,8 @@
+{
+  "name": "tapuia",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Tapuia — Tycoon de mineração + indústria + governo em Santa Catarina.",
+  "license": "UNLICENSED"
+}
