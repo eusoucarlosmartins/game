@@ -78,6 +78,9 @@ export const state = {
   nextEventIn: 45,
   eventMineMul: 1,
   eventContractBonus: 0,
+  eventMarketMul: 0,        // bônus temporário aditivo no mercado (de eventos)
+  eventWagonMul: 0,         // bônus temporário aditivo na velocidade da carruagem
+  eventFactoryMul: 0,       // bônus temporário aditivo na velocidade das fábricas
 
   // Câmera do overworld (drag-to-pan + scroll-to-zoom) — não persistido
   camera: { x: 0, y: 0, zoom: 1 },

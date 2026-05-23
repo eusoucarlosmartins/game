@@ -81,6 +81,120 @@ export const EVENT_TYPES = [
     onTick() { },
     onEnd() { },
   },
+  // === Eventos novos ===
+  {
+    id: 'tourism',
+    name: 'Onda de Turismo',
+    desc: 'Mercado paga +40% por 50s',
+    duration: 50,
+    kind: 'good',
+    onStart() { state.eventMarketMul = 0.4; },
+    onTick() { },
+    onEnd() { state.eventMarketMul = 0; },
+  },
+  {
+    id: 'embargo',
+    name: 'Embargo Comercial',
+    desc: 'Mercado paga -40% por 45s',
+    duration: 45,
+    kind: 'bad',
+    onStart() { state.eventMarketMul = -0.4; },
+    onTick() { },
+    onEnd() { state.eventMarketMul = 0; },
+  },
+  {
+    id: 'storm',
+    name: 'Tempestade Tropical',
+    desc: 'Carruagem 50% mais lenta por 40s',
+    duration: 40,
+    kind: 'bad',
+    onStart() { state.eventWagonMul = -0.5; },
+    onTick() { },
+    onEnd() { state.eventWagonMul = 0; },
+  },
+  {
+    id: 'innovation',
+    name: 'Avanço Científico',
+    desc: '+30 PP imediatos e fábricas +25% por 60s',
+    duration: 60,
+    kind: 'good',
+    onStart() {
+      state.rp = (state.rp || 0) + 30;
+      state.eventFactoryMul = 0.25;
+    },
+    onTick() { },
+    onEnd() { state.eventFactoryMul = 0; },
+  },
+  {
+    id: 'tax_break',
+    name: 'Subsídio do Império',
+    desc: '+$800 instantâneo',
+    duration: 0,
+    kind: 'good',
+    onStart() {
+      state.money += 800;
+      state.totalEarnings = (state.totalEarnings || 0) + 800;
+    },
+    onTick() { },
+    onEnd() { },
+  },
+  {
+    id: 'gold_strike',
+    name: 'Veio Espontâneo!',
+    desc: 'Revela um veio extra de ouro num lugar aleatório',
+    duration: 0,
+    kind: 'good',
+    onStart() {
+      const mines = state.mines || [];
+      const candidates = [];
+      for (const mine of mines) {
+        if (!mine.grid) continue;
+        for (let r = 5; r < MINE.rows; r++) {
+          for (let c = 1; c < MINE.cols; c++) {
+            const t = mine.grid[r][c];
+            if (t.type === 'dirt' || t.type === 'stone') candidates.push({ mine, r, c });
+          }
+        }
+      }
+      if (candidates.length === 0) return;
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      pick.mine.grid[pick.r][pick.c] = {
+        type: 'ore', resource: 'gold_ore', amount: 60, revealed: true, worker: false,
+      };
+    },
+    onTick() { },
+    onEnd() { },
+  },
+  {
+    id: 'border_dispute',
+    name: 'Disputa de Fronteira',
+    desc: 'Aprovação cai 12 imediatamente',
+    duration: 0,
+    kind: 'bad',
+    onStart() { state.approval = clamp(state.approval - 12, 0, CFG.approvalMax); },
+    onTick() { },
+    onEnd() { },
+  },
+  {
+    id: 'plague',
+    name: 'Surto de Febre',
+    desc: 'Mineração -30% por 50s',
+    duration: 50,
+    kind: 'bad',
+    onStart() { state.eventMineMul = 0.7; },
+    onTick() { },
+    onEnd() { state.eventMineMul = 1; },
+  },
+  {
+    id: 'gift',
+    name: 'Mensagem da Corte',
+    desc: '+50 PP de pesquisa',
+    duration: 0,
+    kind: 'good',
+    onStart() { state.rp = (state.rp || 0) + 50; },
+    onTick() { },
+    onEnd() { },
+  },
 ];
 
 const EVT_BY_ID = Object.fromEntries(EVENT_TYPES.map(e => [e.id, e]));

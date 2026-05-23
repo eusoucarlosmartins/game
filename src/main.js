@@ -168,6 +168,86 @@ canvas.addEventListener('mouseleave', () => {
 canvas.addEventListener('mouseenter', () => {
   canvas.style.cursor = (state.scene === 'overworld' || state.scene === 'mine') ? 'grab' : 'default';
 });
+// ===== Touch (mobile): 1 dedo = pan + click; 2 dedos = pinch zoom =====
+function touchCoords(t) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (t.clientX - rect.left) * (canvas.width / rect.width),
+    y: (t.clientY - rect.top) * (canvas.height / rect.height),
+  };
+}
+let pinchStart = null; // { dist, zoom, cx, cy, worldX, worldY } pra zoom
+canvas.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    e.preventDefault();
+    const p = touchCoords(e.touches[0]);
+    if (state.scene === 'overworld' && inMinimap(p.x, p.y)) return;
+    if (state.scene === 'overworld') {
+      state.isPanning = true;
+      state.panStart = { mouseX: p.x, mouseY: p.y, cameraX: state.camera.x, cameraY: state.camera.y };
+      state.panDistance = 0;
+    } else if (state.scene === 'mine' && p.y >= MINE_AREA_TOP) {
+      state.isPanning = true;
+      state.panStart = { mouseX: p.x, mouseY: p.y, cameraX: 0, cameraY: state.mineCamera.y };
+      state.panDistance = 0;
+    }
+  } else if (e.touches.length === 2 && state.scene === 'overworld') {
+    e.preventDefault();
+    state.isPanning = false;
+    const p1 = touchCoords(e.touches[0]);
+    const p2 = touchCoords(e.touches[1]);
+    const cx = (p1.x + p2.x) / 2;
+    const cy = (p1.y + p2.y) / 2;
+    pinchStart = {
+      dist: Math.hypot(p1.x - p2.x, p1.y - p2.y),
+      zoom: state.camera.zoom,
+      cx, cy,
+      worldX: state.camera.x + cx / state.camera.zoom,
+      worldY: state.camera.y + cy / state.camera.zoom,
+    };
+  }
+}, { passive: false });
+canvas.addEventListener('touchmove', (e) => {
+  if (e.touches.length === 1 && state.isPanning && state.panStart) {
+    e.preventDefault();
+    const p = touchCoords(e.touches[0]);
+    const dx = p.x - state.panStart.mouseX;
+    const dy = p.y - state.panStart.mouseY;
+    if (state.scene === 'overworld') {
+      const z = state.camera.zoom;
+      state.camera.x = clamp(state.panStart.cameraX - dx / z, 0, Math.max(0, WORLD_W - W / z));
+      state.camera.y = clamp(state.panStart.cameraY - dy / z, 0, Math.max(0, WORLD_H - H / z));
+    } else if (state.scene === 'mine') {
+      const mineMaxY = Math.max(0, MINE.rows * MINE.cell - (H - MINE.y));
+      state.mineCamera.y = clamp(state.panStart.cameraY - dy, 0, mineMaxY);
+    }
+    state.panDistance = Math.max(state.panDistance, Math.hypot(dx, dy));
+  } else if (e.touches.length === 2 && pinchStart && state.scene === 'overworld') {
+    e.preventDefault();
+    const p1 = touchCoords(e.touches[0]);
+    const p2 = touchCoords(e.touches[1]);
+    const newDist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    const newZoom = clamp(pinchStart.zoom * (newDist / pinchStart.dist), 0.5, 2.2);
+    // Mantém o centro do pinch fixo durante o zoom
+    state.camera.zoom = newZoom;
+    state.camera.x = clamp(pinchStart.worldX - pinchStart.cx / newZoom, 0, Math.max(0, WORLD_W - W / newZoom));
+    state.camera.y = clamp(pinchStart.worldY - pinchStart.cy / newZoom, 0, Math.max(0, WORLD_H - H / newZoom));
+  }
+}, { passive: false });
+canvas.addEventListener('touchend', (e) => {
+  // Se ainda tem 1 dedo após soltar um, sai do pinch
+  if (e.touches.length < 2) pinchStart = null;
+  if (e.touches.length === 0) {
+    state.isPanning = false;
+    // Pequenos movimentos = tap → reusa a lógica do click
+    if (state.panDistance <= 8 && e.changedTouches.length === 1) {
+      const p = touchCoords(e.changedTouches[0]);
+      handleCanvasClick(p);
+    }
+    state.panStart = null;
+  }
+}, { passive: false });
+
 // Scroll wheel = zoom (só no overworld). Zoom em volta do cursor (estilo Google Maps).
 canvas.addEventListener('wheel', (e) => {
   if (state.scene !== 'overworld') return;
@@ -200,14 +280,13 @@ function switchTab(name) {
   }
 }
 
-canvas.addEventListener('click', (e) => {
+function handleCanvasClick(sc) {
   // Se o usuário arrastou (>5px) durante o click, é pan — não dispara hit-tests
   if (state.panDistance > 5) {
     state.panDistance = 0;
     return;
   }
   state.panDistance = 0;
-  const sc = canvasCoords(e);
   // Hit tests de HUD usam SCREEN coords (sc.x/sc.y).
   // Hit tests do MUNDO (overworld bg/buildings, grid da mina) precisam de offset
   // pela câmera adequada — feito caso a caso abaixo.
@@ -334,7 +413,8 @@ canvas.addEventListener('click', (e) => {
     else if (tool === 'compass') tryCompass(r, c);
     else if (tool === 'miner') tryPlaceWorker(r, c);
   }
-});
+}
+canvas.addEventListener('click', (e) => handleCanvasClick(canvasCoords(e)));
 
 // ---------- Atalhos de teclado ----------
 document.addEventListener('keydown', (e) => {
