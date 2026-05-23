@@ -209,8 +209,10 @@ export const ROMAN = ['I','II','III','IV','V','VI'];
 export const NUM_DEPOSITS = 7;
 
 // ---------- MINE GRID ----------
+// Mina profunda: 50 fileiras, scroll vertical pela viewport. Cada fileira
+// representa ~1 metro de profundidade. Cell = 40px → altura total 2000px.
 export const MINE = {
-  cols: 30, rows: 13, cell: 40,
+  cols: 30, rows: 50, cell: 40,
   x: 0, y: 200,
 };
 export const TOOLS = {

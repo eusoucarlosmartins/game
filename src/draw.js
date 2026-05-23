@@ -565,7 +565,13 @@ function drawMineGrid() {
   // moldura
   ctx.fillStyle = '#6b3f1a';
   ctx.fillRect(gx, gy, cols * cell, rows * cell);
-  for (let r = 0; r < rows; r++) {
+  // Otimização: só renderiza fileiras visíveis (considerando mineCamera.y)
+  // O clipping já recorta visualmente, mas evitar laços inúteis é + rápido.
+  const visTop = state.mineCamera.y;
+  const visBot = state.mineCamera.y + (H - MINE.y);
+  const rStart = Math.max(0, Math.floor((visTop - 0) / cell) - 1);
+  const rEnd = Math.min(rows, Math.ceil(visBot / cell) + 1);
+  for (let r = rStart; r < rEnd; r++) {
     for (let c = 0; c < cols; c++) {
       drawTile(gx + c * cell, gy + r * cell, cell, mine.grid[r][c]);
     }
@@ -599,19 +605,21 @@ function drawMineGrid() {
       ctx.fillRect(sx - 2, sy - 2, 4, 4);
     }
   }
-  // grade sutil
+  // grade sutil — só nas fileiras visíveis
   ctx.strokeStyle = 'rgba(0,0,0,0.12)';
   ctx.lineWidth = 1;
-  for (let r = 0; r <= rows; r++) {
+  for (let r = rStart; r <= rEnd; r++) {
     ctx.beginPath();
     ctx.moveTo(gx, gy + r * cell);
     ctx.lineTo(gx + cols * cell, gy + r * cell);
     ctx.stroke();
   }
+  const gTop = gy + rStart * cell;
+  const gBot = gy + rEnd * cell;
   for (let c = 0; c <= cols; c++) {
     ctx.beginPath();
-    ctx.moveTo(gx + c * cell, gy);
-    ctx.lineTo(gx + c * cell, gy + rows * cell);
+    ctx.moveTo(gx + c * cell, gTop);
+    ctx.lineTo(gx + c * cell, gBot);
     ctx.stroke();
   }
 }
@@ -821,17 +829,18 @@ function drawTileTooltip() {
     if (locked) { sub += ' · 🔒 era bloqueia'; color = '#ffb060'; }
     else color = R[t.resource].color;
   }
-  // posiciona o tooltip (evita sair da tela)
+  // posiciona o tooltip em coords de TELA (subtrai mineCamera do Y world)
   ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
   const titleW = ctx.measureText(title).width;
   ctx.font = '11px "Segoe UI", Arial, sans-serif';
   const subW = ctx.measureText(sub).width;
   const ttW = Math.max(titleW, subW) + 16;
   const ttH = 38;
+  const screenY = state.mouseY - state.mineCamera.y;
   let tx = state.mouseX + 14;
-  let ty = state.mouseY + 14;
+  let ty = screenY + 14;
   if (tx + ttW > W) tx = state.mouseX - ttW - 8;
-  if (ty + ttH > MINE.y + MINE.rows * MINE.cell) ty = state.mouseY - ttH - 4;
+  if (ty + ttH > H) ty = screenY - ttH - 4;
   ctx.fillStyle = 'rgba(20,10,5,0.92)';
   ctx.fillRect(tx, ty, ttW, ttH);
   ctx.strokeStyle = color;
@@ -1985,30 +1994,37 @@ function drawBackBtn() {
 function drawMineScene() {
   drawMineSky();
   drawSilos();
+  drawElevatorHead();
+  // Grid e cabo+cabine do elevador são panáveis verticalmente
+  // (clipping pra não vazar no céu/HUD)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(MINE.x, MINE.y, MINE.cols * MINE.cell, H - MINE.y);
+  ctx.clip();
+  ctx.translate(0, -state.mineCamera.y);
   drawMineGrid();
   drawElevator();
+  ctx.restore();
+  drawDepthMeter();
   drawToolbar();
   drawBackBtn();
   drawMineSwitcher();
   drawExhaustedOverlay();
 }
 
-// Cabine + cabo do elevador na coluna 0 do grid
-function drawElevator() {
-  const mine = activeMine();
-  if (!mine) return;
+// Cabeça do elevador (estrutura de superfície) — sempre fixa no topo,
+// não pana com o resto da mina.
+function drawElevatorHead() {
   const col = 0;
   const x = MINE.x + col * MINE.cell;
   const yTop = MINE.y;
-  const totalH = MINE.rows * MINE.cell;
-  // estrutura de superfície (cabeça do elevador, acima do grid)
   const headW = MINE.cell + 12;
   const headH = 36;
   ctx.fillStyle = '#5a3416';
   ctx.fillRect(x - 6, yTop - headH, headW, headH);
   ctx.fillStyle = '#3a1f0a';
   ctx.fillRect(x - 6, yTop - headH, headW, 4);
-  // roldana no topo
+  // roldana
   ctx.fillStyle = '#888';
   ctx.beginPath();
   ctx.arc(x + MINE.cell / 2, yTop - headH + 14, 6, 0, Math.PI * 2);
@@ -2017,15 +2033,55 @@ function drawElevator() {
   ctx.beginPath();
   ctx.arc(x + MINE.cell / 2, yTop - headH + 14, 2, 0, Math.PI * 2);
   ctx.fill();
-  // posição do car
+}
+
+// Mostra a profundidade atual em metros no canto esquerdo do grid
+function drawDepthMeter() {
+  const topRow = Math.floor(state.mineCamera.y / MINE.cell);
+  const bottomRow = Math.min(MINE.rows - 1, Math.floor((state.mineCamera.y + (H - MINE.y) - 1) / MINE.cell));
+  const txt = `${topRow}-${bottomRow}m`;
+  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+  const tw = ctx.measureText(txt).width + 14;
+  const tx = 12, ty = MINE.y + 8;
+  ctx.fillStyle = 'rgba(20,10,5,0.7)';
+  ctx.fillRect(tx, ty, tw, 20);
+  ctx.fillStyle = '#ffd44a';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⛰ ' + txt, tx + 5, ty + 11);
+  // Barra de profundidade lateral (mostra onde o usuário está na mina toda)
+  const maxCam = Math.max(1, MINE.rows * MINE.cell - (H - MINE.y));
+  const pct = state.mineCamera.y / maxCam;
+  const barX = 12, barY = MINE.y + 36, barW = 8, barH = H - MINE.y - 50;
+  ctx.fillStyle = 'rgba(20,10,5,0.55)';
+  ctx.fillRect(barX, barY, barW, barH);
+  ctx.fillStyle = '#c69042';
+  const handleY = barY + barH * pct;
+  ctx.fillRect(barX - 2, handleY - 5, barW + 4, 10);
+}
+
+// Cabine + cabo do elevador na coluna 0 do grid.
+// A cabeça (estrutura de superfície) é desenhada SEPARADA por drawElevatorHead()
+// FORA do contexto panned, pra ficar sempre visível no topo.
+function drawElevator() {
+  const mine = activeMine();
+  if (!mine) return;
+  const col = 0;
+  const x = MINE.x + col * MINE.cell;
+  const yTop = MINE.y;
+  const totalH = MINE.rows * MINE.cell;
+  const headH = 36;
+  // posição do car (em world coords da mina; o ctx.translate(-cam.y) já ajusta)
   const carY = yTop + mine.elevator.y * (totalH - MINE.cell);
-  // cabo
+  // cabo (parte do topo do grid até a cabine)
   ctx.strokeStyle = '#222';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(x + MINE.cell / 2, yTop - headH + 14);
   ctx.lineTo(x + MINE.cell / 2, carY + 2);
   ctx.stroke();
+  // Marcar variável headH usado pelo cálculo do cabo
+  void headH;
   // car
   ctx.fillStyle = '#7a4b25';
   ctx.fillRect(x + 4, carY + 4, MINE.cell - 8, MINE.cell - 12);

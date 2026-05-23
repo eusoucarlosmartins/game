@@ -80,6 +80,8 @@ export const state = {
 
   // Câmera do overworld (drag-to-pan) — não persistido
   camera: { x: 0, y: 0 },
+  // Câmera da mina (scroll vertical pelas profundezas) — não persistido
+  mineCamera: { y: 0 },
   isPanning: false,
   panStart: null,        // { mouseX, mouseY, cameraX, cameraY } em screen coords
   panDistance: 0,        // distância acumulada do drag (px) — pra distinguir click de drag

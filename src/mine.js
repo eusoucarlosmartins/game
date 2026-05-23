@@ -103,11 +103,12 @@ function placeOreVeins(grid, oreBias) {
   for (const dep of DEPOSIT_TYPES) {
     const cost = dep.cost;
     let veinCount, minDepth, veinSize;
-    if (cost === 0)            { veinCount = 6; minDepth = 1;  veinSize = 5; }
-    else if (cost < 200)       { veinCount = 6; minDepth = 1;  veinSize = 5; }
-    else if (cost < 500)       { veinCount = 4; minDepth = 4;  veinSize = 4; }
-    else if (cost < 1000)      { veinCount = 3; minDepth = 6;  veinSize = 3; }
-    else                       { veinCount = 2; minDepth = 8;  veinSize = 3; }
+    // Camadas geológicas: minérios baratos no topo, raros nas profundezas
+    if (cost === 0)            { veinCount = 10; minDepth = 1;  veinSize = 6; }
+    else if (cost < 200)       { veinCount = 10; minDepth = 2;  veinSize = 5; }
+    else if (cost < 500)       { veinCount = 8;  minDepth = 10; veinSize = 5; }
+    else if (cost < 1000)      { veinCount = 6;  minDepth = 20; veinSize = 4; }
+    else                       { veinCount = 5;  minDepth = 32; veinSize = 4; }
     // Aplica viés regional: minérios "biased" dobram e ficam mais rasos;
     // outros minérios pagos reduzem pela metade.
     if (oreBias && oreBias.length > 0) {

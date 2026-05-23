@@ -100,29 +100,47 @@ function canvasCoords(e) {
     y: (e.clientY - rect.top) * (canvas.height / rect.height),
   };
 }
-// Câmera + drag-to-pan no overworld.
-// state.mouseX/Y guarda WORLD coords no overworld (pra hover detection nas funções
-// de draw funcionarem direto), e SCREEN coords no mine scene.
+// Câmera + drag-to-pan no overworld E na mina.
+// state.mouseX/Y guarda WORLD coords (overworld) ou mine-world coords (mine area)
+// pra hover detection nas funções de draw funcionarem direto.
+const MINE_AREA_TOP = MINE.y; // y screen acima do qual click NÃO ativa pan da mina
 canvas.addEventListener('mousedown', (e) => {
-  if (state.scene !== 'overworld') return;
   const p = canvasCoords(e);
-  state.isPanning = true;
-  state.panStart = { mouseX: p.x, mouseY: p.y, cameraX: state.camera.x, cameraY: state.camera.y };
-  state.panDistance = 0;
-  canvas.style.cursor = 'grabbing';
+  if (state.scene === 'overworld') {
+    state.isPanning = true;
+    state.panStart = { mouseX: p.x, mouseY: p.y, cameraX: state.camera.x, cameraY: state.camera.y };
+    state.panDistance = 0;
+    canvas.style.cursor = 'grabbing';
+  } else if (state.scene === 'mine' && p.y >= MINE_AREA_TOP) {
+    // Pan da mina só quando o mousedown for dentro da área do grid (não no céu/HUD)
+    state.isPanning = true;
+    state.panStart = { mouseX: p.x, mouseY: p.y, cameraX: 0, cameraY: state.mineCamera.y };
+    state.panDistance = 0;
+    canvas.style.cursor = 'grabbing';
+  }
 });
 canvas.addEventListener('mousemove', (e) => {
   const p = canvasCoords(e);
   if (state.isPanning && state.panStart) {
     const dx = p.x - state.panStart.mouseX;
     const dy = p.y - state.panStart.mouseY;
-    state.camera.x = clamp(state.panStart.cameraX - dx, 0, WORLD_W - W);
-    state.camera.y = clamp(state.panStart.cameraY - dy, 0, WORLD_H - H);
+    if (state.scene === 'overworld') {
+      state.camera.x = clamp(state.panStart.cameraX - dx, 0, WORLD_W - W);
+      state.camera.y = clamp(state.panStart.cameraY - dy, 0, WORLD_H - H);
+    } else if (state.scene === 'mine') {
+      // Mina só permite scroll vertical (grid mais alto que viewport)
+      const mineMaxY = Math.max(0, MINE.rows * MINE.cell - (H - MINE.y));
+      state.mineCamera.y = clamp(state.panStart.cameraY - dy, 0, mineMaxY);
+    }
     state.panDistance = Math.max(state.panDistance, Math.hypot(dx, dy));
   }
   if (state.scene === 'overworld') {
     state.mouseX = p.x + state.camera.x;
     state.mouseY = p.y + state.camera.y;
+  } else if (state.scene === 'mine') {
+    // mouseX = screen x; mouseY = world y na mina (incluindo área panned)
+    state.mouseX = p.x;
+    state.mouseY = p.y >= MINE_AREA_TOP ? p.y + state.mineCamera.y : p.y;
   } else {
     state.mouseX = p.x;
     state.mouseY = p.y;
@@ -131,7 +149,7 @@ canvas.addEventListener('mousemove', (e) => {
 canvas.addEventListener('mouseup', () => {
   state.isPanning = false;
   state.panStart = null;
-  canvas.style.cursor = state.scene === 'overworld' ? 'grab' : 'default';
+  canvas.style.cursor = state.scene === 'overworld' ? 'grab' : (state.scene === 'mine' ? 'grab' : 'default');
 });
 canvas.addEventListener('mouseleave', () => {
   state.mouseX = -1;
@@ -141,7 +159,7 @@ canvas.addEventListener('mouseleave', () => {
   canvas.style.cursor = 'default';
 });
 canvas.addEventListener('mouseenter', () => {
-  canvas.style.cursor = state.scene === 'overworld' ? 'grab' : 'default';
+  canvas.style.cursor = (state.scene === 'overworld' || state.scene === 'mine') ? 'grab' : 'default';
 });
 function hitTest(x, y, r) {
   return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
@@ -168,7 +186,9 @@ canvas.addEventListener('click', (e) => {
   }
   state.panDistance = 0;
   const sc = canvasCoords(e);
-  // No overworld, hit-tests usam WORLD coords (offset pela câmera)
+  // Hit tests de HUD usam SCREEN coords (sc.x/sc.y).
+  // Hit tests do MUNDO (overworld bg/buildings, grid da mina) precisam de offset
+  // pela câmera adequada — feito caso a caso abaixo.
   const x = state.scene === 'overworld' ? sc.x + state.camera.x : sc.x;
   const y = state.scene === 'overworld' ? sc.y + state.camera.y : sc.y;
 
@@ -179,6 +199,7 @@ canvas.addEventListener('click', (e) => {
         const m = state.mines[i];
         if (m) {
           setActiveMine(i);
+          state.mineCamera.y = 0;
           state.scene = 'mine';
           if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 0) {
             state.tutorial.step = 1;
@@ -245,6 +266,7 @@ canvas.addEventListener('click', (e) => {
       const r = { x: W - btnW - 14, y: startY + i * (btnH + 6), w: btnW, h: btnH };
       if (hitTest(x, y, r)) {
         setActiveMine(i);
+        state.mineCamera.y = 0;
         play('click');
         return;
       }
@@ -266,11 +288,13 @@ canvas.addEventListener('click', (e) => {
     return;
   }
 
-  // Grid da mina
+  // Grid da mina: y screen + mineCamera.y = y world dentro do grid
+  const gridY = y + state.mineCamera.y;
   if (x >= MINE.x && x < MINE.x + MINE.cols * MINE.cell &&
-      y >= MINE.y && y < MINE.y + MINE.rows * MINE.cell) {
+      gridY >= MINE.y && gridY < MINE.y + MINE.rows * MINE.cell &&
+      y >= MINE.y) {
     const c = Math.floor((x - MINE.x) / MINE.cell);
-    const r = Math.floor((y - MINE.y) / MINE.cell);
+    const r = Math.floor((gridY - MINE.y) / MINE.cell);
     const tool = state.tool || 'pick';
     if (tool === 'pick') tryDigClick(r, c);
     else if (tool === 'tnt') tryTNT(r, c);
