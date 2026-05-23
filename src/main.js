@@ -386,7 +386,7 @@ unlockOnFirstGesture();
 updateMuteBtn();
 
 // ---------- PWA: service worker + install prompt ----------
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+if ('serviceWorker' in navigator && import.meta.env?.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch((err) => {
       console.warn('[PWA] SW falhou:', err);
