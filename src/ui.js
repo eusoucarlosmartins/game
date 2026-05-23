@@ -4,8 +4,9 @@ import { R, RECIPE_BY_ID, RECIPES_BY_TIER, EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY
 import { $, fmtMoney } from './util.js';
 import { currentEra, eraData, isRecipeUnlocked } from './progression.js';
 import { ingredientHave } from './factories.js';
-import { workersAvailable, workersActive } from './mine.js';
+import { workersAvailable, workersActive, getRevealedOreCounts, isResourceUnlocked } from './mine.js';
 import { openModal, closeModal } from './modals.js';
+import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
 
 function statusWagon() {
   const w = state.wagon;
@@ -73,6 +74,23 @@ function renderMinePanel() {
   const info = $('tool-info');
   if (info) info.innerHTML = `<strong>${tool.name}</strong> — ${tool.desc}`;
 
+  // Veios descobertos no mapa (revelados, ainda não cavados)
+  const oreMap = $('ore-map-list');
+  if (oreMap) {
+    const counts = getRevealedOreCounts();
+    const keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    oreMap.innerHTML = keys.length === 0
+      ? '<li><em>Nenhum veio descoberto ainda. Cave para revelar mais terreno.</em></li>'
+      : keys.map(k => {
+          const locked = !isResourceUnlocked(k);
+          return `<li>
+            <span class="dot" style="background:${R[k].color}"></span>
+            <span style="flex:1">${R[k].name}${locked ? ' 🔒' : ''}</span>
+            <strong>${counts[k]}</strong>
+          </li>`;
+        }).join('');
+  }
+
   // Silos por recurso (apenas com estoque > 0 ou desbloqueados pela era atual)
   const era = eraData(currentEra());
   const items = [];
@@ -97,6 +115,61 @@ function renderMinePanel() {
           </li>`;
         }).join('');
   }
+}
+
+function renderMarket() {
+  const cont = $('market-list');
+  if (!cont) return;
+  // Matérias-primas
+  const raws = [];
+  for (const k in state.warehouse) {
+    if (R[k] && R[k].free) continue;
+    if ((state.warehouse[k] || 0) > 0) raws.push(k);
+  }
+  raws.sort((a, b) => state.warehouse[b] - state.warehouse[a]);
+  let html = '<div class="market-section"><h4>Matérias-primas (60% do preço)</h4>';
+  if (raws.length === 0) {
+    html += '<div class="market-empty">Nenhuma matéria-prima em estoque.</div>';
+  } else {
+    html += raws.map(k => {
+      const n = Math.floor(state.warehouse[k]);
+      const price = Math.max(1, Math.round(R[k].price * MARKET_RAW_MULT));
+      return `<div class="market-item">
+        <span class="dot" style="background:${R[k].color}"></span>
+        <span class="market-name">${R[k].name}</span>
+        <span class="market-stock">${n}</span>
+        <span class="market-price">${fmtMoney(price)}/un</span>
+        <button class="mini-btn" data-action="sell-raw" data-id="${k}" data-amt="1" ${n < 1 ? 'disabled' : ''}>Vender 1</button>
+        <button class="mini-btn" data-action="sell-raw" data-id="${k}" data-amt="all" ${n < 1 ? 'disabled' : ''}>Tudo</button>
+      </div>`;
+    }).join('');
+  }
+  html += '</div>';
+  // Produtos
+  const prods = [];
+  for (const k in state.products) {
+    if ((state.products[k] || 0) > 0) prods.push(k);
+  }
+  prods.sort((a, b) => state.products[b] - state.products[a]);
+  html += '<div class="market-section"><h4>Produtos (70% do preço)</h4>';
+  if (prods.length === 0) {
+    html += '<div class="market-empty">Nenhum produto em estoque.</div>';
+  } else {
+    html += prods.map(k => {
+      const n = Math.floor(state.products[k]);
+      const price = Math.max(1, Math.round(R[k].price * MARKET_PROD_MULT));
+      return `<div class="market-item">
+        <span class="dot" style="background:${R[k].color}"></span>
+        <span class="market-name">${R[k].name}</span>
+        <span class="market-stock">${n}</span>
+        <span class="market-price">${fmtMoney(price)}/un</span>
+        <button class="mini-btn" data-action="sell-prod" data-id="${k}" data-amt="1" ${n < 1 ? 'disabled' : ''}>Vender 1</button>
+        <button class="mini-btn" data-action="sell-prod" data-id="${k}" data-amt="all" ${n < 1 ? 'disabled' : ''}>Tudo</button>
+      </div>`;
+    }).join('');
+  }
+  html += '</div>';
+  cont.innerHTML = html;
 }
 
 function renderFactories() {
@@ -235,6 +308,7 @@ export function syncUI() {
   renderStockLists();
   renderMinePanel();
   renderFactories();
+  renderMarket();
   renderEquipment();
   renderResearch();
   renderLog();

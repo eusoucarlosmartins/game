@@ -11,6 +11,7 @@ import { updateContract, updateDay } from './contracts.js';
 import { draw } from './draw.js';
 import { syncUI, openRecipeModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
+import { sellRaw, sellAllRaw, sellProduct, sellAllProduct } from './market.js';
 import { TOOLBAR } from './geometry.js';
 
 // ---------- Game over / vitória ----------
@@ -122,6 +123,16 @@ document.addEventListener('click', (e) => {
     case 'buy-eq':         buyEquipment(t.dataset.id); break;
     case 'buy-res':        buyResearch(t.dataset.id); break;
     case 'buy-upgrade':    buyUpgrade(t.dataset.upgId, t.dataset.upgKind); break;
+    case 'sell-raw': {
+      if (t.dataset.amt === 'all') sellAllRaw(t.dataset.id);
+      else sellRaw(t.dataset.id, parseInt(t.dataset.amt, 10) || 1);
+      break;
+    }
+    case 'sell-prod': {
+      if (t.dataset.amt === 'all') sellAllProduct(t.dataset.id);
+      else sellProduct(t.dataset.id, parseInt(t.dataset.amt, 10) || 1);
+      break;
+    }
   }
 });
 

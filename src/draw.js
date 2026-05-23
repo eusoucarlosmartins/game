@@ -2,7 +2,7 @@
 import { state } from './state.js';
 import { R, RECIPE_BY_ID, CFG, MINE, TOOLS, SILO_DEFAULT_CAP } from './data.js';
 import { fmtMoney, clamp } from './util.js';
-import { transportTier, wagonCapacity } from './progression.js';
+import { transportTier, wagonCapacity, currentEra, eraData } from './progression.js';
 import {
   W, H, GROUND_Y, FACTORY_AREA, CITY, ROAD, TOOLBAR, factoryRect,
 } from './geometry.js';
@@ -266,16 +266,34 @@ function drawMineGrid() {
       drawTile(gx + c * cell, gy + r * cell, cell, state.mine.grid[r][c]);
     }
   }
-  // FX da dinamite
+  // FX da dinamite (anéis + estilhaços)
   if (state.mine.tntFx) {
     const fx = state.mine.tntFx;
     const px = gx + (fx.c + 0.5) * cell;
     const py = gy + (fx.r + 0.5) * cell;
-    ctx.strokeStyle = `rgba(255,140,40,${Math.max(0, fx.t)})`;
-    ctx.lineWidth = 4;
+    const progress = Math.min(1, (0.8 - fx.t) / 0.8); // 0 → 1
+    const alpha = Math.max(0, fx.t / 0.8);
+    // anel externo laranja
+    ctx.strokeStyle = `rgba(255,140,40,${alpha})`;
+    ctx.lineWidth = 5;
     ctx.beginPath();
-    ctx.arc(px, py, cell * 1.5 * (1 - fx.t * 2), 0, Math.PI * 2);
+    ctx.arc(px, py, cell * 2.2 * progress, 0, Math.PI * 2);
     ctx.stroke();
+    // anel interno amarelo
+    ctx.strokeStyle = `rgba(255,220,80,${alpha * 0.9})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(px, py, cell * 1.4 * progress, 0, Math.PI * 2);
+    ctx.stroke();
+    // estilhaços
+    ctx.fillStyle = `rgba(80,40,20,${alpha})`;
+    for (let i = 0; i < 16; i++) {
+      const ang = (i / 16) * Math.PI * 2;
+      const dist = cell * 2.6 * progress;
+      const sx = px + Math.cos(ang) * dist;
+      const sy = py + Math.sin(ang) * dist;
+      ctx.fillRect(sx - 2, sy - 2, 4, 4);
+    }
   }
   // grade sutil
   ctx.strokeStyle = 'rgba(0,0,0,0.12)';
@@ -342,6 +360,8 @@ function drawTile(px, py, cell, t) {
       const dy = (py * 11 + i * 7) % (cell - 6);
       ctx.fillRect(px + 3 + dx, py + 3 + dy, 5, 4);
     }
+    const era = eraData(currentEra());
+    const locked = !era.deposits.includes(t.resource);
     if (t.worker) {
       ctx.strokeStyle = '#ffd44a';
       ctx.lineWidth = 2;
@@ -354,6 +374,16 @@ function drawTile(px, py, cell, t) {
     ctx.textBaseline = 'top';
     ctx.fillText(resAbbrev(t.resource), px + cell / 2, py + 2);
     if (t.worker) drawMinerSprite(px + cell / 2, py + cell - 4);
+    // sobreposição de cadeado se bloqueado pela era
+    if (locked) {
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(px, py, cell, cell);
+      ctx.fillStyle = '#ffd44a';
+      ctx.font = 'bold 16px Georgia';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🔒', px + cell / 2, py + cell / 2);
+    }
   }
 }
 

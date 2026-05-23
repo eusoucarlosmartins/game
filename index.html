@@ -56,6 +56,7 @@
           <button data-tab="contract" class="tab active">Contrato</button>
           <button data-tab="mine" class="tab">Mina</button>
           <button data-tab="factory" class="tab">Fábricas</button>
+          <button data-tab="market" class="tab">Mercado</button>
           <button data-tab="shop" class="tab">Loja</button>
           <button data-tab="research" class="tab">Pesquisa</button>
           <button data-tab="log" class="tab">Registro</button>
@@ -100,6 +101,11 @@
             <ul id="silos-list" class="stockpile compact"></ul>
             <p class="hint">Cada silo armazena 400 de seu recurso. Quando enche, a extração daquele recurso pausa.</p>
           </div>
+          <div class="panel">
+            <h3>Veios Descobertos no Mapa</h3>
+            <ul id="ore-map-list" class="stockpile compact"></ul>
+            <p class="hint">Tiles de minério já visíveis (não cavados). 🔒 = era atual não permite extrair.</p>
+          </div>
         </section>
 
         <section class="tab-panel" data-panel="factory">
@@ -108,6 +114,14 @@
             <div id="factories-list" class="factories"></div>
             <button id="buy-factory-btn" class="big-btn">Comprar Nova Fábrica</button>
             <p class="hint">Cada fábrica processa 1 receita por vez. Você pode trocar a receita a qualquer momento.</p>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-panel="market">
+          <div class="panel">
+            <h3>Mercado Livre</h3>
+            <p class="hint">Venda excedente fora dos contratos. Matérias-primas valem 60% e produtos 70% do preço de contrato.</p>
+            <div id="market-list" class="market"></div>
           </div>
         </section>
 

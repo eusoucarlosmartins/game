@@ -2,7 +2,11 @@
 import { state, log } from './state.js';
 import { R, DEPOSIT_TYPES, MINE, TOOLS, SILO_DEFAULT_CAP, WORKER_COST } from './data.js';
 import { irand } from './util.js';
-import { mineRateMul } from './progression.js';
+import { mineRateMul, currentEra, eraData } from './progression.js';
+
+export function isResourceUnlocked(resource) {
+  return eraData(currentEra()).deposits.includes(resource);
+}
 
 // ----- Geração inicial do grid -----
 export function initMine() {
@@ -40,10 +44,10 @@ function placeOreVeins(grid) {
   for (const dep of DEPOSIT_TYPES) {
     const cost = dep.cost;
     let veinCount, minDepth, veinSize;
-    if (cost === 0)            { veinCount = 5; minDepth = 1;  veinSize = 4; }
-    else if (cost < 200)       { veinCount = 4; minDepth = 2;  veinSize = 5; }
-    else if (cost < 500)       { veinCount = 3; minDepth = 4;  veinSize = 4; }
-    else if (cost < 1000)      { veinCount = 2; minDepth = 6;  veinSize = 3; }
+    if (cost === 0)            { veinCount = 6; minDepth = 1;  veinSize = 5; }
+    else if (cost < 200)       { veinCount = 6; minDepth = 1;  veinSize = 5; }
+    else if (cost < 500)       { veinCount = 4; minDepth = 4;  veinSize = 4; }
+    else if (cost < 1000)      { veinCount = 3; minDepth = 6;  veinSize = 3; }
     else                       { veinCount = 2; minDepth = 8;  veinSize = 3; }
     for (let v = 0; v < veinCount; v++) {
       const sr = irand(minDepth, MINE.rows - 1);
@@ -51,6 +55,21 @@ function placeOreVeins(grid) {
       carveVein(grid, sr, sc, dep.id, veinSize);
     }
   }
+}
+
+// Conta tiles de minério revelados (mas ainda não totalmente cavados) por recurso
+export function getRevealedOreCounts() {
+  const counts = {};
+  if (!state.mine.grid) return counts;
+  for (let r = 0; r < MINE.rows; r++) {
+    for (let c = 0; c < MINE.cols; c++) {
+      const t = state.mine.grid[r][c];
+      if (t.revealed && t.type === 'ore') {
+        counts[t.resource] = (counts[t.resource] || 0) + 1;
+      }
+    }
+  }
+  return counts;
 }
 
 function carveVein(grid, r, c, resource, size) {
@@ -149,7 +168,7 @@ export function tryTNT(r, c) {
   revealAround(state.mine.grid, r, c, radius + 1);
   state.tilesDug += dug;
   log(`Dinamite: ${dug} tiles. ${oreCollected > 0 ? '+' + oreCollected + ' de minério.' : ''}`, 'good');
-  state.mine.tntFx = { r, c, t: 0.5 };
+  state.mine.tntFx = { r, c, t: 0.8 };
 }
 
 export function tryCompass(r, c) {
@@ -166,6 +185,10 @@ export function tryPlaceWorker(r, c) {
   if (t.worker) {
     t.worker = false;
     log('Minerador retirado.');
+    return;
+  }
+  if (!isResourceUnlocked(t.resource)) {
+    log(`Era atual não permite extrair ${R[t.resource].name}. Avance de era primeiro.`, 'bad');
     return;
   }
   if (workersAvailable() <= 0) { log('Sem mineradores disponíveis. Contrate mais.', 'bad'); return; }
