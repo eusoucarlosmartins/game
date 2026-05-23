@@ -80,6 +80,7 @@
           <button data-tab="projects" class="tab">Projetos</button>
           <button data-tab="shop" class="tab">Loja</button>
           <button data-tab="research" class="tab">Pesquisa</button>
+          <button data-tab="stats" class="tab">Stats</button>
           <button data-tab="log" class="tab">Registro</button>
         </nav>
 
@@ -180,6 +181,22 @@
             <h3>Árvore de Pesquisa</h3>
             <p class="hint">Você ganha PP a cada dia (+2) e por contrato cumprido (+5 base + bônus). Pesquisas são permanentes.</p>
             <div id="research-list" class="equipment"></div>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-panel="stats">
+          <div class="panel">
+            <h3>Resumo da Partida</h3>
+            <ul id="stats-summary" class="stats-list"></ul>
+          </div>
+          <div class="panel">
+            <h3>Minério Total Extraído</h3>
+            <ul id="stats-ores" class="stockpile compact"></ul>
+            <p class="hint">Quantidade acumulada por recurso desde o início da partida.</p>
+          </div>
+          <div class="panel">
+            <h3>Minas</h3>
+            <ul id="stats-mines" class="stats-list"></ul>
           </div>
         </section>
 

@@ -353,6 +353,56 @@ function renderResearch() {
   cont.innerHTML = html;
 }
 
+function renderStats() {
+  const summary = $('stats-summary');
+  if (summary) {
+    const totalTilesDug = state.tilesDug || 0;
+    const totalEarn = state.totalEarnings || 0;
+    const completedProj = (state.projects && state.projects.completed) ? state.projects.completed.length : 0;
+    const minesOwned = (state.mines || []).length;
+    const minesExhausted = (state.mines || []).filter((m) => m.exhausted).length;
+    const rows = [
+      ['💰 Dinheiro ganho total', fmtMoney(totalEarn), 'good'],
+      ['📜 Contratos cumpridos', state.contractsCompleted, 'good'],
+      ['🏗 Projetos concluídos', completedProj, 'good'],
+      ['⛏ Tiles cavados', totalTilesDug.toLocaleString('pt-BR'), ''],
+      ['👤 Mineradores contratados', state.workersTotal, ''],
+      ['🏭 Fábricas operando', state.factories.length + '/' + CFG.factorySlotsMax, ''],
+      ['📅 Dia atual', state.day, ''],
+      ['⭐ Aprovação', Math.round(state.approval) + '%', state.approval >= 50 ? 'good' : 'bad'],
+      ['🎓 Era atual', `${ROMAN[currentEra() - 1]} — ${eraData(currentEra()).name}`, ''],
+      ['⛰ Minas (ativas / esgotadas)', `${minesOwned - minesExhausted} / ${minesExhausted}`, ''],
+    ];
+    summary.innerHTML = rows.map(([label, value, cls]) =>
+      `<li><span class="label">${label}</span><span class="value ${cls}">${value}</span></li>`
+    ).join('');
+  }
+  const oresEl = $('stats-ores');
+  if (oresEl) {
+    const ores = state.oreMined || {};
+    const items = Object.keys(ores)
+      .filter((k) => ores[k] > 0)
+      .sort((a, b) => ores[b] - ores[a]);
+    if (items.length === 0) {
+      oresEl.innerHTML = '<li><em>Nenhum minério extraído ainda.</em></li>';
+    } else {
+      oresEl.innerHTML = items.map((k) =>
+        `<li><span class="dot" style="background:${R[k].color}"></span>${R[k].name} <strong>${Math.floor(ores[k]).toLocaleString('pt-BR')}</strong></li>`
+      ).join('');
+    }
+  }
+  const minesEl = $('stats-mines');
+  if (minesEl) {
+    const rows = (state.mines || []).map((m, i) => {
+      const status = m.exhausted ? '<span class="value bad">🚫 esgotada</span>' :
+                     (i === state.activeMineIdx ? '<span class="value good">● ativa</span>' :
+                     '<span class="value">operando</span>');
+      return `<li><span class="label">${m.name}</span>${status}</li>`;
+    });
+    minesEl.innerHTML = rows.length === 0 ? '<li><em>Nenhuma mina.</em></li>' : rows.join('');
+  }
+}
+
 function renderLog() {
   const logEl = $('log');
   logEl.innerHTML = state.log.slice(0, 80)
@@ -403,6 +453,7 @@ export function syncUI() {
   renderFactories();
   renderMarket();
   renderProjects();
+  renderStats();
   renderEquipment();
   renderResearch();
   renderLog();

@@ -310,8 +310,35 @@ export function tryAddToSilo(resource, amount) {
   const cap = (state.silos[resource] && state.silos[resource].cap) || SILO_DEFAULT_CAP;
   const space = Math.max(0, cap - (state.warehouse[resource] || 0));
   const add = Math.min(amount, space);
-  state.warehouse[resource] = (state.warehouse[resource] || 0) + add;
+  if (add > 0) {
+    state.warehouse[resource] = (state.warehouse[resource] || 0) + add;
+    // estatística global
+    if (!state.oreMined) state.oreMined = {};
+    state.oreMined[resource] = (state.oreMined[resource] || 0) + add;
+  }
   return add;
+}
+
+// ----- Regenerar mina esgotada -----
+export function regenCost(mineId) {
+  const cat = MINE_CATALOG.find((c) => c.id === mineId);
+  if (!cat) return 800;
+  return Math.max(500, Math.floor((cat.cost || 0) * 0.5) || 500);
+}
+
+export function regenerateMine(idx) {
+  const mine = state.mines[idx];
+  if (!mine || !mine.exhausted) return;
+  const cost = regenCost(mine.id);
+  if (state.money < cost) { log(`Sem dinheiro para regenerar ${mine.name}.`, 'bad'); return; }
+  const catalog = MINE_CATALOG.find((c) => c.id === mine.id);
+  if (!catalog) return;
+  state.money -= cost;
+  buildMineGrid(mine, catalog.oreBias);
+  mine.exhausted = false;
+  mine.tntFx = null;
+  log(`✨ ${mine.name} regenerada por ${fmtMoney(cost)}.`, 'good');
+  play('success');
 }
 
 // ----- Simulação por tick -----

@@ -15,6 +15,7 @@ const PERSIST_KEYS = [
   'equipment','research','rp','eraReached','log',
   'projects','permContractBonus','passiveIncome','approvalFloor',
   'muted','scene','tutorial',
+  'totalEarnings','oreMined',
 ];
 
 let lastSaveTime = 0;

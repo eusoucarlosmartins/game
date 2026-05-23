@@ -51,6 +51,10 @@ export const state = {
   passiveIncome: 0,
   approvalFloor: 0,
 
+  // Estatísticas globais (acumuladas pra sempre)
+  totalEarnings: 0,        // soma de tudo que entrou em $ (contratos + mercado + impostos + passivo)
+  oreMined: {},            // recurso -> quantidade total minerada
+
   // Preferências
   muted: false,
 

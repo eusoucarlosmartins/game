@@ -39,6 +39,7 @@ export function deliverProduct(amount) {
     const reward = Math.round((CFG.contractReward + p.price * state.contract.need) * (1 + bonus));
     const rpGain = 5 + Math.floor(state.contract.need * 0.6 + p.price * 0.02);
     state.money += reward;
+    state.totalEarnings = (state.totalEarnings || 0) + reward;
     state.rp += rpGain;
     state.approval = clamp(state.approval + CFG.contractApprovalGain, 0, CFG.approvalMax);
     state.contractsCompleted++;
@@ -81,10 +82,12 @@ export function updateDay(dt) {
     // renda passiva diária (de projetos como Banco do Estado)
     if (state.passiveIncome && state.passiveIncome > 0) {
       state.money += state.passiveIncome;
+      state.totalEarnings = (state.totalEarnings || 0) + state.passiveIncome;
     }
     if (state.day % 7 === 0) {
       const tax = Math.floor(state.approval * 5);
       state.money += tax;
+      state.totalEarnings = (state.totalEarnings || 0) + tax;
       log(`Coleta tributária semanal: +${fmtMoney(tax)}.`);
     }
   }

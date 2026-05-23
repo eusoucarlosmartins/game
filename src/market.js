@@ -15,6 +15,7 @@ export function sellRaw(resource, amount) {
   const earn = Math.max(1, Math.round(sell * R[resource].price * MARKET_RAW_MULT));
   state.warehouse[resource] -= sell;
   state.money += earn;
+  state.totalEarnings = (state.totalEarnings || 0) + earn;
   log(`Mercado: ${sell}× ${R[resource].name} → +${fmtMoney(earn)}.`, 'good');
   play('coin');
 }
@@ -27,6 +28,7 @@ export function sellProduct(resource, amount) {
   const earn = Math.max(1, Math.round(sell * R[resource].price * MARKET_PROD_MULT));
   state.products[resource] -= sell;
   state.money += earn;
+  state.totalEarnings = (state.totalEarnings || 0) + earn;
   log(`Mercado: ${sell}× ${R[resource].name} → +${fmtMoney(earn)}.`, 'good');
   play('coin');
 }

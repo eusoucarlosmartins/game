@@ -6,7 +6,7 @@ import { fmtMoney, clamp } from './util.js';
 import { transportTier, wagonCapacity, currentEra, eraData } from './progression.js';
 import { ingredientHave } from './factories.js';
 import { getProjectDef } from './projects.js';
-import { activeMine } from './mine.js';
+import { activeMine, regenCost } from './mine.js';
 import {
   W, H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
   OVERWORLD, TOOLBAR, MINE_BACK_BTN, factoryRect,
@@ -1599,11 +1599,11 @@ function drawMineSwitcher() {
 function drawExhaustedOverlay() {
   const mine = activeMine();
   if (!mine || !mine.exhausted) return;
-  // banner no centro
+  // banner principal
   const w = 460, h = 60;
   const x = (W - w) / 2;
-  const y = MINE.y + (MINE.rows * MINE.cell) / 2 - 30;
-  ctx.fillStyle = 'rgba(20,10,5,0.85)';
+  const y = MINE.y + (MINE.rows * MINE.cell) / 2 - 50;
+  ctx.fillStyle = 'rgba(20,10,5,0.88)';
   ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = '#a82e1c';
   ctx.lineWidth = 2;
@@ -1615,7 +1615,24 @@ function drawExhaustedOverlay() {
   ctx.fillText(`🚫 ${mine.name} ESGOTADA`, W / 2, y + 22);
   ctx.fillStyle = '#f1e3c2';
   ctx.font = '11px "Segoe UI"';
-  ctx.fillText('Volte ao mapa e selecione outra mina.', W / 2, y + 44);
+  ctx.fillText('Pague para regenerar todos os veios, ou volte ao mapa.', W / 2, y + 44);
+  // Botão "Regenerar"
+  const cost = regenCost(mine.id);
+  const bw = 240, bh = 38;
+  const bx = (W - bw) / 2;
+  const by = y + h + 12;
+  const canAfford = state.money >= cost;
+  const hovering =
+    state.mouseX >= bx && state.mouseX < bx + bw &&
+    state.mouseY >= by && state.mouseY < by + bh;
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(bx - 2, by - 2, bw + 4, bh + 4);
+  ctx.fillStyle = canAfford ? (hovering ? '#d8a056' : '#c69042') : '#7a5a3a';
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.fillStyle = '#1a0e06';
+  ctx.font = 'bold 14px "Segoe UI"';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`✨ Regenerar — ${fmtMoney(cost)}`, bx + bw / 2, by + bh / 2);
 }
 
 // ---------- Entry ----------

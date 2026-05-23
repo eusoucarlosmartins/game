@@ -5,7 +5,7 @@ import { $ } from './util.js';
 import { ROMAN, CFG, MINE } from './data.js';
 import { currentEra } from './progression.js';
 import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL } from './save.js';
-import { initMines, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine } from './mine.js';
+import { initMines, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine, regenerateMine, activeMine as getActiveMine } from './mine.js';
 import { buyFactory, setRecipe, updateFactories } from './factories.js';
 import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
@@ -163,6 +163,19 @@ canvas.addEventListener('click', (e) => {
     state.scene = 'overworld';
     play('whoosh');
     return;
+  }
+  // Botão "Regenerar" no banner de mina esgotada
+  {
+    const m = getActiveMine();
+    if (m && m.exhausted) {
+      const bw = 240, bh = 38;
+      const bx = (W - bw) / 2;
+      const by = MINE.y + (MINE.rows * MINE.cell) / 2 - 50 + 60 + 12;
+      if (hitTest(x, y, { x: bx, y: by, w: bw, h: bh })) {
+        regenerateMine(state.activeMineIdx);
+        return;
+      }
+    }
   }
   // Botões de troca de mina (canto superior direito)
   if (state.mines && state.mines.length >= 2) {
