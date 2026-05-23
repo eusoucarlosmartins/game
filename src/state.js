@@ -52,6 +52,9 @@ export const state = {
   // Preferências
   muted: false,
 
+  // Cena atual do canvas: 'overworld' (mapa) ou 'mine' (interior da mina)
+  scene: 'overworld',
+
   // Estado transitório (não persistido)
   mouseX: -1,
   mouseY: -1,

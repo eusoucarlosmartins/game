@@ -16,7 +16,7 @@ import { draw } from './draw.js';
 import { syncUI, openRecipeModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
 import { sellRaw, sellAllRaw, sellProduct, sellAllProduct } from './market.js';
-import { TOOLBAR } from './geometry.js';
+import { TOOLBAR, MINE_BACK_BTN, OVERWORLD } from './geometry.js';
 
 // ---------- Game over / vitória ----------
 function checkEnd() {
@@ -87,10 +87,32 @@ canvas.addEventListener('mouseleave', () => {
   state.mouseX = -1;
   state.mouseY = -1;
 });
+function hitTest(x, y, r) {
+  return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+}
+
 canvas.addEventListener('click', (e) => {
   const { x, y } = canvasCoords(e);
 
-  // Toolbar (lado direito do grid)
+  if (state.scene === 'overworld') {
+    // Click na entrada da mina → entra na cena mina
+    if (hitTest(x, y, OVERWORLD.mineEntrance)) {
+      state.scene = 'mine';
+      play('whoosh');
+      log('Entrou na mina. Use a picareta para cavar, e o minerador pra alocar trabalhadores em veios.');
+    }
+    return;
+  }
+
+  // ----- Cena MINA -----
+  // Botão "← Voltar ao Mapa"
+  if (hitTest(x, y, MINE_BACK_BTN)) {
+    state.scene = 'overworld';
+    play('whoosh');
+    return;
+  }
+
+  // Toolbar lateral
   if (x >= TOOLBAR.x && x < TOOLBAR.x + TOOLBAR.w && y >= TOOLBAR.y) {
     const idx = Math.floor((y - TOOLBAR.y) / TOOLBAR.slotH);
     const order = ['pick', 'tnt', 'compass', 'miner'];
@@ -243,10 +265,9 @@ if (loaded) {
   updateSaveStatus();
 } else {
   initMine();
-  log('Nomeado governador de Santa Catarina. Apenas a Tapuia pode salvar o estado.');
-  log('Use a Picareta para cavar terra/pedra/veios. Veios expostos podem receber mineradores.');
-  log('Selecione "Minerador" e clique num veio descoberto (Coal, Fe) para começar a extrair.');
-  log('Ferramentas: Picareta ($), Dinamite ($120, 3x3), Bússola ($40, revela neblina).');
+  log('Bem-vindo, governador. Esta é a vista do mapa de Santa Catarina.');
+  log('Clique na ENTRADA DA MINA (à esquerda) para descer e cavar minérios.');
+  log('No mapa você vê fábricas e a cidade do contrato atual. Contratos pagam $$$ e PP.');
 }
 unlockOnFirstGesture();
 updateMuteBtn();

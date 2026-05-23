@@ -4,36 +4,39 @@ import { state } from './state.js';
 import { R, RECIPE_BY_ID, CFG, MINE, TOOLS, SILO_DEFAULT_CAP } from './data.js';
 import { fmtMoney, clamp } from './util.js';
 import { transportTier, wagonCapacity, currentEra, eraData } from './progression.js';
-import { W, GROUND_Y, CITY, ROAD, TOOLBAR, factoryRect } from './geometry.js';
+import {
+  W, H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
+  OVERWORLD, TOOLBAR, MINE_BACK_BTN, factoryRect,
+} from './geometry.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-// ---------- Superfície ----------
-function drawSky() {
-  const grd = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+// ---------- Cena MINA: faixa de céu sobre a superfície + chão ----------
+function drawMineSky() {
+  const grd = ctx.createLinearGradient(0, 0, 0, MINE_GROUND_Y);
   grd.addColorStop(0, '#e8c98a');
   grd.addColorStop(1, '#d2a76a');
   ctx.fillStyle = grd;
-  ctx.fillRect(0, 0, W, GROUND_Y);
-  // sol
-  ctx.fillStyle = 'rgba(255, 220, 150, 0.55)';
-  ctx.beginPath();
-  ctx.arc(80, 50, 36, 0, Math.PI * 2);
-  ctx.fill();
-  // montanhas distantes
-  ctx.fillStyle = '#a07a4a';
-  ctx.beginPath();
-  ctx.moveTo(0, GROUND_Y - 16);
-  ctx.lineTo(180, 80); ctx.lineTo(280, GROUND_Y - 16);
-  ctx.lineTo(380, 100); ctx.lineTo(500, GROUND_Y - 16);
-  ctx.lineTo(620, 90); ctx.lineTo(740, GROUND_Y - 16);
-  ctx.closePath(); ctx.fill();
+  ctx.fillRect(0, 0, W, MINE_GROUND_Y);
+  // nuvens sutis
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  for (const c of [[280, 60, 50], [600, 50, 38], [950, 80, 55]]) {
+    ctx.beginPath();
+    ctx.ellipse(c[0], c[1], c[2], c[2] * 0.35, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // título da seção (acima dos silos)
+  ctx.fillStyle = 'rgba(58,31,10,0.6)';
+  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('SUPERFÍCIE DA MINA — SILOS', 210, 70);
   // chão
   ctx.fillStyle = '#8a5a30';
-  ctx.fillRect(0, GROUND_Y, W, 8);
+  ctx.fillRect(0, MINE_GROUND_Y, W, 8);
   ctx.fillStyle = '#5a3416';
-  ctx.fillRect(0, GROUND_Y + 8, W, 4);
+  ctx.fillRect(0, MINE_GROUND_Y + 8, W, 4);
 }
 
 // ---------- Silos por recurso ----------
@@ -51,13 +54,13 @@ function drawSilos() {
     ctx.font = 'italic 12px Georgia';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Aloque mineradores em veios expostos para começar a encher silos.', 20, 130);
+    ctx.fillText('Aloque mineradores em veios expostos para começar a encher silos.', 200, 130);
     return;
   }
-  const startX = 20;
-  const maxW = 720;
-  const siloW = Math.min(90, maxW / visible.length);
-  const baseY = GROUND_Y; // base alinhada ao chão
+  const startX = 200; // depois do botão "Voltar ao Mapa"
+  const maxW = W - 220;
+  const siloW = Math.min(100, maxW / visible.length);
+  const baseY = MINE_GROUND_Y; // base alinhada ao chão da mina
   for (let i = 0; i < visible.length; i++) {
     drawSilo(startX + i * siloW, baseY, siloW - 6, visible[i].k);
   }
@@ -858,16 +861,199 @@ function drawEventBanner() {
   ctx.fillText(`${Math.ceil(e.timeLeft)}s`, cx + bw / 2 - 10, baseY + 18);
 }
 
-// ---------- Entry ----------
-export function draw() {
-  drawSky();
-  drawSilos();
+// ---------- Cena OVERWORLD: mapa ----------
+function drawOverworldBg() {
+  // Fundo papel envelhecido com gradiente
+  const grd = ctx.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, '#d4b478');
+  grd.addColorStop(0.5, '#c9a76a');
+  grd.addColorStop(1, '#b89058');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, W, H);
+  // Textura sutil (pontilhado)
+  ctx.fillStyle = 'rgba(80,50,20,0.08)';
+  for (let i = 0; i < 240; i++) {
+    const x = (i * 137) % W;
+    const y = (i * 89) % H;
+    ctx.fillRect(x, y, 2, 2);
+  }
+  // Linha de horizonte com montanhas longe
+  ctx.fillStyle = '#9a7a4a';
+  ctx.beginPath();
+  ctx.moveTo(0, 180);
+  ctx.lineTo(130, 80); ctx.lineTo(230, 170);
+  ctx.lineTo(340, 60); ctx.lineTo(480, 160);
+  ctx.lineTo(620, 90); ctx.lineTo(770, 170);
+  ctx.lineTo(900, 70); ctx.lineTo(1080, 160);
+  ctx.lineTo(1280, 90); ctx.lineTo(1280, 0);
+  ctx.lineTo(0, 0);
+  ctx.closePath();
+  ctx.fill();
+  // Sombras das montanhas
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.fillRect(0, 170, W, 14);
+  // Algumas árvores espalhadas (clusters verdes)
+  const trees = [
+    [60, 240], [110, 270], [160, 260],
+    [320, 250], [350, 230], [380, 250],
+    [620, 260], [660, 250], [700, 230],
+    [840, 250], [880, 230],
+    [80, 660], [140, 680], [200, 670],
+    [580, 660], [640, 670], [700, 660],
+    [990, 600], [1100, 620], [1200, 640],
+  ];
+  for (const [tx, ty] of trees) {
+    drawTree(tx, ty);
+  }
+}
+
+function drawTree(x, y) {
+  ctx.fillStyle = '#4a6a3a';
+  ctx.beginPath();
+  ctx.arc(x, y, 14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#3a5a2a';
+  ctx.beginPath();
+  ctx.arc(x + 4, y - 4, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(x - 2, y + 8, 4, 8);
+}
+
+function drawMineEntrance() {
+  const e = OVERWORLD.mineEntrance;
+  // Colina marrom com base maior
+  ctx.fillStyle = '#8a5a30';
+  ctx.beginPath();
+  ctx.moveTo(e.x - 10, e.y + e.h);
+  ctx.bezierCurveTo(e.x, e.y + e.h * 0.2, e.x + e.w * 0.4, e.y - 10, e.x + e.w * 0.5, e.y);
+  ctx.bezierCurveTo(e.x + e.w * 0.6, e.y - 10, e.x + e.w, e.y + e.h * 0.2, e.x + e.w + 10, e.y + e.h);
+  ctx.closePath();
+  ctx.fill();
+  // Sombra na base
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(e.x - 10, e.y + e.h - 6, e.w + 20, 6);
+  // Pedrinhas na colina (textura)
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  for (let i = 0; i < 12; i++) {
+    const px = e.x + ((i * 23) % (e.w - 20)) + 10;
+    const py = e.y + 40 + ((i * 31) % (e.h - 80));
+    ctx.fillRect(px, py, 3, 2);
+  }
+  // Abertura da caverna (arco escuro)
+  const caveX = e.x + e.w / 2;
+  const caveY = e.y + e.h * 0.55;
+  const caveW = e.w * 0.42;
+  const caveH = e.h * 0.42;
+  ctx.fillStyle = '#1a0e06';
+  ctx.beginPath();
+  ctx.moveTo(caveX - caveW / 2, caveY + caveH);
+  ctx.lineTo(caveX - caveW / 2, caveY + caveH * 0.35);
+  ctx.bezierCurveTo(caveX - caveW / 2, caveY, caveX + caveW / 2, caveY, caveX + caveW / 2, caveY + caveH * 0.35);
+  ctx.lineTo(caveX + caveW / 2, caveY + caveH);
+  ctx.closePath();
+  ctx.fill();
+  // Vigas de madeira em volta da caverna
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(caveX - caveW / 2 - 5, caveY + caveH * 0.35, 5, caveH * 0.65);
+  ctx.fillRect(caveX + caveW / 2, caveY + caveH * 0.35, 5, caveH * 0.65);
+  ctx.fillRect(caveX - caveW / 2 - 5, caveY + caveH * 0.35 - 5, caveW + 10, 6);
+  // Trilhos saindo da caverna
+  ctx.strokeStyle = '#3a1f0a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(caveX - 10, caveY + caveH);
+  ctx.lineTo(caveX - 22, e.y + e.h + 6);
+  ctx.moveTo(caveX + 10, caveY + caveH);
+  ctx.lineTo(caveX + 22, e.y + e.h + 6);
+  ctx.stroke();
+  // Mini carrinho parado na entrada (decorativo)
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(caveX - 12, caveY + caveH + 6, 24, 12);
+  ctx.fillStyle = '#222';
+  ctx.beginPath(); ctx.arc(caveX - 7, caveY + caveH + 20, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(caveX + 7, caveY + caveH + 20, 3, 0, Math.PI * 2); ctx.fill();
+  // Placa "MINA"
+  const signCx = caveX;
+  const signCy = e.y + e.h + 24;
+  ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
+  const txt = '⛏ ENTRAR NA MINA';
+  const sw = ctx.measureText(txt).width + 24;
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(signCx - sw / 2 - 2, signCy - 14, sw + 4, 28);
+  ctx.fillStyle = '#c69042';
+  ctx.fillRect(signCx - sw / 2, signCy - 12, sw, 24);
+  ctx.fillStyle = '#1a0e06';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(txt, signCx, signCy);
+  // Pulsa quando o mouse está em cima (feedback de clicável)
+  const hovering =
+    state.mouseX >= e.x && state.mouseX < e.x + e.w &&
+    state.mouseY >= e.y && state.mouseY < e.y + e.h + 40;
+  const t = performance.now() / 600;
+  const pulse = hovering ? 1 : (Math.sin(t) + 1) / 2;
+  ctx.strokeStyle = `rgba(255, 220, 80, ${0.25 + 0.55 * pulse})`;
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(signCx - sw / 2, signCy - 12, sw, 24);
+}
+
+function drawDottedRoute(x1, y1, x2, y2) {
+  ctx.strokeStyle = 'rgba(58,31,10,0.55)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawOverworld() {
+  drawOverworldBg();
+  // Rota pontilhada mina → fábricas
+  const d = OVERWORLD.dottedMineToFactory;
+  drawDottedRoute(d.x1, d.y, d.x2, d.y);
+  drawMineEntrance();
   drawFactories();
   drawCity();
   drawRoad();
   drawWagon();
+}
+
+// ---------- Cena MINA: grid + silos + tools + botão voltar ----------
+function drawBackBtn() {
+  const b = MINE_BACK_BTN;
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(b.x - 2, b.y - 2, b.w + 4, b.h + 4);
+  // hover effect
+  const hovering =
+    state.mouseX >= b.x && state.mouseX < b.x + b.w &&
+    state.mouseY >= b.y && state.mouseY < b.y + b.h;
+  ctx.fillStyle = hovering ? '#d8a056' : '#c69042';
+  ctx.fillRect(b.x, b.y, b.w, b.h);
+  ctx.fillStyle = '#1a0e06';
+  ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('← Voltar ao Mapa', b.x + b.w / 2, b.y + b.h / 2);
+}
+
+function drawMineScene() {
+  drawMineSky();
+  drawSilos();
   drawMineGrid();
   drawToolbar();
+  drawBackBtn();
+}
+
+// ---------- Entry ----------
+export function draw() {
+  if (state.scene === 'mine') {
+    drawMineScene();
+    drawTileTooltip();
+  } else {
+    drawOverworld();
+  }
   drawEventBanner();
-  drawTileTooltip();
 }
