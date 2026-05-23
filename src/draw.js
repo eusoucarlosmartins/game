@@ -4,6 +4,8 @@ import { state } from './state.js';
 import { R, RECIPE_BY_ID, CFG, MINE, TOOLS, SILO_DEFAULT_CAP } from './data.js';
 import { fmtMoney, clamp } from './util.js';
 import { transportTier, wagonCapacity, currentEra, eraData } from './progression.js';
+import { ingredientHave } from './factories.js';
+import { getProjectDef } from './projects.js';
 import {
   W, H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
   OVERWORLD, TOOLBAR, MINE_BACK_BTN, factoryRect,
@@ -1016,9 +1018,219 @@ function drawOverworld() {
   drawDottedRoute(d.x1, d.y, d.x2, d.y);
   drawMineEntrance();
   drawFactories();
+  drawFactoryRecipePanels();
   drawCity();
   drawRoad();
   drawWagon();
+  drawActiveProjectPanel();
+  drawContractPanelOverworld();
+}
+
+// ---------- Helpers: ícone de recurso + scroll/painel ----------
+function drawResourceIcon(x, y, size, resourceId) {
+  const res = R[resourceId];
+  if (!res) return;
+  ctx.fillStyle = res.color;
+  ctx.fillRect(x, y, size, size);
+  ctx.strokeStyle = '#1a0e06';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, size, size);
+  // texto da abreviação em cima, com sombra escura por contraste
+  ctx.font = `bold ${Math.floor(size * 0.45)}px "Segoe UI", Arial, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(20,10,5,0.85)';
+  ctx.fillRect(x, y + size - Math.floor(size * 0.55), size, Math.floor(size * 0.55));
+  ctx.fillStyle = '#ffd44a';
+  ctx.fillText(resAbbrev(resourceId), x + size / 2, y + size - Math.floor(size * 0.28));
+}
+
+function drawScrollPanel(x, y, w, h) {
+  // moldura escura
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+  // papel envelhecido
+  ctx.fillStyle = '#f1e3c2';
+  ctx.fillRect(x, y, w, h);
+  // textura de linhas horizontais sutis
+  ctx.strokeStyle = 'rgba(122,75,37,0.12)';
+  ctx.lineWidth = 1;
+  for (let i = 10; i < h; i += 9) {
+    ctx.beginPath();
+    ctx.moveTo(x + 4, y + i);
+    ctx.lineTo(x + w - 4, y + i);
+    ctx.stroke();
+  }
+}
+
+// ---------- Mini painel de receita acima de cada fábrica ----------
+function drawFactoryRecipePanels() {
+  for (let i = 0; i < state.factories.length; i++) {
+    const f = state.factories[i];
+    const rect = factoryRect(i);
+    drawFactoryRecipePanel(rect, f);
+  }
+}
+
+function drawFactoryRecipePanel(rect, factory) {
+  const recipe = RECIPE_BY_ID[factory.recipeId];
+  if (!recipe) return;
+  const product = R[factory.recipeId];
+  // posição: pouco acima do prédio
+  const pw = rect.w;
+  const ph = 44;
+  const px = rect.x;
+  const py = rect.y - ph - 8;
+  drawScrollPanel(px, py, pw, ph);
+  // input principal (primeiro ingrediente da receita)
+  const inputs = Object.entries(recipe.in);
+  const [inputId, need] = inputs[0];
+  const have = ingredientHave(inputId);
+  const haveStr = R[inputId].free ? '∞' : Math.floor(have);
+  const inputOk = have >= need;
+  // ícone do input + texto have/need
+  const iconSize = 22;
+  drawResourceIcon(px + 4, py + 4, iconSize, inputId);
+  ctx.fillStyle = inputOk ? '#1a0e06' : '#a82e1c';
+  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${haveStr}/${need}`, px + 4 + iconSize + 4, py + 4 + iconSize / 2);
+  // se houver +1 ingredientes, marca discreto
+  if (inputs.length > 1) {
+    ctx.fillStyle = '#5a3416';
+    ctx.font = '9px "Segoe UI"';
+    ctx.fillText(`+${inputs.length - 1}`, px + 4 + iconSize + 4, py + iconSize + 10);
+  }
+  // seta no centro
+  ctx.fillStyle = '#c69042';
+  ctx.font = 'bold 16px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('→', px + pw / 2, py + ph / 2);
+  // output: ícone + estoque/cap
+  const outHave = state.products[factory.recipeId] || 0;
+  const outCap = CFG.factoryStockMax;
+  drawResourceIcon(px + pw - 4 - iconSize, py + 4, iconSize, factory.recipeId);
+  ctx.fillStyle = '#1a0e06';
+  ctx.font = 'bold 11px "Segoe UI"';
+  ctx.textAlign = 'right';
+  ctx.fillText(`${outHave}/${outCap}`, px + pw - 4 - iconSize - 4, py + 4 + iconSize / 2);
+  // barra fina de progresso da batelada em andamento
+  if (factory.brewing > 0) {
+    const pct = 1 - factory.brewing / recipe.time;
+    ctx.fillStyle = '#5a3416';
+    ctx.fillRect(px + 4, py + ph - 5, pw - 8, 3);
+    ctx.fillStyle = '#c69042';
+    ctx.fillRect(px + 4, py + ph - 5, (pw - 8) * pct, 3);
+  }
+  // hover destaca o painel inteiro
+  const fullRect = { x: px, y: py, w: pw, h: ph + rect.h + 8 };
+  const hovering =
+    state.mouseX >= fullRect.x && state.mouseX < fullRect.x + fullRect.w &&
+    state.mouseY >= fullRect.y && state.mouseY < fullRect.y + fullRect.h;
+  if (hovering) {
+    ctx.strokeStyle = 'rgba(255,220,80,0.7)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(rect.x - 3, py - 3, pw + 6, ph + rect.h + 14);
+  }
+  // suprime nome do produto: já fica na placa amarela do prédio
+  product; // referenciada implicitamente via outHave/cap
+}
+
+// ---------- Banner do projeto ativo (overworld) ----------
+function drawActiveProjectPanel() {
+  if (!state.projects.active) return;
+  const def = getProjectDef(state.projects.active.id);
+  if (!def) return;
+  const prog = state.projects.active.progress;
+  const x = 20, y = 56;
+  const w = 280;
+  const reqs = Object.entries(def.requirements);
+  const lineH = 18;
+  const h = 34 + reqs.length * lineH + 8;
+  drawScrollPanel(x, y, w, h);
+  // título
+  ctx.fillStyle = '#3a1f0a';
+  ctx.font = 'bold 13px "Segoe UI"';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('🏗 Construindo:', x + 8, y + 6);
+  ctx.fillStyle = '#5a3416';
+  ctx.font = 'bold 14px "Segoe UI"';
+  ctx.fillText(def.name.toUpperCase(), x + 8, y + 22);
+  // barras de cada requisito
+  let row = 0;
+  for (const [res, need] of reqs) {
+    const have = Math.min(prog[res] || 0, need);
+    const pct = clamp(have / need, 0, 1);
+    const ry = y + 44 + row * lineH;
+    drawResourceIcon(x + 8, ry, 14, res);
+    ctx.fillStyle = '#1a0e06';
+    ctx.font = '11px "Segoe UI"';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText(R[res].name, x + 28, ry + 7);
+    // barra
+    const barX = x + 140;
+    const barW = w - 140 - 50;
+    ctx.fillStyle = '#1a0e06';
+    ctx.fillRect(barX, ry + 4, barW, 6);
+    ctx.fillStyle = pct >= 1 ? '#4d7c3a' : '#c69042';
+    ctx.fillRect(barX, ry + 4, barW * pct, 6);
+    // X/Y
+    ctx.fillStyle = '#3a1f0a';
+    ctx.font = 'bold 10px "Segoe UI"';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${Math.floor(have)}/${need}`, x + w - 8, ry + 7);
+    row++;
+  }
+}
+
+// ---------- Painel de contrato acima da cidade ----------
+function drawContractPanelOverworld() {
+  if (!state.contract) return;
+  const k = state.contract;
+  const product = R[k.product];
+  const x = CITY.x + 10;
+  const y = 56;
+  const w = CITY.w - 20;
+  const h = 100;
+  drawScrollPanel(x, y, w, h);
+  // título
+  ctx.fillStyle = '#3a1f0a';
+  ctx.font = 'bold 11px "Segoe UI"';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`📜 PEDIDO DE ${k.city.toUpperCase()}`, x + 8, y + 6);
+  // ícone do produto + nome + quantidade
+  drawResourceIcon(x + 8, y + 28, 28, k.product);
+  ctx.fillStyle = '#1a0e06';
+  ctx.font = 'bold 14px "Segoe UI"';
+  ctx.textBaseline = 'top';
+  ctx.fillText(product.name, x + 42, y + 28);
+  ctx.fillStyle = '#5a3416';
+  ctx.font = 'bold 16px "Segoe UI"';
+  ctx.fillText(`${k.delivered} / ${k.need}`, x + 42, y + 46);
+  // progresso entrega
+  const pct = clamp(k.delivered / k.need, 0, 1);
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillRect(x + 8, y + 72, w - 16, 5);
+  ctx.fillStyle = '#4d7c3a';
+  ctx.fillRect(x + 8, y + 72, (w - 16) * pct, 5);
+  // tempo restante
+  const tLeft = Math.max(0, k.deadline - k.elapsed);
+  const tPct = clamp(1 - k.elapsed / k.deadline, 0, 1);
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillRect(x + 8, y + 82, w - 16, 5);
+  ctx.fillStyle = tLeft < 20 ? '#a82e1c' : '#c69042';
+  ctx.fillRect(x + 8, y + 82, (w - 16) * tPct, 5);
+  // texto do tempo
+  ctx.fillStyle = tLeft < 20 ? '#a82e1c' : '#5a3416';
+  ctx.font = 'bold 11px "Segoe UI"';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`⏱ ${tLeft.toFixed(0)}s`, x + w - 8, y + 6);
 }
 
 // ---------- Cena MINA: grid + silos + tools + botão voltar ----------

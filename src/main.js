@@ -16,7 +16,7 @@ import { draw } from './draw.js';
 import { syncUI, openRecipeModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
 import { sellRaw, sellAllRaw, sellProduct, sellAllProduct } from './market.js';
-import { TOOLBAR, MINE_BACK_BTN, OVERWORLD } from './geometry.js';
+import { TOOLBAR, MINE_BACK_BTN, OVERWORLD, factoryRect } from './geometry.js';
 
 // ---------- Game over / vitória ----------
 function checkEnd() {
@@ -100,6 +100,18 @@ canvas.addEventListener('click', (e) => {
       state.scene = 'mine';
       play('whoosh');
       log('Entrou na mina. Use a picareta para cavar, e o minerador pra alocar trabalhadores em veios.');
+      return;
+    }
+    // Click numa fábrica (prédio ou painel acima) → abre modal de receita
+    for (let i = 0; i < state.factories.length; i++) {
+      const r = factoryRect(i);
+      // painel mini de receita acima (44px + 8px gap)
+      const panelArea = { x: r.x, y: r.y - 52, w: r.w, h: 52 };
+      if (hitTest(x, y, r) || hitTest(x, y, panelArea)) {
+        openRecipeModal(i);
+        play('click');
+        return;
+      }
     }
     return;
   }
