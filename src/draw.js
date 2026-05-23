@@ -7,7 +7,7 @@ import { ingredientHave } from './factories.js';
 import { getProjectDef } from './projects.js';
 import { activeMine, regenCost } from './mine.js';
 import {
-  W, H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
+  W, H, WORLD_W, WORLD_H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
   OVERWORLD, TOOLBAR, MINE_BACK_BTN, factoryRect,
 } from './geometry.js';
 
@@ -883,66 +883,80 @@ function drawEventBanner() {
 
 // ---------- Cena OVERWORLD: mapa ----------
 function drawOverworldBg() {
-  // Fundo papel envelhecido com gradiente
-  const grd = ctx.createLinearGradient(0, 0, 0, H);
+  // Fundo papel envelhecido com gradiente, cobre o MUNDO inteiro (não só o canvas)
+  const grd = ctx.createLinearGradient(0, 0, 0, WORLD_H);
   grd.addColorStop(0, '#d4b478');
   grd.addColorStop(0.5, '#c9a76a');
   grd.addColorStop(1, '#a87f48');
   ctx.fillStyle = grd;
-  ctx.fillRect(0, 0, W, H);
-  // Textura sutil (pontilhado denso)
+  ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+  // Textura sutil cobrindo todo o mundo
   ctx.fillStyle = 'rgba(80,50,20,0.07)';
-  for (let i = 0; i < 480; i++) {
-    const x = (i * 137) % W;
-    const y = (i * 89) % H;
+  for (let i = 0; i < 1600; i++) {
+    const x = (i * 137) % WORLD_W;
+    const y = (i * 89) % WORLD_H;
     ctx.fillRect(x, y, 2, 2);
   }
-  // Camada de montanhas mais distante (mais clara, ao fundo)
+  // Camada de montanhas mais distante (clara, ao fundo) — repetida por todo o mundo
   ctx.fillStyle = '#a88a5a';
   ctx.beginPath();
   ctx.moveTo(0, 150);
-  ctx.lineTo(80, 70); ctx.lineTo(170, 140);
-  ctx.lineTo(260, 50); ctx.lineTo(380, 130);
-  ctx.lineTo(500, 60); ctx.lineTo(640, 130);
-  ctx.lineTo(780, 50); ctx.lineTo(920, 140);
-  ctx.lineTo(1060, 60); ctx.lineTo(1200, 130);
-  ctx.lineTo(1280, 80); ctx.lineTo(1280, 0);
+  for (let x = 0; x <= WORLD_W; x += 140) {
+    const peak = ((x / 70) | 0) % 2 === 0;
+    ctx.lineTo(x + 40, peak ? 50 : 70);
+    ctx.lineTo(x + 100, peak ? 140 : 130);
+  }
+  ctx.lineTo(WORLD_W, 0);
   ctx.lineTo(0, 0);
   ctx.closePath();
   ctx.fill();
-  // Camada de montanhas mais perto (mais escura, à frente)
+  // Camada de montanhas mais perto (escura, à frente)
   ctx.fillStyle = '#8a6a3e';
   ctx.beginPath();
   ctx.moveTo(0, 190);
-  ctx.lineTo(130, 90); ctx.lineTo(230, 180);
-  ctx.lineTo(340, 70); ctx.lineTo(480, 170);
-  ctx.lineTo(620, 100); ctx.lineTo(770, 180);
-  ctx.lineTo(900, 80); ctx.lineTo(1080, 170);
-  ctx.lineTo(1280, 100); ctx.lineTo(1280, 0);
+  for (let x = 0; x <= WORLD_W; x += 150) {
+    const peak = ((x / 75) | 0) % 2 === 0;
+    ctx.lineTo(x + 65, peak ? 70 : 90);
+    ctx.lineTo(x + 115, peak ? 180 : 170);
+  }
+  ctx.lineTo(WORLD_W, 0);
   ctx.lineTo(0, 0);
   ctx.closePath();
   ctx.fill();
-  // Sombra na base das montanhas (transição pro chão)
+  // Sombra na base das montanhas (transição pro chão) — em todo o mundo
   ctx.fillStyle = 'rgba(0,0,0,0.14)';
-  ctx.fillRect(0, 180, W, 12);
+  ctx.fillRect(0, 180, WORLD_W, 12);
   // Penhascos avermelhados em primeiro plano (rodapé do canvas)
   drawForegroundCliffs();
   // Vegetação + decorações espalhadas (deterministic scatter)
   drawNatureScatter();
 }
 
-// ---- Penhascos/rochas no rodapé do canvas (efeito far-west) ----
+// ---- Penhascos/rochas no rodapé do mundo (efeito far-west) ----
 function drawForegroundCliffs() {
-  // Faixa de areia mais escura no chão (linha do horizonte do solo)
+  // Faixa de areia mais escura no chão do mundo
   ctx.fillStyle = 'rgba(120,80,40,0.25)';
-  ctx.fillRect(0, H - 60, W, 60);
-  // Penhascos vermelho-tijolo, vários tamanhos (avoid the bottom-left 4ª mina e a estrada)
+  ctx.fillRect(0, WORLD_H - 60, WORLD_W, 60);
+  // Penhascos vermelho-tijolo espalhados pela largura do mundo
   const cliffs = [
-    { x: 210, y: H - 70, w: 80, h: 50 },
-    { x: 310, y: H - 90, w: 110, h: 70 },
-    { x: 470, y: H - 60, w: 70, h: 40 },
-    { x: 720, y: H - 80, w: 90, h: 60 },
-    { x: 1130, y: H - 70, w: 95, h: 50 },
+    { x: 210, y: WORLD_H - 70, w: 80, h: 50 },
+    { x: 310, y: WORLD_H - 90, w: 110, h: 70 },
+    { x: 470, y: WORLD_H - 60, w: 70, h: 40 },
+    { x: 720, y: WORLD_H - 80, w: 90, h: 60 },
+    { x: 1130, y: WORLD_H - 70, w: 95, h: 50 },
+    // Novos penhascos no quadrante expandido (direita / abaixo)
+    { x: 1500, y: WORLD_H - 80, w: 100, h: 60 },
+    { x: 1720, y: WORLD_H - 60, w: 70, h: 40 },
+    { x: 1900, y: WORLD_H - 90, w: 120, h: 70 },
+    { x: 2200, y: WORLD_H - 70, w: 90, h: 50 },
+    { x: 2400, y: WORLD_H - 80, w: 110, h: 60 },
+    // Penhascos no meio vertical (separadores naturais)
+    { x: 100,  y: 760, w: 90, h: 55 },
+    { x: 400,  y: 800, w: 110, h: 65 },
+    { x: 800,  y: 770, w: 80, h: 50 },
+    { x: 1200, y: 800, w: 120, h: 65 },
+    { x: 1600, y: 770, w: 100, h: 55 },
+    { x: 2000, y: 800, w: 90, h: 60 },
   ];
   for (const c of cliffs) drawCliff(c.x, c.y, c.w, c.h);
 }
@@ -1032,30 +1046,30 @@ function getDecorAvoidRects() {
 function drawNatureScatter() {
   const avoid = getDecorAvoidRects();
   const rng = lcg(8675309);
-  // Árvores (várias sizes pra dar profundidade)
+  // Árvores espalhadas pelo MUNDO inteiro (mais densas que antes)
   let placed = 0;
-  for (let tries = 0; tries < 220 && placed < 55; tries++) {
-    const x = rng() * (W - 40) + 20;
-    const y = 210 + rng() * (H - 240);
+  for (let tries = 0; tries < 800 && placed < 180; tries++) {
+    const x = rng() * (WORLD_W - 40) + 20;
+    const y = 210 + rng() * (WORLD_H - 280);
     if (inAnyRect(x, y, avoid)) continue;
     const size = 0.55 + rng() * 0.7;
     drawTree(x, y, size);
     placed++;
   }
-  // Cactos (só na metade direita, mais "deserto")
+  // Cactos espalhados pelo mundo (mais na metade direita)
   placed = 0;
-  for (let tries = 0; tries < 80 && placed < 8; tries++) {
-    const x = 450 + rng() * (W - 500);
-    const y = 320 + rng() * (H - 360);
+  for (let tries = 0; tries < 200 && placed < 30; tries++) {
+    const x = 450 + rng() * (WORLD_W - 500);
+    const y = 320 + rng() * (WORLD_H - 400);
     if (inAnyRect(x, y, avoid)) continue;
     drawCactus(x, y);
     placed++;
   }
-  // Pedras pequenas espalhadas (dá textura)
+  // Pedras pequenas espalhadas (textura)
   placed = 0;
-  for (let tries = 0; tries < 150 && placed < 18; tries++) {
-    const x = rng() * (W - 30) + 15;
-    const y = 210 + rng() * (H - 250);
+  for (let tries = 0; tries < 500 && placed < 70; tries++) {
+    const x = rng() * (WORLD_W - 30) + 15;
+    const y = 210 + rng() * (WORLD_H - 280);
     if (inAnyRect(x, y, avoid)) continue;
     drawSmallRock(x, y, 0.7 + rng() * 0.8);
     placed++;
@@ -1334,11 +1348,12 @@ function drawDottedRoute(x1, y1, x2, y2) {
 }
 
 function drawOverworld() {
+  // === Camada do MUNDO (pan pela câmera) ===
+  ctx.save();
+  ctx.translate(-state.camera.x, -state.camera.y);
   drawOverworldBg();
   drawRiver();
-  // Landmarks decorativos (vilarejos, pueblos, fazendas) espalhados
   drawDecorativeLandmarks();
-  // Rotas pontilhadas das minas até as fábricas (raw materials)
   for (const d of OVERWORLD.dottedMineToFactory) {
     drawDottedRoute(d.x1, d.y1, d.x2, d.y2);
   }
@@ -1350,29 +1365,44 @@ function drawOverworld() {
   drawCity();
   drawRoad();
   drawWagon();
+  ctx.restore();
+  // === Camada HUD (fixa na tela) ===
   drawActiveProjectPanel();
   drawContractPanelOverworld();
+  drawPanIndicators();
 }
 
-// Rio decorativo serpenteando pela direita do mapa (atrás da cidade)
+// Setinhas nos cantos pra avisar que dá pra arrastar o mapa
+function drawPanIndicators() {
+  ctx.fillStyle = 'rgba(58,31,10,0.55)';
+  ctx.font = 'bold 22px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (state.camera.x > 4) ctx.fillText('◀', 22, H / 2);
+  if (state.camera.x < WORLD_W - W - 4) ctx.fillText('▶', W - 22, H / 2);
+  if (state.camera.y > 4) ctx.fillText('▲', W / 2, 22);
+  if (state.camera.y < WORLD_H - H - 4) ctx.fillText('▼', W / 2, H - 22);
+}
+
+// Rio decorativo serpenteando pelo MUNDO inteiro (borda direita do mundo)
 function drawRiver() {
-  // Faixa azul ondulada na borda direita
-  const baseX = 1230;
+  const baseX = WORLD_W - 50;
+  // Faixa azul ondulada
   ctx.fillStyle = 'rgba(80,140,180,0.35)';
   ctx.beginPath();
   ctx.moveTo(baseX, 0);
-  for (let y = 0; y <= H; y += 14) {
+  for (let y = 0; y <= WORLD_H; y += 14) {
     const wave = Math.sin(y * 0.04) * 12;
     ctx.lineTo(baseX + wave, y);
   }
-  ctx.lineTo(W, H);
-  ctx.lineTo(W, 0);
+  ctx.lineTo(WORLD_W, WORLD_H);
+  ctx.lineTo(WORLD_W, 0);
   ctx.closePath();
   ctx.fill();
-  // Linhas de ondinhas pra dar movimento
+  // Ondinhas brancas pra dar movimento
   ctx.strokeStyle = 'rgba(255,255,255,0.35)';
   ctx.lineWidth = 1;
-  for (let y = 20; y < H; y += 28) {
+  for (let y = 20; y < WORLD_H; y += 28) {
     const wave = Math.sin(y * 0.04) * 12;
     ctx.beginPath();
     ctx.moveTo(baseX + wave + 6, y);
@@ -1383,16 +1413,16 @@ function drawRiver() {
     ctx.lineTo(baseX + wave + 28, y + 10);
     ctx.stroke();
   }
-  // margem (areia escura)
+  // Margem (areia escura) do lado esquerdo do rio
   ctx.fillStyle = 'rgba(120,80,40,0.4)';
   ctx.beginPath();
   ctx.moveTo(baseX - 4, 0);
-  for (let y = 0; y <= H; y += 14) {
+  for (let y = 0; y <= WORLD_H; y += 14) {
     const wave = Math.sin(y * 0.04) * 12;
     ctx.lineTo(baseX - 4 + wave, y);
   }
-  ctx.lineTo(baseX, H);
-  for (let y = H; y >= 0; y -= 14) {
+  ctx.lineTo(baseX, WORLD_H);
+  for (let y = WORLD_H; y >= 0; y -= 14) {
     const wave = Math.sin(y * 0.04) * 12;
     ctx.lineTo(baseX + wave, y);
   }
@@ -1404,17 +1434,49 @@ function drawRiver() {
 // Estilo: vila colonial, pueblo, fazenda — pra dar a sensação de "rede de
 // cidades" tipo a referência (Rancho Longhorn, Pueblo Blanco, etc.).
 function drawDecorativeLandmarks() {
-  // 6 landmarks em posições que não conflitam com prédios funcionais
+  // === Quadrante inicial (visível no carregamento) ===
   drawVillage(520, 200, 'TUBARÃO', 'pueblo', 0.85);
   drawVillage(680, 280, 'JOINVILLE', 'village', 0.8);
   drawVillage(370, 270, 'BLUMENAU', 'village', 0.75);
   drawVillage(530, 640, 'LAGES', 'pueblo', 0.85);
   drawVillage(870, 640, 'CHAPECÓ', 'fazenda', 0.85);
   drawVillage(210, 320, 'RIO NEGRINHO', 'fazenda', 0.7);
-  // Rotas pontilhadas decorativas entre landmarks (dá impressão de rede)
   drawDottedRoute(370, 280, 520, 210);
   drawDottedRoute(520, 215, 680, 285);
   drawDottedRoute(530, 650, 870, 650);
+
+  // === Quadrantes expandidos (apare arrastando o mapa) ===
+  // Leste (x > W)
+  drawVillage(1450, 220, 'NAVEGANTES', 'pueblo', 0.85);
+  drawVillage(1680, 320, 'ITAJAÍ', 'fazenda', 0.85);
+  drawVillage(1900, 230, 'BALN. CAMBORIÚ', 'pueblo', 0.8);
+  drawVillage(2100, 380, 'PORTO BELO', 'village', 0.75);
+  drawVillage(2280, 230, 'BOMBINHAS', 'fazenda', 0.75);
+  // Sul (y > H) — abaixo do quadrante inicial
+  drawVillage(420, 900, 'BIGUAÇU', 'village', 0.85);
+  drawVillage(680, 960, 'SÃO JOSÉ', 'pueblo', 0.9);
+  drawVillage(960, 880, 'PALHOÇA', 'fazenda', 0.85);
+  drawVillage(220, 1080, 'GAROPABA', 'village', 0.75);
+  drawVillage(560, 1180, 'IMBITUBA', 'pueblo', 0.85);
+  drawVillage(900, 1100, 'LAGUNA', 'fazenda', 0.85);
+  // Sudeste (x > W, y > H)
+  drawVillage(1440, 880, 'CRICIÚMA', 'fazenda', 0.9);
+  drawVillage(1700, 950, 'ARARANGUÁ', 'village', 0.85);
+  drawVillage(2000, 880, 'TORRES', 'pueblo', 0.85);
+  drawVillage(2200, 1080, 'PRAIA GRANDE', 'village', 0.75);
+  drawVillage(1500, 1180, 'TUBARÃO SUL', 'fazenda', 0.8);
+  drawVillage(1850, 1180, 'GRAVATAL', 'pueblo', 0.75);
+  // Rotas conectando os quadrantes
+  drawDottedRoute(1100, 200, 1450, 220);
+  drawDottedRoute(1450, 230, 1680, 320);
+  drawDottedRoute(1680, 320, 1900, 240);
+  drawDottedRoute(1900, 240, 2100, 380);
+  drawDottedRoute(420, 670, 420, 900);
+  drawDottedRoute(420, 910, 680, 960);
+  drawDottedRoute(680, 960, 960, 880);
+  drawDottedRoute(960, 880, 1440, 880);
+  drawDottedRoute(1440, 880, 1700, 950);
+  drawDottedRoute(1700, 950, 2000, 880);
 }
 
 // Nodo do Mercado — clicável (abre aba Mercado)

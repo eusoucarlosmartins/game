@@ -77,6 +77,12 @@ export const state = {
   nextEventIn: 45,
   eventMineMul: 1,
   eventContractBonus: 0,
+
+  // Câmera do overworld (drag-to-pan) — não persistido
+  camera: { x: 0, y: 0 },
+  isPanning: false,
+  panStart: null,        // { mouseX, mouseY, cameraX, cameraY } em screen coords
+  panDistance: 0,        // distância acumulada do drag (px) — pra distinguir click de drag
 };
 
 export function log(msg, kind = '') {

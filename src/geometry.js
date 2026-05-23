@@ -4,6 +4,10 @@
 
 export const W = 1280;
 export const H = 720;
+// Mundo do overworld é maior que a viewport — câmera + drag-to-pan.
+// Conteúdo inicial fica em (0,0)-(W,H); o mundo se estende pra direita/baixo.
+export const WORLD_W = 2560;
+export const WORLD_H = 1440;
 
 // ---------- Overworld (mapa) ----------
 // Layout estilo mapa: minas pequenas espalhadas pelos 4 cantos,

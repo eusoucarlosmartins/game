@@ -15,7 +15,8 @@ import { draw } from './draw.js';
 import { syncUI, openRecipeModal, openBuyMineModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
 import { sellRaw, sellAllRaw, sellProduct, sellAllProduct } from './market.js';
-import { W, TOOLBAR, MINE_BACK_BTN, OVERWORLD, factoryRect } from './geometry.js';
+import { W, H, WORLD_W, WORLD_H, TOOLBAR, MINE_BACK_BTN, OVERWORLD, factoryRect } from './geometry.js';
+import { clamp } from './util.js';
 
 // ---------- Game over / vitória ----------
 function checkEnd() {
@@ -99,14 +100,48 @@ function canvasCoords(e) {
     y: (e.clientY - rect.top) * (canvas.height / rect.height),
   };
 }
+// Câmera + drag-to-pan no overworld.
+// state.mouseX/Y guarda WORLD coords no overworld (pra hover detection nas funções
+// de draw funcionarem direto), e SCREEN coords no mine scene.
+canvas.addEventListener('mousedown', (e) => {
+  if (state.scene !== 'overworld') return;
+  const p = canvasCoords(e);
+  state.isPanning = true;
+  state.panStart = { mouseX: p.x, mouseY: p.y, cameraX: state.camera.x, cameraY: state.camera.y };
+  state.panDistance = 0;
+  canvas.style.cursor = 'grabbing';
+});
 canvas.addEventListener('mousemove', (e) => {
   const p = canvasCoords(e);
-  state.mouseX = p.x;
-  state.mouseY = p.y;
+  if (state.isPanning && state.panStart) {
+    const dx = p.x - state.panStart.mouseX;
+    const dy = p.y - state.panStart.mouseY;
+    state.camera.x = clamp(state.panStart.cameraX - dx, 0, WORLD_W - W);
+    state.camera.y = clamp(state.panStart.cameraY - dy, 0, WORLD_H - H);
+    state.panDistance = Math.max(state.panDistance, Math.hypot(dx, dy));
+  }
+  if (state.scene === 'overworld') {
+    state.mouseX = p.x + state.camera.x;
+    state.mouseY = p.y + state.camera.y;
+  } else {
+    state.mouseX = p.x;
+    state.mouseY = p.y;
+  }
+});
+canvas.addEventListener('mouseup', () => {
+  state.isPanning = false;
+  state.panStart = null;
+  canvas.style.cursor = state.scene === 'overworld' ? 'grab' : 'default';
 });
 canvas.addEventListener('mouseleave', () => {
   state.mouseX = -1;
   state.mouseY = -1;
+  state.isPanning = false;
+  state.panStart = null;
+  canvas.style.cursor = 'default';
+});
+canvas.addEventListener('mouseenter', () => {
+  canvas.style.cursor = state.scene === 'overworld' ? 'grab' : 'default';
 });
 function hitTest(x, y, r) {
   return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
@@ -126,7 +161,16 @@ function switchTab(name) {
 }
 
 canvas.addEventListener('click', (e) => {
-  const { x, y } = canvasCoords(e);
+  // Se o usuário arrastou (>5px) durante o click, é pan — não dispara hit-tests
+  if (state.panDistance > 5) {
+    state.panDistance = 0;
+    return;
+  }
+  state.panDistance = 0;
+  const sc = canvasCoords(e);
+  // No overworld, hit-tests usam WORLD coords (offset pela câmera)
+  const x = state.scene === 'overworld' ? sc.x + state.camera.x : sc.x;
+  const y = state.scene === 'overworld' ? sc.y + state.camera.y : sc.y;
 
   if (state.scene === 'overworld') {
     // Click em entrada de mina (ocupada → entra; vazia → abre catálogo)
