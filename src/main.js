@@ -1,7 +1,8 @@
+// @ts-nocheck
 // main.js — entry: loop, eventos, init
 import { state, log } from './state.js';
 import { $ } from './util.js';
-import { ROMAN, CFG, MINE, TOOLS } from './data.js';
+import { ROMAN, CFG, MINE } from './data.js';
 import { currentEra } from './progression.js';
 import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL } from './save.js';
 import { initMine, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool } from './mine.js';

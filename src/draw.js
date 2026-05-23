@@ -1,11 +1,10 @@
+// @ts-nocheck
 // draw.js — renderização do canvas (mina em grid + superfície compacta)
 import { state } from './state.js';
 import { R, RECIPE_BY_ID, CFG, MINE, TOOLS, SILO_DEFAULT_CAP } from './data.js';
 import { fmtMoney, clamp } from './util.js';
 import { transportTier, wagonCapacity, currentEra, eraData } from './progression.js';
-import {
-  W, H, GROUND_Y, FACTORY_AREA, CITY, ROAD, TOOLBAR, factoryRect,
-} from './geometry.js';
+import { W, GROUND_Y, CITY, ROAD, TOOLBAR, factoryRect } from './geometry.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');

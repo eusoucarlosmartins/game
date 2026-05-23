@@ -1,6 +1,6 @@
 // upgrades.js — tela de Upgrades em árvore + ações de compra
 import { state, log } from './state.js';
-import { EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY_ID } from './data.js';
+import { EQ_BY_ID, RES_BY_ID } from './data.js';
 import { $, fmtMoney } from './util.js';
 import { openModal } from './modals.js';
 import { registerUpgradesRefresh } from './ui.js';

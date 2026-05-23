@@ -63,7 +63,7 @@ export function loadGame() {
 }
 
 export function deleteSave() {
-  try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+  try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
 }
 
 export function updateSaveStatus() {

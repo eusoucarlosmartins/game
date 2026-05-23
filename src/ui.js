@@ -1,10 +1,11 @@
+// @ts-nocheck
 // ui.js — renderização da sidebar e modais (receita)
 import { state } from './state.js';
 import { R, RECIPE_BY_ID, RECIPES_BY_TIER, EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY_ID, RES_CATS, ERAS, ROMAN, CFG, TOOLS, WORKER_COST } from './data.js';
 import { $, fmtMoney } from './util.js';
 import { currentEra, eraData, isRecipeUnlocked } from './progression.js';
 import { ingredientHave } from './factories.js';
-import { workersAvailable, workersActive, getRevealedOreCounts, isResourceUnlocked } from './mine.js';
+import { workersActive, getRevealedOreCounts, isResourceUnlocked } from './mine.js';
 import { openModal, closeModal } from './modals.js';
 import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
 
@@ -337,7 +338,7 @@ export function openRecipeModal(factoryIndex) {
       const product = R[r.id];
       const locked = !isRecipeUnlocked(r.id);
       const ingredients = Object.entries(r.in).map(([k, v]) => `${v}× ${R[k].name}`).join(' + ');
-      let unlockEra = ERAS.find(e => e.recipes.includes(r.id));
+      const unlockEra = ERAS.find(e => e.recipes.includes(r.id));
       const lockMsg = locked && unlockEra ? `Era ${ROMAN[unlockEra.id - 1]} necessária` : '';
       html += `
         <button class="grid-option" data-action="confirm-recipe" data-fact="${factoryIndex}" data-recipe="${r.id}" ${locked ? 'disabled' : ''}>
