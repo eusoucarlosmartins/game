@@ -83,14 +83,15 @@ function buildMineGrid(mine, oreBias) {
     mine.grid.push(row);
   }
   placeOreVeins(mine.grid, oreBias);
-  // Túnel inicial: 5 colunas no topo central já cavadas + 2 veios expostos
-  const cc = Math.floor(MINE.cols / 2);
-  for (let c = cc - 2; c <= cc + 2; c++) mine.grid[0][c] = airTile(true);
-  mine.grid[1][cc] = airTile(true);
-  mine.grid[1][cc - 1] = oreTile('coal', 25, true);
-  mine.grid[1][cc + 1] = oreTile('iron_ore', 25, true);
-  revealAround(mine.grid, 0, cc, 2);
-  revealAround(mine.grid, 1, cc, 1);
+  // Túnel inicial: 4 colunas saindo do elevador (col 0) pra direita, no topo.
+  // Conecta visualmente o poço aos primeiros veios — o jogador entra na mina
+  // e já vê o caminho começando do elevador.
+  for (let c = 1; c <= 4; c++) mine.grid[0][c] = airTile(true);
+  mine.grid[1][2] = oreTile('coal', 25, true);
+  mine.grid[1][3] = oreTile('iron_ore', 25, true);
+  // Revela a área inicial em volta pra ajudar o player a se localizar
+  revealAround(mine.grid, 0, 2, 3);
+  revealAround(mine.grid, 1, 3, 2);
 }
 
 function airTile(revealed) {
@@ -182,6 +183,51 @@ function hasAdjacentAir(grid, r, c) {
   return false;
 }
 
+// BFS a partir dos tiles 'shaft' (poço do elevador), expandindo só por
+// air/shaft. Retorna matriz booleana de "conectado ao elevador".
+// O minério só pode ser extraído de tiles cujo VIZINHO está conectado.
+export function computeConnectivity(grid) {
+  const { rows, cols } = MINE;
+  const reached = Array.from({ length: rows }, () => new Array(cols).fill(false));
+  const queue = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (grid[r][c] && grid[r][c].type === 'shaft') {
+        reached[r][c] = true;
+        queue.push([r, c]);
+      }
+    }
+  }
+  let head = 0;
+  while (head < queue.length) {
+    const [r, c] = queue[head++];
+    for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      const nr = r + dr, nc = c + dc;
+      if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+      if (reached[nr][nc]) continue;
+      const t = grid[nr][nc];
+      if (t && (t.type === 'air' || t.type === 'shaft')) {
+        reached[nr][nc] = true;
+        queue.push([nr, nc]);
+      }
+    }
+  }
+  return reached;
+}
+
+// Tile é "minerável" se tem algum vizinho conectado ao elevador.
+function isOreReachable(mine, r, c) {
+  const reached = mine._connectivity;
+  if (!reached) return true; // fallback se ainda não computado
+  const { rows, cols } = MINE;
+  for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+    const nr = r + dr, nc = c + dc;
+    if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+    if (reached[nr][nc]) return true;
+  }
+  return false;
+}
+
 // ----- Ações do jogador -----
 export function tryDigClick(r, c) {
   const mine = activeMine();
@@ -221,6 +267,13 @@ function digTile(grid, r, c) {
 export function tryTNT(r, c) {
   const mine = activeMine();
   if (!mine || !mine.grid) return;
+  // TNT só funciona se o centro estiver conectado ao elevador (ou for adjacente)
+  if (!mine._connectivity) mine._connectivity = computeConnectivity(mine.grid);
+  const centerConnected = mine._connectivity[r] && mine._connectivity[r][c];
+  if (!centerConnected && !isOreReachable(mine, r, c)) {
+    log('TNT só funciona em locais já conectados ao elevador por um túnel.', 'bad');
+    return;
+  }
   if (state.money < TOOLS.tnt.costPerUse) { log('Sem dinheiro para a Dinamite.', 'bad'); return; }
   state.money -= TOOLS.tnt.costPerUse;
   const radius = TOOLS.tnt.radius;
@@ -276,6 +329,12 @@ export function tryPlaceWorker(r, c) {
   }
   if (!isResourceUnlocked(t.resource)) {
     log(`Era atual não permite extrair ${R[t.resource].name}. Avance de era primeiro.`, 'bad');
+    return;
+  }
+  // Veio precisa estar conectado ao elevador via túneis — cave um caminho até lá!
+  if (!mine._connectivity) mine._connectivity = computeConnectivity(mine.grid);
+  if (!isOreReachable(mine, r, c)) {
+    log('Cave um túnel a partir do elevador até este veio antes de alocar o minerador.', 'bad');
     return;
   }
   if (workersAvailable() <= 0) { log('Sem mineradores disponíveis. Contrate mais.', 'bad'); return; }
@@ -364,13 +423,16 @@ export function updateMine(dt) {
 }
 
 function updateSingleMine(mine, dt, rate) {
-  // Produção dos workers
+  // Recomputa conectividade a cada tick (BFS rápido, 30×50 = 1500 cells)
+  mine._connectivity = computeConnectivity(mine.grid);
+  // Produção dos workers (só conta se ainda conectado ao elevador)
   for (let r = 0; r < MINE.rows; r++) {
     for (let c = 0; c < MINE.cols; c++) {
       const t = mine.grid[r][c];
       if (!t.worker) continue;
       if (t.type !== 'ore') { t.worker = false; continue; }
       if (t.amount <= 0) continue;
+      if (!isOreReachable(mine, r, c)) continue; // perdeu conexão? não produz
       const take = Math.min(rate * dt, t.amount);
       const added = tryAddToSilo(t.resource, take);
       t.amount -= added;

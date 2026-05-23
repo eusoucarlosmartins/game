@@ -60,12 +60,13 @@ describe('initMines', () => {
     }
   });
 
-  it('coloca veio de coal e iron_ore no túnel inicial de cada mina', () => {
+  it('coloca veio de coal e iron_ore no túnel inicial adjacente ao elevador', () => {
     initMines();
-    const cc = Math.floor(MINE.cols / 2);
+    // Túnel inicial sai do elevador (col 0) pela direita. Veios iniciais
+    // estão em (1, 2) e (1, 3) — logo abaixo do túnel horizontal de cima.
     for (const m of state.mines) {
-      expect(m.grid[1][cc - 1].resource).toBe('coal');
-      expect(m.grid[1][cc + 1].resource).toBe('iron_ore');
+      expect(m.grid[1][2].resource).toBe('coal');
+      expect(m.grid[1][3].resource).toBe('iron_ore');
     }
   });
 

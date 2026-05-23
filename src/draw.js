@@ -682,6 +682,37 @@ function drawMineGrid() {
     ctx.lineTo(gx + c * cell, gBot);
     ctx.stroke();
   }
+  // Highlight de tiles cavaeis (quando picareta selecionada): contorno
+  // amarelo pulsante mostra onde o player pode escavar a seguir.
+  if (state.tool === 'pick') {
+    drawDiggableHighlights(mine, rStart, rEnd);
+  }
+}
+
+function drawDiggableHighlights(mine, rStart, rEnd) {
+  const { cols, rows, cell, x: gx, y: gy } = MINE;
+  const reached = mine._connectivity;
+  if (!reached) return;
+  const t = performance.now() / 400;
+  const pulse = 0.4 + 0.3 * (Math.sin(t) + 1) / 2;
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = `rgba(255,212,74,${pulse})`;
+  for (let r = rStart; r < rEnd; r++) {
+    for (let c = 0; c < cols; c++) {
+      const tile = mine.grid[r][c];
+      if (!tile || !tile.revealed) continue;
+      if (tile.type !== 'dirt' && tile.type !== 'stone' && tile.type !== 'ore') continue;
+      // Diggable = vizinho conectado ao elevador
+      let connectedNeighbor = false;
+      for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+        const nr = r + dr, nc = c + dc;
+        if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+        if (reached[nr][nc]) { connectedNeighbor = true; break; }
+      }
+      if (!connectedNeighbor) continue;
+      ctx.strokeRect(gx + c * cell + 1, gy + r * cell + 1, cell - 2, cell - 2);
+    }
+  }
 }
 
 function drawTile(px, py, cell, t) {
