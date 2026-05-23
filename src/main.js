@@ -10,6 +10,7 @@ import { buyFactory, setRecipe, updateFactories } from './factories.js';
 import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
 import { updateEvents } from './events.js';
+import { updateProjects, activateProject, cancelProject } from './projects.js';
 import { draw } from './draw.js';
 import { syncUI, openRecipeModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
@@ -39,6 +40,7 @@ function tick(dt) {
   updateWagon(dt);
   updateContract(dt);
   updateEvents(dt);
+  updateProjects(dt);
   updateDay(dt);
   checkEnd();
 }
@@ -166,6 +168,8 @@ document.addEventListener('click', (e) => {
       else sellProduct(t.dataset.id, parseInt(t.dataset.amt, 10) || 1);
       break;
     }
+    case 'project-start':  activateProject(t.dataset.id); break;
+    case 'project-cancel': cancelProject(); break;
   }
 });
 

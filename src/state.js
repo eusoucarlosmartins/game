@@ -41,6 +41,14 @@ export const state = {
   eraReached: 1,
   log: [],
 
+  // Projetos de obra
+  projects: { active: null, completed: [] },
+
+  // Efeitos permanentes de projetos
+  permContractBonus: 0,
+  passiveIncome: 0,
+  approvalFloor: 0,
+
   // Estado transitório (não persistido)
   mouseX: -1,
   mouseY: -1,

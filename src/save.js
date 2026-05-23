@@ -12,6 +12,7 @@ const PERSIST_KEYS = [
   'mine','workersTotal','tilesDug','factories','warehouse','products','silos',
   'contract','currentCity','nextContractIn','contractsCompleted',
   'equipment','research','rp','eraReached','log',
+  'projects','permContractBonus','passiveIncome','approvalFloor',
 ];
 
 let lastSaveTime = 0;

@@ -8,6 +8,7 @@ import { ingredientHave } from './factories.js';
 import { workersActive, getRevealedOreCounts, isResourceUnlocked } from './mine.js';
 import { openModal, closeModal } from './modals.js';
 import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
+import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } from './projects.js';
 
 function statusWagon() {
   const w = state.wagon;
@@ -115,6 +116,89 @@ function renderMinePanel() {
             <span style="font-size:11px;${full ? 'color:var(--bad)' : ''}">${Math.floor(it.n)}/${it.cap}${full ? ' CHEIO' : ''}</span>
           </li>`;
         }).join('');
+  }
+}
+
+function renderProjects() {
+  // Painel "Projeto Ativo"
+  const activeEl = $('project-active');
+  if (activeEl) {
+    if (!state.projects.active) {
+      activeEl.className = 'project-active empty';
+      activeEl.textContent = 'Nenhum projeto em andamento. Inicie um abaixo.';
+    } else {
+      const def = getProjectDef(state.projects.active.id);
+      const prog = state.projects.active.progress;
+      let totalNeed = 0, totalHave = 0;
+      const rows = Object.entries(def.requirements).map(([res, need]) => {
+        const have = prog[res] || 0;
+        totalNeed += need;
+        totalHave += Math.min(have, need);
+        const done = have >= need;
+        return `<div class="resource ${done ? 'done' : 'pending'}">
+          <span class="dot" style="background:${R[res].color}"></span>${R[res].name}
+        </div>
+        <div class="amount ${done ? 'done' : 'pending'}">${Math.floor(have)}/${need}</div>`;
+      }).join('');
+      const pct = Math.round((totalHave / Math.max(1, totalNeed)) * 100);
+      activeEl.className = 'project-active';
+      activeEl.innerHTML = `
+        <div class="project-card active">
+          <div class="project-name">${def.name}</div>
+          <div class="project-desc">${def.desc}</div>
+          <div class="project-req">${rows}</div>
+          <div class="project-bar"><div class="project-bar-fill" style="width:${pct}%"></div></div>
+          <div class="project-reward">Recompensa: ${fmtMoney(def.reward.money)} · +${def.reward.approval} aprov · +${def.reward.rp} PP</div>
+          <div class="project-actions">
+            <button class="mini-btn" data-action="project-cancel">Cancelar (devolve 50%)</button>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // Lista de projetos disponíveis
+  const listEl = $('project-list');
+  if (listEl) {
+    const items = availableProjects().filter(p => !state.projects.active || state.projects.active.id !== p.id);
+    if (items.length === 0) {
+      listEl.innerHTML = '<p class="hint"><em>Nenhum projeto disponível na era atual.</em></p>';
+    } else {
+      listEl.innerHTML = items.map(p => {
+        const canStart = canActivateProject(p.id);
+        const reqLines = Object.entries(p.requirements).map(([res, need]) => {
+          const have = R[res] && R[res].kind === 'raw' ? (state.warehouse[res] || 0) : (state.products[res] || 0);
+          const enough = have >= need;
+          return `<div class="resource ${enough ? 'done' : 'pending'}">
+            <span class="dot" style="background:${R[res].color}"></span>${R[res].name}
+          </div>
+          <div class="amount ${enough ? 'done' : 'pending'}">${Math.floor(have)}/${need}</div>`;
+        }).join('');
+        const effectTxt = p.effect ? ` · efeito permanente` : '';
+        return `<div class="project-card">
+          <div class="project-name">${p.name}<span class="project-era-tag">ERA ${ROMAN[p.eraReq - 1]}</span></div>
+          <div class="project-desc">${p.desc}</div>
+          <div class="project-req">${reqLines}</div>
+          <div class="project-reward">Recompensa: ${fmtMoney(p.reward.money)} · +${p.reward.approval} aprov · +${p.reward.rp} PP${effectTxt}</div>
+          <div class="project-actions">
+            <button class="mini-btn" data-action="project-start" data-id="${p.id}" ${canStart ? '' : 'disabled'}>${state.projects.active ? 'Outro ativo' : 'Iniciar'}</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Concluídos
+  const doneEl = $('project-completed');
+  if (doneEl) {
+    if (!state.projects.completed.length) {
+      doneEl.innerHTML = '<li><em>Nenhum projeto concluído ainda.</em></li>';
+    } else {
+      doneEl.innerHTML = state.projects.completed.map(id => {
+        const def = PROJECT_DEFS.find(p => p.id === id);
+        return def ? `<li>✓ ${def.name}</li>` : '';
+      }).join('');
+    }
   }
 }
 
@@ -311,6 +395,7 @@ export function syncUI() {
   renderMinePanel();
   renderFactories();
   renderMarket();
+  renderProjects();
   renderEquipment();
   renderResearch();
   renderLog();

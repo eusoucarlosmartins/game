@@ -34,7 +34,7 @@ export function deliverProduct(amount) {
   state.contract.delivered += amount;
   if (state.contract.delivered >= state.contract.need) {
     const p = R[state.contract.product];
-    const bonus = state.eventContractBonus || 0;
+    const bonus = (state.eventContractBonus || 0) + (state.permContractBonus || 0);
     const reward = Math.round((CFG.contractReward + p.price * state.contract.need) * (1 + bonus));
     const rpGain = 5 + Math.floor(state.contract.need * 0.6 + p.price * 0.02);
     state.money += reward;
@@ -52,7 +52,8 @@ export function deliverProduct(amount) {
 
 export function failContract() {
   const cityName = state.contract ? state.contract.city : 'Cidade';
-  state.approval = clamp(state.approval - CFG.contractApprovalLoss, 0, CFG.approvalMax);
+  const floor = state.approvalFloor || 0;
+  state.approval = clamp(state.approval - CFG.contractApprovalLoss, floor, CFG.approvalMax);
   log(`${cityName}: contrato expirou. −${CFG.contractApprovalLoss} aprovação.`, 'bad');
   state.contract = null;
   state.nextContractIn = rand(6, 12);
@@ -74,6 +75,10 @@ export function updateDay(dt) {
     state.dayTimer = 0;
     state.day++;
     state.rp += 2;
+    // renda passiva diária (de projetos como Banco do Estado)
+    if (state.passiveIncome && state.passiveIncome > 0) {
+      state.money += state.passiveIncome;
+    }
     if (state.day % 7 === 0) {
       const tax = Math.floor(state.approval * 5);
       state.money += tax;
