@@ -432,6 +432,7 @@ function renderEraBanner() {
 // Hook do modal de upgrades (registrado por upgrades.js)
 let upgradesRefreshFn = null;
 let lastUpgRender = 0;
+let lastButtonsRender = 0;
 export function registerUpgradesRefresh(fn) { upgradesRefreshFn = fn; }
 
 export function syncUI() {
@@ -450,12 +451,18 @@ export function syncUI() {
   renderContract();
   renderStockLists();
   renderMinePanel();
-  renderFactories();
-  renderMarket();
-  renderProjects();
+  // Painéis com botões interativos: throttle a 500ms pra não recriar
+  // os botões a cada frame (cancelaria mousedown→mouseup do click).
+  const nowT = performance.now();
+  if (nowT - lastButtonsRender > 500) {
+    renderFactories();
+    renderMarket();
+    renderProjects();
+    renderEquipment();
+    renderResearch();
+    lastButtonsRender = nowT;
+  }
   renderStats();
-  renderEquipment();
-  renderResearch();
   renderLog();
 
   const upgModal = $('modal-upgrades');
