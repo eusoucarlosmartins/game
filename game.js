@@ -1608,6 +1608,9 @@
     renderEquipment();
     renderResearch();
     renderLog();
+    // Re-render modal de upgrades se aberto (mantém affordable/locked atualizado)
+    const upgModal = $('modal-upgrades');
+    if (upgModal && !upgModal.classList.contains('hidden')) renderUpgradesTree();
   }
 
   function renderEraBanner() {
@@ -1627,6 +1630,92 @@
         <small>${era.desc}</small>
         <small>Era final atingida.</small>`;
     }
+  }
+
+  // ---------- TELA DE UPGRADES ----------
+  const UPGRADE_LAYOUT = {
+    equip: [
+      { name: 'Picareta',  items: ['pick_iron','pick_steel','dynamite_eq'] },
+      { name: 'Silos',     items: ['lantern_eq','rail_track'] },
+      { name: 'Carrinho',  items: ['cart_a','cart_b'] },
+      { name: 'Carruagem', items: ['wagon_a','wagon_b'] },
+      { name: 'Gestão',    items: ['foreman'] },
+    ],
+    research: [
+      { name: 'Transporte', items: ['r_wagon_big','r_car','r_truck','r_bigtruck','r_carreta','r_train','r_diesel'] },
+      { name: 'Mineração',  items: ['r_drill_manual','r_drill_pneu','r_steam_dig','r_hydro'] },
+      { name: 'Produção',   items: ['r_line','r_forge','r_auto'] },
+      { name: 'Trilhos',    items: ['r_dual_rails','r_elevator'] },
+      { name: 'Polias',     items: ['r_pulley'] },
+    ],
+  };
+  const UPGRADE_ICONS = {
+    pick_iron:'⛏', pick_steel:'⚒', dynamite_eq:'💥',
+    lantern_eq:'🔦', rail_track:'🛤',
+    cart_a:'📦', cart_b:'🛗',
+    wagon_a:'🐎', wagon_b:'💨',
+    foreman:'👷',
+    r_wagon_big:'🛒', r_car:'🚗', r_truck:'🚚', r_bigtruck:'🛻',
+    r_carreta:'🚛', r_train:'🚂', r_diesel:'🚆',
+    r_drill_manual:'⛏', r_drill_pneu:'🔧', r_steam_dig:'⚙', r_hydro:'💧',
+    r_line:'🔁', r_forge:'🔥', r_auto:'🤖',
+    r_dual_rails:'🛤', r_elevator:'🛗',
+    r_pulley:'⚙',
+  };
+
+  function openUpgradesModal() {
+    renderUpgradesTree();
+    openModal('modal-upgrades');
+  }
+
+  function renderUpgradesTree() {
+    $('upg-money').textContent = fmtMoney(state.money);
+    $('upg-rp').textContent = state.rp + ' PP';
+    const renderColumn = (col, kind) => `
+      <div class="upgrade-column">
+        <div class="upgrade-column-head">${col.name}</div>
+        ${col.items.map((id, i) => renderUpgradeTile(id, kind, i === col.items.length - 1)).join('')}
+      </div>
+    `;
+    $('upg-equip-tree').innerHTML = UPGRADE_LAYOUT.equip.map(c => renderColumn(c, 'equip')).join('');
+    $('upg-research-tree').innerHTML = UPGRADE_LAYOUT.research.map(c => renderColumn(c, 'research')).join('');
+  }
+
+  function renderUpgradeTile(id, kind, isLast) {
+    const item = kind === 'equip' ? EQ_BY_ID[id] : RES_BY_ID[id];
+    if (!item) return '';
+    const owned = kind === 'equip' ? !!state.equipment[id] : !!state.research[id];
+    const reqId = item.req;
+    const reqMet = !reqId || (kind === 'equip' ? !!state.equipment[reqId] : !!state.research[reqId]);
+    const currency = kind === 'equip' ? state.money : state.rp;
+    const affordable = !owned && reqMet && currency >= item.cost;
+    const locked = !owned && !reqMet;
+    const classes = ['upgrade-tile'];
+    if (owned) classes.push('owned');
+    else if (affordable) classes.push('affordable');
+    else if (locked) classes.push('locked');
+    if (isLast) classes.push('last');
+    const costText = kind === 'equip' ? fmtMoney(item.cost) : `${item.cost} PP`;
+    const reqName = reqId ? (kind === 'equip' ? EQ_BY_ID[reqId].name : RES_BY_ID[reqId].name) : '';
+    const tooltip = `${item.name} — ${item.desc || ''}${reqId ? ' (requer ' + reqName + ')' : ''}${owned ? ' [ADQUIRIDO]' : ''}`;
+    const icon = UPGRADE_ICONS[id] || '★';
+    return `
+      <button class="${classes.join(' ')}"
+              data-action="buy-upgrade"
+              data-upg-id="${id}"
+              data-upg-kind="${kind}"
+              ${(locked || owned) ? 'disabled' : ''}
+              title="${tooltip.replace(/"/g, '&quot;')}">
+        <div class="upgrade-icon">${icon}</div>
+        <div class="upgrade-cost">${owned ? '✓' : costText}</div>
+      </button>
+    `;
+  }
+
+  function buyUpgrade(id, kind) {
+    if (kind === 'equip') buyEquipment(id);
+    else if (kind === 'research') buyResearch(id);
+    renderUpgradesTree();
   }
 
   // ---------- MODAIS ----------
@@ -1735,10 +1824,12 @@
       case 'confirm-recipe': setRecipe(+t.dataset.fact, t.dataset.recipe); break;
       case 'buy-eq':         buyEquipment(t.dataset.id); break;
       case 'buy-res':        buyResearch(t.dataset.id); break;
+      case 'buy-upgrade':    buyUpgrade(t.dataset.upgId, t.dataset.upgKind); break;
     }
   });
 
   $('buy-factory-btn').addEventListener('click', buyFactory);
+  $('upgrades-btn').addEventListener('click', openUpgradesModal);
   document.querySelectorAll('[data-close]').forEach(b => {
     b.addEventListener('click', () => closeModal(b.dataset.close));
   });

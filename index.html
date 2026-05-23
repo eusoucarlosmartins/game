@@ -41,6 +41,7 @@
         <button data-speed="4" class="speed-btn" title="Muito rápido">4x</button>
       </div>
       <div class="save-controls">
+        <button id="upgrades-btn" class="save-btn upgrade" title="Tela de Upgrades">⚙ Upgrades</button>
         <button id="save-btn" class="save-btn" title="Salvar agora">💾 Salvar</button>
         <button id="newgame-btn" class="save-btn danger" title="Apaga a partida atual">↻ Novo Jogo</button>
         <span class="save-status" id="save-status">—</span>
@@ -147,6 +148,34 @@
       <h2>Escolher Receita</h2>
       <p class="modal-sub">Selecione o que esta fábrica vai produzir:</p>
       <div id="recipe-options" class="grid-options"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Upgrades (árvore visual) -->
+  <div id="modal-upgrades" class="modal hidden">
+    <div class="modal-card upgrades-card">
+      <button class="modal-close" data-close="modal-upgrades">×</button>
+      <h2>Upgrades</h2>
+      <div class="upgrades-currency">
+        <span><strong class="upg-icon">$</strong> <strong id="upg-money">$0</strong></span>
+        <span><strong class="upg-icon">PP</strong> <strong id="upg-rp">0</strong></span>
+      </div>
+      <div class="upgrades-grid">
+        <div class="upgrades-section">
+          <h3>Equipamentos (compra com $)</h3>
+          <div id="upg-equip-tree" class="upgrade-tree"></div>
+        </div>
+        <div class="upgrades-section">
+          <h3>Pesquisa (gasta PP)</h3>
+          <div id="upg-research-tree" class="upgrade-tree"></div>
+        </div>
+      </div>
+      <div class="upgrades-legend">
+        <span><span class="legend-tile owned"></span> Adquirido</span>
+        <span><span class="legend-tile affordable"></span> Disponível p/ comprar</span>
+        <span><span class="legend-tile"></span> Esperando recurso</span>
+        <span><span class="legend-tile locked"></span> Bloqueado (falta pré-requisito)</span>
+      </div>
     </div>
   </div>
 
