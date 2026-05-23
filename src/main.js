@@ -180,8 +180,29 @@ document.addEventListener('click', (e) => {
     }
     case 'project-start':  activateProject(t.dataset.id); break;
     case 'project-cancel': cancelProject(); break;
+    case 'tool-select':    setTool(t.dataset.tool); play('click'); break;
   }
 });
+
+// ---------- Sidebar drawer (mobile) ----------
+const sidebar = document.querySelector('.sidebar');
+const sidebarToggle = $('sidebar-toggle');
+const sidebarBackdrop = $('sidebar-backdrop');
+function setSidebarOpen(open) {
+  if (!sidebar) return;
+  sidebar.classList.toggle('open', open);
+  if (sidebarBackdrop) sidebarBackdrop.classList.toggle('show', open);
+}
+if (sidebarToggle && sidebar) {
+  sidebarToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setSidebarOpen(!sidebar.classList.contains('open'));
+    play('click');
+  });
+  if (sidebarBackdrop) {
+    sidebarBackdrop.addEventListener('click', () => setSidebarOpen(false));
+  }
+}
 
 $('buy-factory-btn').addEventListener('click', buyFactory);
 $('upgrades-btn').addEventListener('click', openUpgradesModal);

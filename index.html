@@ -7,6 +7,17 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- Aviso para girar o celular (só aparece em portrait via CSS) -->
+  <div id="portrait-warning">
+    <div class="icon">📱</div>
+    <div class="msg">Gire o celular para a horizontal</div>
+    <div class="sub">Este jogo é otimizado para tela 16:9</div>
+  </div>
+
+  <!-- Botão flutuante de menu (só aparece em mobile via CSS) -->
+  <button id="sidebar-toggle" type="button" aria-label="Abrir menu">☰</button>
+  <div id="sidebar-backdrop"></div>
+
   <div id="app">
     <header class="topbar">
       <div class="brand">
@@ -96,7 +107,12 @@
           <div class="panel">
             <h3>Ferramenta Atual</h3>
             <div id="tool-info" class="tool-info"><strong>Picareta</strong> — clique em rocha adjacente a um túnel para cavar.</div>
-            <p class="hint">Clique nos ícones à direita do canvas para trocar de ferramenta.</p>
+            <div class="tool-buttons">
+              <button data-action="tool-select" data-tool="pick" class="tool-btn" data-key="1">⛏ Picareta <kbd>1</kbd></button>
+              <button data-action="tool-select" data-tool="tnt" class="tool-btn" data-key="2">💥 TNT <kbd>2</kbd></button>
+              <button data-action="tool-select" data-tool="compass" class="tool-btn" data-key="3">🧭 Bússola <kbd>3</kbd></button>
+              <button data-action="tool-select" data-tool="miner" class="tool-btn" data-key="4">👤 Minerador <kbd>4</kbd></button>
+            </div>
           </div>
           <div class="panel">
             <h3>Silos por Recurso</h3>

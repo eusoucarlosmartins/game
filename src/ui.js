@@ -76,6 +76,12 @@ function renderMinePanel() {
   const info = $('tool-info');
   if (info) info.innerHTML = `<strong>${tool.name}</strong> — ${tool.desc}`;
 
+  // Sincroniza estado visual dos botões de ferramenta (HTML)
+  document.querySelectorAll('.tool-btn').forEach((btn) => {
+    if (btn.dataset.tool === state.mine.tool) btn.classList.add('active');
+    else btn.classList.remove('active');
+  });
+
   // Veios descobertos no mapa (revelados, ainda não cavados)
   const oreMap = $('ore-map-list');
   if (oreMap) {

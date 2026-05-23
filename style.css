@@ -1,3 +1,189 @@
+/* ============================================================
+   MOBILE / RESPONSIVO
+   - Portrait: mostra aviso de girar
+   - Landscape <= 900px: sidebar vira drawer, topbar/footer compactos
+   ============================================================ */
+
+#portrait-warning { display: none; }
+#sidebar-toggle   { display: none; }
+#sidebar-backdrop { display: none; }
+
+@media (orientation: portrait) {
+  #portrait-warning {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    background: #2c1c10;
+    color: #c69042;
+    z-index: 9999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: Georgia, "Times New Roman", serif;
+    text-align: center;
+    padding: 24px;
+  }
+  #portrait-warning .icon {
+    font-size: 86px;
+    margin-bottom: 24px;
+    animation: rotateHint 2s ease-in-out infinite;
+  }
+  #portrait-warning .msg { font-size: 22px; font-weight: bold; letter-spacing: 1px; }
+  #portrait-warning .sub { font-size: 13px; opacity: 0.7; margin-top: 14px; font-style: italic; }
+  body > #app, body > .modal { display: none !important; }
+}
+@keyframes rotateHint {
+  0%, 100% { transform: rotate(-10deg); }
+  50%      { transform: rotate(80deg); }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  body { font-size: 12px; }
+
+  /* Topbar compacto */
+  .topbar { padding: 4px 8px; flex-wrap: nowrap; gap: 8px; }
+  .brand { flex-shrink: 1; min-width: 0; }
+  .brand-title { font-size: 14px; letter-spacing: 2px; }
+  .brand-sub { display: none; }
+  .stats { gap: 10px; }
+  .stat { min-width: 50px; }
+  .stat-label { font-size: 8px; letter-spacing: 1px; }
+  .stat-value { font-size: 13px; text-shadow: none; }
+  .approval { min-width: 100px; }
+  .approval-bar { width: 100px; height: 14px; }
+  .approval-text { font-size: 10px; }
+  .speed-controls { gap: 2px; }
+  .speed-btn { padding: 3px 6px; font-size: 10px; }
+  .save-controls { gap: 3px; margin-left: 4px; }
+  .save-btn { padding: 3px 5px; font-size: 10px; }
+  .save-status { display: none; }
+
+  /* Play area: canvas full + sidebar como drawer */
+  .play-area {
+    grid-template-columns: 1fr;
+    padding: 4px;
+    gap: 0;
+    position: relative;
+  }
+  #game {
+    border-width: 2px;
+    /* Mantém aspect 16:9 mesmo se container for mais alto/largo */
+    aspect-ratio: 16 / 9;
+    width: 100%;
+    height: auto;
+    max-height: 100%;
+    margin: 0 auto;
+  }
+
+  /* Sidebar como drawer deslizante (vinda da direita) */
+  .sidebar {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 82vw;
+    max-width: 380px;
+    background: #d8c498;
+    transform: translateX(105%);
+    transition: transform 0.22s ease;
+    z-index: 50;
+    box-shadow: -4px 0 14px rgba(0,0,0,0.5);
+    padding: 10px;
+    overflow-y: auto;
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  /* Botão flutuante para abrir o drawer */
+  #sidebar-toggle {
+    display: flex;
+    position: fixed;
+    right: 10px;
+    top: 50px;
+    z-index: 51;
+    background: linear-gradient(to bottom, #c9b07c, #a88b56);
+    color: #1a0e06;
+    border: 2px solid #5a3416;
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    font-size: 22px;
+    line-height: 1;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    font-weight: bold;
+    padding: 0;
+  }
+  #sidebar-toggle:active { transform: scale(0.94); }
+
+  /* Backdrop semi-transparente quando o drawer está aberto */
+  #sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0);
+    z-index: 49;
+    transition: background 0.22s ease;
+    pointer-events: none;
+  }
+  #sidebar-backdrop.show {
+    background: rgba(0,0,0,0.45);
+    pointer-events: auto;
+  }
+
+  /* Tabs: scroll horizontal ao invés de grid */
+  .tabs {
+    display: flex;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab {
+    flex-shrink: 0;
+    min-width: 64px;
+    font-size: 10px;
+    padding: 6px 4px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Bottombar compacto */
+  .bottombar { font-size: 10px; padding: 3px 6px; gap: 8px; flex-wrap: wrap; }
+  .bottombar .tip { display: none; }
+
+  /* Modais ocupam quase a tela toda */
+  .modal-card,
+  .modal-card.wide,
+  .upgrades-card {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 92vh;
+    padding: 12px !important;
+  }
+  .upgrades-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .upgrade-tree {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .upgrade-tile {
+    width: 54px;
+    height: 64px;
+  }
+  .upgrade-icon { font-size: 18px; }
+  .upgrade-cost { font-size: 8px; }
+}
+
+/* Larguras maiores: padronizar tap targets touch-friendly em geral */
+@media (pointer: coarse) {
+  .mini-btn, .save-btn, .tab, .speed-btn, .big-btn {
+    min-height: 36px;
+  }
+}
+
 /* TAPUIA — Estilo papel envelhecido + madeira + steampunk leve */
 
 :root {
@@ -456,6 +642,50 @@ html, body {
   border-radius: 2px;
 }
 .tool-info strong { color: var(--wood-dark); }
+
+/* TOOL BUTTONS (Mina) — alternativa em HTML à toolbar do canvas */
+.tool-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+.tool-btn {
+  background: linear-gradient(to bottom, #c9b07c, #a88b56);
+  border: 2px solid var(--wood-dark);
+  color: var(--ink);
+  font-family: inherit;
+  font-weight: bold;
+  font-size: 13px;
+  padding: 10px 6px;
+  cursor: pointer;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 0 var(--wood-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 40px;
+  position: relative;
+  transition: transform 0.05s;
+}
+.tool-btn:hover { background: linear-gradient(to bottom, #d8c08c, #b89c66); }
+.tool-btn:active { transform: translateY(1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 1px 0 var(--wood-dark); }
+.tool-btn.active {
+  background: linear-gradient(to bottom, var(--brass), var(--brass-dark));
+  color: var(--paper);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+}
+.tool-btn kbd {
+  font-family: monospace;
+  font-size: 9px;
+  background: rgba(0,0,0,0.2);
+  padding: 1px 4px;
+  border-radius: 2px;
+  border: 1px solid rgba(0,0,0,0.3);
+  font-weight: normal;
+}
+.tool-btn.active kbd { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); }
 
 /* PROJECTS */
 .project-active {
