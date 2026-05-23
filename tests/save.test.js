@@ -38,19 +38,34 @@ describe('save/load roundtrip', () => {
     expect(state.rp).toBe(99);
   });
 
-  it('preserva grid da mina', () => {
-    state.mine = {
-      grid: [[{ type: 'dirt', revealed: true, resource: null, amount: 0, worker: false }]],
-      tool: 'tnt',
-      tntFx: null,
-    };
+  it('preserva grids das múltiplas minas e ferramenta', () => {
+    state.mines = [
+      {
+        id: 'm1', name: 'Mina A', exhausted: false,
+        grid: [[{ type: 'dirt', revealed: true, resource: null, amount: 0, worker: false }]],
+        tntFx: null,
+        elevator: { y: 0.3, dir: 1 },
+      },
+      {
+        id: 'm2', name: 'Mina B', exhausted: true,
+        grid: [[{ type: 'ore', resource: 'coal', amount: 5, revealed: true, worker: false }]],
+        tntFx: null,
+        elevator: { y: 0, dir: 1 },
+      },
+    ];
+    state.tool = 'tnt';
+    state.activeMineIdx = 1;
     saveGame();
-    state.mine.grid = null;
-    state.mine.tool = 'pick';
+    // zera em memória
+    state.mines = [];
+    state.tool = 'pick';
+    state.activeMineIdx = 0;
     loadGame();
-    expect(state.mine.grid).not.toBeNull();
-    expect(state.mine.grid[0][0].type).toBe('dirt');
-    expect(state.mine.tool).toBe('tnt');
+    expect(state.mines).toHaveLength(2);
+    expect(state.mines[0].name).toBe('Mina A');
+    expect(state.mines[1].exhausted).toBe(true);
+    expect(state.tool).toBe('tnt');
+    expect(state.activeMineIdx).toBe(1);
   });
 
   it('deleteSave limpa o storage', () => {

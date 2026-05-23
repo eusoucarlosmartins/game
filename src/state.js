@@ -9,10 +9,12 @@ export const state = {
   speed: 1,
   over: false,
 
-  // Mina (grid criado em initMine() durante boot)
-  mine: { grid: null, tool: 'pick', tntFx: null },
-  workersTotal: 2,
-  tilesDug: 0,
+  // Minas — array de minas independentes (cada uma com grid próprio)
+  mines: [],            // populado por initMines() no boot
+  activeMineIdx: 0,     // qual mina o jogador está vendo no momento
+  tool: 'pick',         // ferramenta selecionada (global)
+  workersTotal: 2,      // pool global de mineradores
+  tilesDug: 0,          // contador global
 
   factories: [
     { recipeId: 'iron_ingot', brewing: 0, output: 0 },

@@ -1,75 +1,117 @@
-// mine.test.js — geração do grid e operações básicas
+// mine.test.js — múltiplas minas, geração de grid, workers globais
 import { describe, it, expect, beforeEach } from 'vitest';
 import { state } from '../src/state.js';
-import { initMine, tryHireWorker, workersAvailable, workersActive } from '../src/mine.js';
+import { initMines, tryHireWorker, workersAvailable, workersActive, activeMine } from '../src/mine.js';
 import { MINE } from '../src/data.js';
 
 beforeEach(() => {
   state.money = 1000;
   state.workersTotal = 2;
-  state.mine = { grid: null, tool: 'pick', tntFx: null };
+  state.mines = [];
+  state.activeMineIdx = 0;
+  state.tool = 'pick';
 });
 
-describe('initMine', () => {
-  it('cria grid com dimensões corretas', () => {
-    initMine();
-    expect(state.mine.grid).toHaveLength(MINE.rows);
-    for (const row of state.mine.grid) {
-      expect(row).toHaveLength(MINE.cols);
+describe('initMines', () => {
+  it('cria 2 minas iniciais nomeadas', () => {
+    initMines();
+    expect(state.mines).toHaveLength(2);
+    expect(state.mines[0].name).toBe('Mina Central');
+    expect(state.mines[1].name).toBe('Mina do Vale');
+  });
+
+  it('cada mina tem grid com dimensões corretas', () => {
+    initMines();
+    for (const m of state.mines) {
+      expect(m.grid).toHaveLength(MINE.rows);
+      for (const row of m.grid) expect(row).toHaveLength(MINE.cols);
     }
   });
 
-  it('todo tile tem tipo válido', () => {
-    initMine();
-    const validTypes = new Set(['dirt', 'stone', 'ore', 'air']);
-    for (let r = 0; r < MINE.rows; r++) {
-      for (let c = 0; c < MINE.cols; c++) {
-        expect(validTypes.has(state.mine.grid[r][c].type)).toBe(true);
+  it('col 0 de toda mina é poço (shaft) revelado', () => {
+    initMines();
+    for (const m of state.mines) {
+      for (let r = 0; r < MINE.rows; r++) {
+        expect(m.grid[r][0].type).toBe('shaft');
+        expect(m.grid[r][0].revealed).toBe(true);
       }
     }
   });
 
-  it('túnel inicial revelado no topo central', () => {
-    initMine();
-    const cc = Math.floor(MINE.cols / 2);
-    expect(state.mine.grid[0][cc].revealed).toBe(true);
-    expect(state.mine.grid[0][cc].type).toBe('air');
+  it('cada mina tem state de elevador inicial', () => {
+    initMines();
+    for (const m of state.mines) {
+      expect(m.elevator).toBeDefined();
+      expect(m.elevator.y).toBe(0);
+      expect(m.elevator.dir).toBe(1);
+      expect(m.exhausted).toBe(false);
+    }
   });
 
-  it('coloca veio de coal e iron_ore no túnel inicial', () => {
-    initMine();
-    const cc = Math.floor(MINE.cols / 2);
-    expect(state.mine.grid[1][cc - 1].type).toBe('ore');
-    expect(state.mine.grid[1][cc - 1].resource).toBe('coal');
-    expect(state.mine.grid[1][cc + 1].type).toBe('ore');
-    expect(state.mine.grid[1][cc + 1].resource).toBe('iron_ore');
-  });
-
-  it('distribui veios de vários recursos pelo mapa', () => {
-    initMine();
-    const found = new Set();
-    for (let r = 0; r < MINE.rows; r++) {
-      for (let c = 0; c < MINE.cols; c++) {
-        const t = state.mine.grid[r][c];
-        if (t.type === 'ore') found.add(t.resource);
+  it('todo tile (exceto shaft) tem tipo válido', () => {
+    initMines();
+    const validTypes = new Set(['dirt', 'stone', 'ore', 'air', 'shaft']);
+    for (const m of state.mines) {
+      for (let r = 0; r < MINE.rows; r++) {
+        for (let c = 0; c < MINE.cols; c++) {
+          expect(validTypes.has(m.grid[r][c].type)).toBe(true);
+        }
       }
     }
-    // Deve ter pelo menos coal, iron_ore + alguns outros
-    expect(found.has('coal')).toBe(true);
-    expect(found.has('iron_ore')).toBe(true);
-    expect(found.size).toBeGreaterThan(3);
+  });
+
+  it('coloca veio de coal e iron_ore no túnel inicial de cada mina', () => {
+    initMines();
+    const cc = Math.floor(MINE.cols / 2);
+    for (const m of state.mines) {
+      expect(m.grid[1][cc - 1].resource).toBe('coal');
+      expect(m.grid[1][cc + 1].resource).toBe('iron_ore');
+    }
+  });
+
+  it('cada mina distribui veios de vários recursos', () => {
+    initMines();
+    for (const m of state.mines) {
+      const found = new Set();
+      for (let r = 0; r < MINE.rows; r++) {
+        for (let c = 0; c < MINE.cols; c++) {
+          if (m.grid[r][c].type === 'ore') found.add(m.grid[r][c].resource);
+        }
+      }
+      expect(found.has('coal')).toBe(true);
+      expect(found.has('iron_ore')).toBe(true);
+      expect(found.size).toBeGreaterThan(3);
+    }
   });
 });
 
-describe('workers', () => {
-  it('disponíveis = total quando ninguém alocado', () => {
-    initMine();
+describe('activeMine', () => {
+  it('retorna mina pelo activeMineIdx', () => {
+    initMines();
+    state.activeMineIdx = 0;
+    expect(activeMine().name).toBe('Mina Central');
+    state.activeMineIdx = 1;
+    expect(activeMine().name).toBe('Mina do Vale');
+  });
+});
+
+describe('workers (pool global entre todas as minas)', () => {
+  it('disponíveis = total quando ninguém alocado em nenhuma mina', () => {
+    initMines();
     expect(workersAvailable()).toBe(state.workersTotal);
     expect(workersActive()).toBe(0);
   });
 
+  it('worker alocado em qualquer mina conta como ocupado', () => {
+    initMines();
+    // marca um tile com worker na 2ª mina
+    state.mines[1].grid[1][1] = { type: 'ore', resource: 'coal', amount: 20, revealed: true, worker: true };
+    expect(workersActive()).toBe(1);
+    expect(workersAvailable()).toBe(state.workersTotal - 1);
+  });
+
   it('contratar minerador aumenta total e gasta dinheiro', () => {
-    initMine();
+    initMines();
     const moneyBefore = state.money;
     const totalBefore = state.workersTotal;
     tryHireWorker();
@@ -78,7 +120,7 @@ describe('workers', () => {
   });
 
   it('contratar sem dinheiro é no-op', () => {
-    initMine();
+    initMines();
     state.money = 10;
     const totalBefore = state.workersTotal;
     tryHireWorker();

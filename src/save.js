@@ -9,7 +9,8 @@ export const AUTOSAVE_INTERVAL = 15; // segundos de tempo real
 
 const PERSIST_KEYS = [
   'money','approval','day','dayTimer','speed','over',
-  'mine','workersTotal','tilesDug','factories','warehouse','products','silos',
+  'mines','activeMineIdx','tool','workersTotal','tilesDug',
+  'factories','warehouse','products','silos',
   'contract','currentCity','nextContractIn','contractsCompleted',
   'equipment','research','rp','eraReached','log',
   'projects','permContractBonus','passiveIncome','approvalFloor',
@@ -52,8 +53,26 @@ export function loadGame() {
       }
       if (R[k].kind === 'prod' && state.products[k] === undefined) state.products[k] = 0;
     }
-    // Reseta efeitos transitórios da mina
-    if (state.mine) state.mine.tntFx = null;
+    // MIGRAÇÃO: saves antigos tinham state.mine (single) — converter pra mines[]
+    // @ts-ignore — campo legado pode existir em saves antigos
+    if (state.mine && (!state.mines || state.mines.length === 0)) {
+      // @ts-ignore
+      const old = state.mine;
+      state.mines = [{
+        id: 'mina_central',
+        name: 'Mina Central',
+        grid: old.grid || null,
+        tntFx: null,
+        exhausted: false,
+        elevator: { y: 0, dir: 1 },
+      }];
+      state.activeMineIdx = 0;
+      state.tool = old.tool || 'pick';
+      // @ts-ignore
+      delete state.mine;
+    }
+    // Reseta efeitos transitórios das minas
+    for (const m of (state.mines || [])) m.tntFx = null;
     // Wagon volta ao idle pra evitar travas
     state.wagon = { pos: 0, dir: 0, product: null, load: 0, state: 'idle', timer: 0 };
     lastSaveTime = data.savedAt || Date.now();

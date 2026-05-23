@@ -6,6 +6,7 @@ import { fmtMoney, clamp } from './util.js';
 import { transportTier, wagonCapacity, currentEra, eraData } from './progression.js';
 import { ingredientHave } from './factories.js';
 import { getProjectDef } from './projects.js';
+import { activeMine } from './mine.js';
 import {
   W, H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
   OVERWORLD, TOOLBAR, MINE_BACK_BTN, factoryRect,
@@ -28,12 +29,14 @@ function drawMineSky() {
     ctx.ellipse(c[0], c[1], c[2], c[2] * 0.35, 0, 0, Math.PI * 2);
     ctx.fill();
   }
-  // título da seção (acima dos silos)
-  ctx.fillStyle = 'rgba(58,31,10,0.6)';
-  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+  // título com nome da mina ativa
+  const mine = activeMine();
+  const nameTxt = mine ? `${mine.name.toUpperCase()} — SUPERFÍCIE` : 'SUPERFÍCIE';
+  ctx.fillStyle = 'rgba(58,31,10,0.7)';
+  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText('SUPERFÍCIE DA MINA — SILOS', 210, 70);
+  ctx.fillText(nameTxt, 210, 70);
   // chão
   ctx.fillStyle = '#8a5a30';
   ctx.fillRect(0, MINE_GROUND_Y, W, 8);
@@ -558,18 +561,19 @@ function drawWagon() {
 // ---------- Grid da mina ----------
 function drawMineGrid() {
   const { cols, rows, cell, x: gx, y: gy } = MINE;
-  if (!state.mine.grid) return;
+  const mine = activeMine();
+  if (!mine || !mine.grid) return;
   // moldura
   ctx.fillStyle = '#6b3f1a';
   ctx.fillRect(gx, gy, cols * cell, rows * cell);
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      drawTile(gx + c * cell, gy + r * cell, cell, state.mine.grid[r][c]);
+      drawTile(gx + c * cell, gy + r * cell, cell, mine.grid[r][c]);
     }
   }
   // FX da dinamite (anéis + estilhaços)
-  if (state.mine.tntFx) {
-    const fx = state.mine.tntFx;
+  if (mine.tntFx) {
+    const fx = mine.tntFx;
     const px = gx + (fx.c + 0.5) * cell;
     const py = gy + (fx.r + 0.5) * cell;
     const progress = Math.min(1, (0.8 - fx.t) / 0.8); // 0 → 1
@@ -618,6 +622,18 @@ function drawTile(px, py, cell, t) {
     // neblina
     ctx.fillStyle = '#0a0604';
     ctx.fillRect(px, py, cell, cell);
+    return;
+  }
+  if (t.type === 'shaft') {
+    // Poço do elevador (fundo preto + 2 trilhos verticais)
+    ctx.fillStyle = '#0a0604';
+    ctx.fillRect(px, py, cell, cell);
+    ctx.fillStyle = '#3a3a3a';
+    ctx.fillRect(px + 6, py, 3, cell);
+    ctx.fillRect(px + cell - 9, py, 3, cell);
+    // vigas horizontais a cada 2 tiles
+    ctx.fillStyle = '#5a3416';
+    ctx.fillRect(px, py + cell - 3, cell, 3);
     return;
   }
   if (t.type === 'air') {
@@ -761,7 +777,7 @@ function drawToolbar() {
     const id = order[i];
     const x = TOOLBAR.x;
     const y = TOOLBAR.y + i * TOOLBAR.slotH;
-    const selected = state.mine.tool === id;
+    const selected = state.tool === id;
     ctx.fillStyle = selected ? '#c69042' : '#5a3416';
     ctx.fillRect(x - 3, y - 3, TOOLBAR.w + 6, TOOLBAR.w + 6);
     ctx.fillStyle = '#1a0e06';
@@ -781,18 +797,20 @@ function drawToolbar() {
 // ---------- Tooltip do tile sob o mouse ----------
 function drawTileTooltip() {
   if (state.mouseX < 0 || state.mouseY < 0) return;
-  if (!state.mine.grid) return;
+  const mine = activeMine();
+  if (!mine || !mine.grid) return;
   if (state.mouseY < MINE.y) return;
   if (state.mouseX >= MINE.x + MINE.cols * MINE.cell) return;
   if (state.mouseY >= MINE.y + MINE.rows * MINE.cell) return;
   const c = Math.floor((state.mouseX - MINE.x) / MINE.cell);
   const r = Math.floor((state.mouseY - MINE.y) / MINE.cell);
   if (c < 0 || c >= MINE.cols || r < 0 || r >= MINE.rows) return;
-  const t = state.mine.grid[r][c];
+  const t = mine.grid[r][c];
   if (!t.revealed) return;
   // monta as linhas do tooltip
   let title, sub, color = '#f1e3c2';
-  if (t.type === 'air') { title = 'Túnel'; sub = 'Vazio (pode atravessar)'; }
+  if (t.type === 'shaft') { title = 'Poço do Elevador'; sub = 'Trilhos do carrinho — não cavável'; }
+  else if (t.type === 'air') { title = 'Túnel'; sub = 'Vazio (pode atravessar)'; }
   else if (t.type === 'dirt') { title = 'Terra'; sub = 'Cavar: $5'; }
   else if (t.type === 'stone') { title = 'Pedra'; sub = 'Cavar: $12'; }
   else if (t.type === 'ore') {
@@ -922,8 +940,15 @@ function drawTree(x, y) {
   ctx.fillRect(x - 2, y + 8, 4, 8);
 }
 
-function drawMineEntrance() {
-  const e = OVERWORLD.mineEntrance;
+function drawMineEntrances() {
+  for (let i = 0; i < OVERWORLD.mineEntrances.length; i++) {
+    const rect = OVERWORLD.mineEntrances[i];
+    const mine = state.mines[i];
+    drawMineEntrance(rect, mine, i);
+  }
+}
+
+function drawMineEntrance(e, mine, idx) {
   // Colina marrom com base maior
   ctx.fillStyle = '#8a5a30';
   ctx.beginPath();
@@ -975,29 +1000,40 @@ function drawMineEntrance() {
   ctx.fillStyle = '#222';
   ctx.beginPath(); ctx.arc(caveX - 7, caveY + caveH + 20, 3, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(caveX + 7, caveY + caveH + 20, 3, 0, Math.PI * 2); ctx.fill();
-  // Placa "MINA"
+  // Placa com nome da mina + status
   const signCx = caveX;
   const signCy = e.y + e.h + 24;
-  ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
-  const txt = '⛏ ENTRAR NA MINA';
-  const sw = ctx.measureText(txt).width + 24;
+  const exhausted = mine && mine.exhausted;
+  const isActive = idx === state.activeMineIdx && state.scene === 'mine';
+  const mineName = (mine && mine.name) ? mine.name.toUpperCase() : `MINA ${idx + 1}`;
+  const txt = exhausted ? `🚫 ${mineName} (ESGOTADA)` : `⛏ ${mineName}`;
+  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+  const sw = ctx.measureText(txt).width + 22;
   ctx.fillStyle = '#3a1f0a';
   ctx.fillRect(signCx - sw / 2 - 2, signCy - 14, sw + 4, 28);
-  ctx.fillStyle = '#c69042';
+  ctx.fillStyle = exhausted ? '#7a5a3a' : '#c69042';
   ctx.fillRect(signCx - sw / 2, signCy - 12, sw, 24);
   ctx.fillStyle = '#1a0e06';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(txt, signCx, signCy);
-  // Pulsa quando o mouse está em cima (feedback de clicável)
+  // Pulsa quando o mouse está em cima (mais forte se for a ativa)
   const hovering =
     state.mouseX >= e.x && state.mouseX < e.x + e.w &&
     state.mouseY >= e.y && state.mouseY < e.y + e.h + 40;
   const t = performance.now() / 600;
-  const pulse = hovering ? 1 : (Math.sin(t) + 1) / 2;
-  ctx.strokeStyle = `rgba(255, 220, 80, ${0.25 + 0.55 * pulse})`;
+  let pulse = (Math.sin(t) + 1) / 2 * (exhausted ? 0.2 : 0.6);
+  if (hovering) pulse = 1;
+  if (isActive) pulse = Math.max(pulse, 0.8);
+  const color = exhausted ? '120,120,120' : (isActive ? '255,180,80' : '255,220,80');
+  ctx.strokeStyle = `rgba(${color},${0.25 + 0.55 * pulse})`;
   ctx.lineWidth = 2.5;
   ctx.strokeRect(signCx - sw / 2, signCy - 12, sw, 24);
+  // Aplica leve dim na entrada inteira se esgotada
+  if (exhausted) {
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(e.x - 14, e.y - 6, e.w + 28, e.h + 18);
+  }
 }
 
 function drawDottedRoute(x1, y1, x2, y2) {
@@ -1021,10 +1057,11 @@ function drawOverworld() {
   drawDottedRoute(280, 280, 470, 260);
   drawDottedRoute(530, 270, 670, 250);
   drawDottedRoute(380, 460, 540, 640);
-  // Rota mina → fábricas (raw materials)
-  const d = OVERWORLD.dottedMineToFactory;
-  drawDottedRoute(d.x1, d.y, d.x2, d.y);
-  drawMineEntrance();
+  // Rotas das minas até as fábricas (raw materials)
+  for (const d of OVERWORLD.dottedMineToFactory) {
+    drawDottedRoute(d.x1, d.y1, d.x2, d.y2);
+  }
+  drawMineEntrances();
   drawMercadoNode();
   drawPesquisaNode();
   drawFactories();
@@ -1440,8 +1477,112 @@ function drawMineScene() {
   drawMineSky();
   drawSilos();
   drawMineGrid();
+  drawElevator();
   drawToolbar();
   drawBackBtn();
+  drawMineSwitcher();
+  drawExhaustedOverlay();
+}
+
+// Cabine + cabo do elevador na coluna 0 do grid
+function drawElevator() {
+  const mine = activeMine();
+  if (!mine) return;
+  const col = 0;
+  const x = MINE.x + col * MINE.cell;
+  const yTop = MINE.y;
+  const totalH = MINE.rows * MINE.cell;
+  // estrutura de superfície (cabeça do elevador, acima do grid)
+  const headW = MINE.cell + 12;
+  const headH = 36;
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(x - 6, yTop - headH, headW, headH);
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x - 6, yTop - headH, headW, 4);
+  // roldana no topo
+  ctx.fillStyle = '#888';
+  ctx.beginPath();
+  ctx.arc(x + MINE.cell / 2, yTop - headH + 14, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#3a3a3a';
+  ctx.beginPath();
+  ctx.arc(x + MINE.cell / 2, yTop - headH + 14, 2, 0, Math.PI * 2);
+  ctx.fill();
+  // posição do car
+  const carY = yTop + mine.elevator.y * (totalH - MINE.cell);
+  // cabo
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x + MINE.cell / 2, yTop - headH + 14);
+  ctx.lineTo(x + MINE.cell / 2, carY + 2);
+  ctx.stroke();
+  // car
+  ctx.fillStyle = '#7a4b25';
+  ctx.fillRect(x + 4, carY + 4, MINE.cell - 8, MINE.cell - 12);
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(x + 4, carY + 6, MINE.cell - 8, 3);
+  // rodas
+  ctx.fillStyle = '#222';
+  ctx.beginPath(); ctx.arc(x + 10, carY + MINE.cell - 10, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + MINE.cell - 10, carY + MINE.cell - 10, 3, 0, Math.PI * 2); ctx.fill();
+  // mini carga visível (variando)
+  const t = performance.now() / 1000;
+  if (Math.sin(t * 0.7) > 0) {
+    ctx.fillStyle = '#1f1c1a';
+    ctx.fillRect(x + 8, carY + 8, MINE.cell - 16, 6);
+  }
+}
+
+// Botões pra alternar entre as minas (canto superior direito, acima da toolbar)
+function drawMineSwitcher() {
+  if (!state.mines || state.mines.length < 2) return;
+  const btnW = 110;
+  const btnH = 28;
+  const startY = 56;
+  for (let i = 0; i < state.mines.length; i++) {
+    const m = state.mines[i];
+    const x = W - btnW - 14;
+    const y = startY + i * (btnH + 6);
+    const isActive = i === state.activeMineIdx;
+    const exhausted = m.exhausted;
+    // moldura
+    ctx.fillStyle = '#3a1f0a';
+    ctx.fillRect(x - 2, y - 2, btnW + 4, btnH + 4);
+    ctx.fillStyle = isActive ? '#c69042' : (exhausted ? '#5a4a3a' : '#a88b56');
+    ctx.fillRect(x, y, btnW, btnH);
+    ctx.fillStyle = '#1a0e06';
+    ctx.font = `bold 11px "Segoe UI", Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(
+      exhausted ? `🚫 ${m.name}` : (isActive ? `● ${m.name}` : m.name),
+      x + btnW / 2,
+      y + btnH / 2,
+    );
+  }
+}
+
+function drawExhaustedOverlay() {
+  const mine = activeMine();
+  if (!mine || !mine.exhausted) return;
+  // banner no centro
+  const w = 460, h = 60;
+  const x = (W - w) / 2;
+  const y = MINE.y + (MINE.rows * MINE.cell) / 2 - 30;
+  ctx.fillStyle = 'rgba(20,10,5,0.85)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = '#a82e1c';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = '#ffd44a';
+  ctx.font = 'bold 18px "Segoe UI"';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`🚫 ${mine.name} ESGOTADA`, W / 2, y + 22);
+  ctx.fillStyle = '#f1e3c2';
+  ctx.font = '11px "Segoe UI"';
+  ctx.fillText('Volte ao mapa e selecione outra mina.', W / 2, y + 44);
 }
 
 // ---------- Entry ----------

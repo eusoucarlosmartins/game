@@ -5,7 +5,7 @@ import { $ } from './util.js';
 import { ROMAN, CFG, MINE } from './data.js';
 import { currentEra } from './progression.js';
 import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL } from './save.js';
-import { initMine, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool } from './mine.js';
+import { initMines, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine } from './mine.js';
 import { buyFactory, setRecipe, updateFactories } from './factories.js';
 import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
@@ -16,7 +16,7 @@ import { draw } from './draw.js';
 import { syncUI, openRecipeModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
 import { sellRaw, sellAllRaw, sellProduct, sellAllProduct } from './market.js';
-import { TOOLBAR, MINE_BACK_BTN, OVERWORLD, factoryRect } from './geometry.js';
+import { W, TOOLBAR, MINE_BACK_BTN, OVERWORLD, factoryRect } from './geometry.js';
 
 // ---------- Game over / vitória ----------
 function checkEnd() {
@@ -112,15 +112,19 @@ canvas.addEventListener('click', (e) => {
   const { x, y } = canvasCoords(e);
 
   if (state.scene === 'overworld') {
-    // Click na entrada da mina → entra na cena mina
-    if (hitTest(x, y, OVERWORLD.mineEntrance)) {
-      state.scene = 'mine';
-      if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 0) {
-        state.tutorial.step = 1;
+    // Click em qualquer entrada de mina → seleciona essa mina e entra na cena
+    for (let i = 0; i < OVERWORLD.mineEntrances.length; i++) {
+      if (hitTest(x, y, OVERWORLD.mineEntrances[i])) {
+        setActiveMine(i);
+        state.scene = 'mine';
+        if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 0) {
+          state.tutorial.step = 1;
+        }
+        play('whoosh');
+        const m = state.mines[i];
+        log(`Entrou em ${m ? m.name : 'mina'}. Aloque mineradores em veios descobertos.`);
+        return;
       }
-      play('whoosh');
-      log('Entrou na mina. Use a picareta para cavar, e o minerador pra alocar trabalhadores em veios.');
-      return;
     }
     // Mercado node → abre aba Mercado
     if (hitTest(x, y, OVERWORLD.mercadoNode)) {
@@ -155,6 +159,18 @@ canvas.addEventListener('click', (e) => {
     play('whoosh');
     return;
   }
+  // Botões de troca de mina (canto superior direito)
+  if (state.mines && state.mines.length >= 2) {
+    const btnW = 110, btnH = 28, startY = 56;
+    for (let i = 0; i < state.mines.length; i++) {
+      const r = { x: W - btnW - 14, y: startY + i * (btnH + 6), w: btnW, h: btnH };
+      if (hitTest(x, y, r)) {
+        setActiveMine(i);
+        play('click');
+        return;
+      }
+    }
+  }
   // Click em qualquer lugar fecha o último passo do tutorial
   if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 2) {
     state.tutorial.dismissed = true;
@@ -176,7 +192,7 @@ canvas.addEventListener('click', (e) => {
       y >= MINE.y && y < MINE.y + MINE.rows * MINE.cell) {
     const c = Math.floor((x - MINE.x) / MINE.cell);
     const r = Math.floor((y - MINE.y) / MINE.cell);
-    const tool = state.mine.tool || 'pick';
+    const tool = state.tool || 'pick';
     if (tool === 'pick') tryDigClick(r, c);
     else if (tool === 'tnt') tryTNT(r, c);
     else if (tool === 'compass') tryCompass(r, c);
@@ -308,16 +324,17 @@ window.addEventListener('beforeunload', () => {
 const loaded = loadGame();
 if (loaded) {
   state.eraReached = Math.max(state.eraReached || 1, currentEra());
-  if (!state.mine || !state.mine.grid) initMine();
+  // Garante array de minas válido após carregar (migração já feita em save.js)
+  if (!state.mines || state.mines.length === 0) initMines();
   // Saves antigos sem campo tutorial: marca como dismissed (não atrapalha)
   if (!state.tutorial) state.tutorial = { step: 0, dismissed: true, autoDismissIn: 0 };
   log(`Partida carregada (dia ${state.day}, ${state.contractsCompleted} contratos, Era ${ROMAN[state.eraReached - 1]}).`, 'good');
   updateSaveStatus();
 } else {
-  initMine();
+  initMines();
   log('Bem-vindo, governador. Esta é a vista do mapa de Santa Catarina.');
-  log('Clique na ENTRADA DA MINA (à esquerda) para descer e cavar minérios.');
-  log('No mapa você vê fábricas e a cidade do contrato atual. Contratos pagam $$$ e PP.');
+  log('Clique em uma das MINAS à esquerda para descer e cavar. Você tem 2 minas iniciais.');
+  log('Recursos esgotam com o tempo — pode explorar várias minas em paralelo.');
 }
 unlockOnFirstGesture();
 updateMuteBtn();

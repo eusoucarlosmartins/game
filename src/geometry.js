@@ -7,16 +7,23 @@ export const H = 720;
 
 // ---------- Overworld (mapa) ----------
 export const OVERWORLD = {
-  // Entrada da mina à esquerda — clicável
-  mineEntrance: { x: 40,  y: 380, w: 240, h: 260 },
+  // Entradas de minas (múltiplas — empilhadas à esquerda)
+  // Cada uma corresponde a state.mines[idx] pelo índice.
+  mineEntrances: [
+    { x: 30, y: 230, w: 190, h: 190 }, // Mina Central (cima)
+    { x: 30, y: 460, w: 190, h: 190 }, // Mina do Vale (baixo)
+  ],
   // Cluster de fábricas no centro
   factoryArea:  { x: 380, y: 280, w: 380, h: 180, gap: 12, slots: 3 },
   // Cidade à direita
   city:         { x: 880, y: 200, w: 340, h: 420 },
   // Estrada por onde a carruagem vai/volta (entre fábricas e cidade)
   road:         { y: 490, x1: 770, x2: 880 },
-  // Linha pontilhada decorativa entre mina e fábricas (raw materials "fluem")
-  dottedMineToFactory: { y: 500, x1: 280, x2: 380 },
+  // Linhas pontilhadas decorativas das minas até as fábricas
+  dottedMineToFactory: [
+    { x1: 220, y1: 320, x2: 380, y2: 360 },
+    { x1: 220, y1: 550, x2: 380, y2: 460 },
+  ],
   // Nodos clicáveis (atalhos visíveis no mapa pra abas do sidebar)
   mercadoNode:  { x: 300, y: 540, w: 90,  h: 64 },
   pesquisaNode: { x: 820, y: 540, w: 90,  h: 64 },
