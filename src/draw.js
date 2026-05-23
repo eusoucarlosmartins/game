@@ -12,6 +12,7 @@ import {
 } from './geometry.js';
 import { drawParticles } from './particles.js';
 import { topPopup } from './achievements.js';
+import { drawAmbience } from './ambience.js';
 
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game'));
 const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
@@ -1472,6 +1473,7 @@ function drawOverworld() {
   ctx.scale(state.camera.zoom, state.camera.zoom);
   ctx.translate(-state.camera.x, -state.camera.y);
   drawOverworldBg();
+  drawAmbience(ctx);
   drawRiver();
   drawDecorativeLandmarks();
   for (const d of OVERWORLD.dottedMineToFactory) {

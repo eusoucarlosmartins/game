@@ -87,6 +87,13 @@ export const state = {
 
   // Partículas (floating numbers, sparks, dust) — efêmeras, não persistidas
   particles: [],
+  // Ambiência do overworld (nuvens drifting, pássaros voando) — não persistido
+  ambience: {
+    clouds: [],
+    birds: [],
+    nextBirdIn: 8,
+    initialized: false,
+  },
 
   // Câmera do overworld (drag-to-pan + scroll-to-zoom) — não persistido
   camera: { x: 0, y: 0, zoom: 1 },

@@ -195,6 +195,34 @@ export const EVENT_TYPES = [
     onTick() { },
     onEnd() { },
   },
+  {
+    id: 'cave_in',
+    name: 'Desabamento na Mina',
+    desc: 'Um túnel desmoronou! Cave novamente pra liberar.',
+    duration: 0,
+    kind: 'bad',
+    onStart() {
+      // Pega uma mina ativa com tiles de air longe do shaft (col >= 4) e
+      // converte um deles de volta pra dirt. Isso quebra a conectividade
+      // se for um ponto de passagem importante.
+      const candidates = [];
+      for (const mine of (state.mines || [])) {
+        if (!mine.grid || mine.exhausted) continue;
+        for (let r = 0; r < MINE.rows; r++) {
+          for (let c = 4; c < MINE.cols; c++) {
+            if (mine.grid[r][c].type === 'air') candidates.push({ mine, r, c });
+          }
+        }
+      }
+      if (candidates.length === 0) return;
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      pick.mine.grid[pick.r][pick.c] = { type: 'stone', resource: null, amount: 0, revealed: true, worker: false };
+      // Invalida conectividade — vai ser recomputado no próximo tick
+      pick.mine._connectivity = null;
+    },
+    onTick() { },
+    onEnd() { },
+  },
 ];
 
 const EVT_BY_ID = Object.fromEntries(EVENT_TYPES.map(e => [e.id, e]));
