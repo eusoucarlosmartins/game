@@ -2,6 +2,7 @@
 import { state, log } from './state.js';
 import { rand, irand, clamp } from './util.js';
 import { CFG, MINE } from './data.js';
+import { play } from './audio.js';
 
 // Cada evento tem: id, name, desc, duration (segundos), kind (good/bad/neutral),
 // onStart(state) — efeito imediato; onTick(state, dt) — durante o evento;
@@ -122,4 +123,5 @@ function triggerRandomEvent() {
   if (evt.onStart) evt.onStart();
   const icon = evt.kind === 'good' ? '✨' : evt.kind === 'bad' ? '⚠' : '📰';
   log(`${icon} EVENTO: ${evt.name}. ${evt.desc}.`, evt.kind === 'bad' ? 'bad' : 'good');
+  play(evt.kind === 'bad' ? 'fail' : 'chime');
 }

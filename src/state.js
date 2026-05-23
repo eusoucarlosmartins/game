@@ -49,6 +49,9 @@ export const state = {
   passiveIncome: 0,
   approvalFloor: 0,
 
+  // Preferências
+  muted: false,
+
   // Estado transitório (não persistido)
   mouseX: -1,
   mouseY: -1,

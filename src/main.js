@@ -11,6 +11,7 @@ import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
 import { updateEvents } from './events.js';
 import { updateProjects, activateProject, cancelProject } from './projects.js';
+import { play, toggleMute, unlockOnFirstGesture } from './audio.js';
 import { draw } from './draw.js';
 import { syncUI, openRecipeModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
@@ -126,8 +127,17 @@ document.addEventListener('keydown', (e) => {
     case '4': setTool('miner'); break;
     case ' ': e.preventDefault(); state.speed = state.speed > 0 ? 0 : 1; break;
     case 'u': case 'U': openUpgradesModal(); break;
+    case 'm': case 'M': { toggleMute(); updateMuteBtn(); play('click'); break; }
   }
 });
+
+function updateMuteBtn() {
+  const btn = $('mute-btn');
+  if (btn) {
+    btn.textContent = state.muted ? '🔇' : '🔊';
+    btn.title = state.muted ? 'Som desligado (M)' : 'Som ligado (M)';
+  }
+}
 
 // ---------- Event handlers (DOM) ----------
 document.querySelectorAll('.speed-btn').forEach(btn => {
@@ -176,6 +186,7 @@ document.addEventListener('click', (e) => {
 $('buy-factory-btn').addEventListener('click', buyFactory);
 $('upgrades-btn').addEventListener('click', openUpgradesModal);
 $('hire-worker-btn').addEventListener('click', tryHireWorker);
+$('mute-btn').addEventListener('click', () => { toggleMute(); updateMuteBtn(); play('click'); });
 
 document.querySelectorAll('[data-close]').forEach(b => {
   b.addEventListener('click', () => closeModal(b.dataset.close));
@@ -216,4 +227,6 @@ if (loaded) {
   log('Selecione "Minerador" e clique num veio descoberto (Coal, Fe) para começar a extrair.');
   log('Ferramentas: Picareta ($), Dinamite ($120, 3x3), Bússola ($40, revela neblina).');
 }
+unlockOnFirstGesture();
+updateMuteBtn();
 requestAnimationFrame((t) => { lastT = t; frame(t); });

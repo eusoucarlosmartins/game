@@ -2,6 +2,7 @@
 import { state, log } from './state.js';
 import { R } from './data.js';
 import { fmtMoney } from './util.js';
+import { play } from './audio.js';
 
 export const MARKET_RAW_MULT = 0.6;   // mat. prima vende a 60% do preço
 export const MARKET_PROD_MULT = 0.7;  // produto vende a 70%
@@ -15,6 +16,7 @@ export function sellRaw(resource, amount) {
   state.warehouse[resource] -= sell;
   state.money += earn;
   log(`Mercado: ${sell}× ${R[resource].name} → +${fmtMoney(earn)}.`, 'good');
+  play('coin');
 }
 
 export function sellProduct(resource, amount) {
@@ -26,6 +28,7 @@ export function sellProduct(resource, amount) {
   state.products[resource] -= sell;
   state.money += earn;
   log(`Mercado: ${sell}× ${R[resource].name} → +${fmtMoney(earn)}.`, 'good');
+  play('coin');
 }
 
 export function sellAllRaw(resource) {

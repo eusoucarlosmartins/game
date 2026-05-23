@@ -3,6 +3,7 @@ import { state, log } from './state.js';
 import { R, CFG } from './data.js';
 import { fmtMoney, rand, irand, clamp } from './util.js';
 import { currentEra, eraData, checkEraProgression } from './progression.js';
+import { play } from './audio.js';
 
 export function pickContractProduct() {
   const era = eraData(currentEra());
@@ -46,6 +47,7 @@ export function deliverProduct(amount) {
     state.contract = null;
     state.nextContractIn = rand(5, 9);
     if (bonus > 0) state.eventContractBonus = 0; // consome o bônus
+    play('success');
     checkEraProgression();
   }
 }
@@ -57,6 +59,7 @@ export function failContract() {
   log(`${cityName}: contrato expirou. −${CFG.contractApprovalLoss} aprovação.`, 'bad');
   state.contract = null;
   state.nextContractIn = rand(6, 12);
+  play('fail');
 }
 
 export function updateContract(dt) {

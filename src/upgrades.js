@@ -4,6 +4,7 @@ import { EQ_BY_ID, RES_BY_ID } from './data.js';
 import { $, fmtMoney } from './util.js';
 import { openModal } from './modals.js';
 import { registerUpgradesRefresh } from './ui.js';
+import { play } from './audio.js';
 
 // Layout da árvore: colunas por categoria
 const UPGRADE_LAYOUT = {
@@ -45,6 +46,7 @@ export function buyEquipment(id) {
   state.money -= e.cost;
   state.equipment[id] = true;
   log(`Equipamento adquirido: ${e.name}.`, 'good');
+  play('success');
 }
 
 export function buyResearch(id) {
@@ -55,6 +57,7 @@ export function buyResearch(id) {
   state.rp -= r.cost;
   state.research[id] = true;
   log(`Pesquisa concluída: ${r.name}.`, 'good');
+  play('success');
 }
 
 export function buyUpgrade(id, kind) {

@@ -3,6 +3,7 @@ import { state, log } from './state.js';
 import { R, DEPOSIT_TYPES, MINE, TOOLS, SILO_DEFAULT_CAP, WORKER_COST } from './data.js';
 import { irand } from './util.js';
 import { mineRateMul, currentEra, eraData } from './progression.js';
+import { play } from './audio.js';
 
 export function isResourceUnlocked(resource) {
   return eraData(currentEra()).deposits.includes(resource);
@@ -142,6 +143,7 @@ function digTile(r, c) {
     t.revealed = true;
   }
   revealAround(state.mine.grid, r, c, 1);
+  play('pickaxe');
 }
 
 export function tryTNT(r, c) {
@@ -169,6 +171,7 @@ export function tryTNT(r, c) {
   state.tilesDug += dug;
   log(`Dinamite: ${dug} tiles. ${oreCollected > 0 ? '+' + oreCollected + ' de minério.' : ''}`, 'good');
   state.mine.tntFx = { r, c, t: 0.8 };
+  play('boom');
 }
 
 export function tryCompass(r, c) {
@@ -176,6 +179,7 @@ export function tryCompass(r, c) {
   state.money -= TOOLS.compass.costPerUse;
   revealAround(state.mine.grid, r, c, TOOLS.compass.radius);
   log(`Bússola: área revelada (raio ${TOOLS.compass.radius}).`, 'good');
+  play('whoosh');
 }
 
 export function tryPlaceWorker(r, c) {
@@ -194,6 +198,7 @@ export function tryPlaceWorker(r, c) {
   if (workersAvailable() <= 0) { log('Sem mineradores disponíveis. Contrate mais.', 'bad'); return; }
   t.worker = true;
   log(`Minerador alocado em ${R[t.resource].name}.`);
+  play('click');
 }
 
 export function workersAvailable() {
@@ -215,6 +220,7 @@ export function tryHireWorker() {
   state.money -= WORKER_COST;
   state.workersTotal++;
   log(`Minerador contratado. Total: ${state.workersTotal}.`);
+  play('coin');
 }
 
 export function setTool(toolId) {

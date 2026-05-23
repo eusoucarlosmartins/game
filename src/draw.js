@@ -172,24 +172,180 @@ function drawFactories() {
   }
 }
 
-// ---------- Cidade colonial brasileira ----------
+// ---------- Cidades — 3 estilos por região de SC ----------
+const CITY_STYLES = {
+  // Litoral: portos
+  'Florianópolis': 'port', 'Itajaí': 'port', 'Navegantes': 'port',
+  'Balneário Camboriú': 'port', 'Camboriú': 'port', 'Tubarão': 'port',
+  // Vale do Itajaí / norte industrial
+  'Joinville': 'industrial', 'Blumenau': 'industrial', 'Brusque': 'industrial',
+  'Jaraguá do Sul': 'industrial', 'São Bento do Sul': 'industrial',
+  'Rio do Sul': 'industrial', 'São José': 'industrial', 'Palhoça': 'industrial',
+  'Criciúma': 'industrial',
+  // Outras (Lages, Chapecó, etc.) = colonial padrão
+};
+
 function drawCity() {
   const cx0 = CITY.x;
   const w = CITY.w;
 
-  // base de terra (chão da cidade)
+  // base de terra
   ctx.fillStyle = '#a07a4a';
   ctx.fillRect(cx0 - 6, GROUND_Y - 3, w + 12, 6);
 
-  // Casa esquerda (amarela com telha vermelha)
-  drawColonialHouse(cx0 + 4,  GROUND_Y, 32, 92, '#e8c87a', '#a82e1c');
-  // Igreja no centro (mais alta, com torre)
-  drawColonialChurch(cx0 + w / 2 - 20, GROUND_Y);
-  // Casa direita (verde com telha)
-  drawColonialHouse(cx0 + w - 36, GROUND_Y, 32, 85, '#b8c8a8', '#8a4a2a');
+  const style = CITY_STYLES[state.currentCity] || 'colonial';
+  if (style === 'port') drawPortCity(cx0, w);
+  else if (style === 'industrial') drawIndustrialCity(cx0, w);
+  else drawColonialCity(cx0, w);
 
-  // Placa "WESTERN" no topo
   drawCitySign(cx0 + w / 2, CITY.y);
+}
+
+function drawColonialCity(cx0, w) {
+  drawColonialHouse(cx0 + 4,  GROUND_Y, 32, 92, '#e8c87a', '#a82e1c');
+  drawColonialChurch(cx0 + w / 2 - 20, GROUND_Y);
+  drawColonialHouse(cx0 + w - 36, GROUND_Y, 32, 85, '#b8c8a8', '#8a4a2a');
+}
+
+// Cidade portuária: farol listrado + casas claras + ondinhas no chão
+function drawPortCity(cx0, w) {
+  // Casa esquerda azul-claro
+  drawColonialHouse(cx0 + 4, GROUND_Y, 28, 80, '#a8c8d8', '#5a3416');
+  // Farol no centro (substitui igreja)
+  drawLighthouse(cx0 + w / 2 - 10, GROUND_Y);
+  // Casa direita branca
+  drawColonialHouse(cx0 + w - 32, GROUND_Y, 28, 70, '#f1e3c2', '#8a4a2a');
+  // Ondinhas representando água na frente
+  ctx.strokeStyle = '#5a9fc8';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 3; i++) {
+    const y = GROUND_Y + 4 + i * 3;
+    ctx.beginPath();
+    for (let x = cx0 - 4; x <= cx0 + w + 4; x += 6) {
+      ctx.lineTo(x, y + Math.sin((x + i * 4) * 0.3) * 1.2);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawLighthouse(x, baseY) {
+  const w = 20, h = 130;
+  const top = baseY - h;
+  // base larga
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(x - 4, baseY - 14, w + 8, 14);
+  // torre listrada vermelho/branco
+  for (let i = 0; i < 5; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#f1e3c2' : '#a82e1c';
+    ctx.fillRect(x, top + 20 + i * 18, w, 18);
+  }
+  // topo (sala da lanterna)
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(x - 4, top + 12, w + 8, 10);
+  ctx.fillStyle = '#ffe680';
+  ctx.fillRect(x + 2, top, w - 4, 14);
+  ctx.strokeStyle = '#3a1f0a';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 2, top, w - 4, 14);
+  // teto cônico
+  ctx.fillStyle = '#3a1f0a';
+  ctx.beginPath();
+  ctx.moveTo(x - 4, top);
+  ctx.lineTo(x + w / 2, top - 14);
+  ctx.lineTo(x + w + 4, top);
+  ctx.closePath();
+  ctx.fill();
+  // farol "piscando" (raio amarelo translúcido oscilante)
+  const t = performance.now() / 600;
+  const beam = (Math.sin(t) + 1) / 2;
+  ctx.fillStyle = `rgba(255,230,128,${0.15 + 0.25 * beam})`;
+  ctx.beginPath();
+  ctx.moveTo(x + w / 2, top + 6);
+  ctx.lineTo(x + w / 2 - 40, top - 30);
+  ctx.lineTo(x + w / 2 + 40, top - 30);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Cidade industrial: chaminés altas com fumaça + prédio de tijolo
+function drawIndustrialCity(cx0, w) {
+  // Fábrica esquerda (grande, com chaminé)
+  drawFactoryBuilding(cx0 + 4, GROUND_Y, 44, 110, '#8a3a1a', '#5a2010');
+  // Prédio central (mais alto)
+  drawIndustrialBlock(cx0 + w / 2 - 18, GROUND_Y, 36, 150);
+  // Fábrica direita (menor)
+  drawFactoryBuilding(cx0 + w - 38, GROUND_Y, 30, 85, '#6a4020', '#4a2010');
+}
+
+function drawFactoryBuilding(x, baseY, w, h, faceColor, roofColor) {
+  const top = baseY - h;
+  // corpo de tijolo
+  ctx.fillStyle = faceColor;
+  ctx.fillRect(x, top, w, h);
+  // padrão de tijolos (linhas horizontais)
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.lineWidth = 1;
+  for (let y = top + 6; y < baseY - 6; y += 6) {
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.stroke();
+  }
+  // telhado plano escuro
+  ctx.fillStyle = roofColor;
+  ctx.fillRect(x - 2, top - 4, w + 4, 6);
+  // rodapé
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillRect(x, baseY - 4, w, 4);
+  // chaminé com fumaça
+  const chimX = x + w - 10;
+  const chimTop = top - 36;
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(chimX, chimTop, 8, 36);
+  ctx.fillRect(chimX - 2, chimTop, 12, 4);
+  // fumaça animada
+  const t = performance.now() / 400;
+  for (let i = 0; i < 4; i++) {
+    const yOff = (t * 18 + i * 12) % 50;
+    ctx.fillStyle = `rgba(80,60,40,${0.5 - i * 0.1})`;
+    ctx.beginPath();
+    ctx.arc(chimX + 4, chimTop - yOff, 4 + i, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // janelas industriais (grade)
+  ctx.fillStyle = '#a8c8d8';
+  for (let row = 0; row < Math.floor(h / 22); row++) {
+    for (let col = 0; col < Math.floor(w / 14); col++) {
+      ctx.fillRect(x + 4 + col * 14, top + 8 + row * 22, 8, 10);
+    }
+  }
+}
+
+function drawIndustrialBlock(x, baseY, w, h) {
+  const top = baseY - h;
+  // prédio cinza-escuro
+  ctx.fillStyle = '#5a5a5a';
+  ctx.fillRect(x, top, w, h);
+  ctx.fillStyle = '#3a3a3a';
+  ctx.fillRect(x, top, w, 8);
+  // rodapé
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillRect(x, baseY - 4, w, 4);
+  // grade densa de janelas
+  ctx.fillStyle = '#ffd44a';
+  for (let row = 0; row < Math.floor(h / 14); row++) {
+    for (let col = 0; col < Math.floor(w / 9); col++) {
+      ctx.fillRect(x + 2 + col * 9, top + 12 + row * 14, 5, 6);
+    }
+  }
+  // antena/mastro no topo
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x + w / 2 - 1, top - 16, 2, 16);
+  // luz piscante
+  const t = performance.now() / 300;
+  if (Math.sin(t) > 0) {
+    ctx.fillStyle = '#ff6040';
+    ctx.beginPath();
+    ctx.arc(x + w / 2, top - 18, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function drawColonialHouse(x, baseY, w, h, faceColor, roofColor) {

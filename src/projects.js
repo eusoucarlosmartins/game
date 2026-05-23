@@ -4,6 +4,7 @@ import { state, log } from './state.js';
 import { R, CFG } from './data.js';
 import { fmtMoney, clamp } from './util.js';
 import { currentEra } from './progression.js';
+import { play } from './audio.js';
 
 /**
  * @typedef {object} ProjectDef
@@ -154,6 +155,7 @@ function completeProject(def) {
   );
   if (def.effect) applyEffect(def.effect);
   state.projects.active = null;
+  play('chime');
 }
 
 function applyEffect(eff) {
