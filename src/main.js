@@ -283,4 +283,39 @@ if (loaded) {
 }
 unlockOnFirstGesture();
 updateMuteBtn();
+
+// ---------- PWA: service worker + install prompt ----------
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch((err) => {
+      console.warn('[PWA] SW falhou:', err);
+    });
+  });
+}
+
+let deferredInstall = null;
+const installBtn = $('install-btn');
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstall = e;
+  if (installBtn) installBtn.style.display = 'inline-flex';
+});
+if (installBtn) {
+  installBtn.addEventListener('click', async () => {
+    if (!deferredInstall) return;
+    deferredInstall.prompt();
+    const choice = await deferredInstall.userChoice;
+    if (choice.outcome === 'accepted') {
+      log('App instalado. Veja o ícone na sua tela inicial.', 'good');
+      play('success');
+    }
+    deferredInstall = null;
+    installBtn.style.display = 'none';
+  });
+}
+window.addEventListener('appinstalled', () => {
+  if (installBtn) installBtn.style.display = 'none';
+  log('Tapuia instalado como app. Pode abrir do ícone na home.', 'good');
+});
+
 requestAnimationFrame((t) => { lastT = t; frame(t); });

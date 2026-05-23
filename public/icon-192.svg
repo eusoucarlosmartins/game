@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" fill="#5a3416"/>
+  <circle cx="96" cy="96" r="78" fill="#c69042" stroke="#1a0e06" stroke-width="4"/>
+  <!-- T grande estilo serifa -->
+  <text x="96" y="132" font-family="Georgia, 'Times New Roman', serif"
+        font-size="110" font-weight="bold" text-anchor="middle"
+        fill="#1a0e06">T</text>
+  <!-- pequena picareta dourada cruzando -->
+  <g transform="translate(150,42) rotate(35)">
+    <rect x="-2" y="0" width="4" height="24" fill="#3a1f0a"/>
+    <rect x="-8" y="-4" width="16" height="6" fill="#8c95a1"/>
+  </g>
+</svg>

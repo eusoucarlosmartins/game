@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#5a3416"/>
+  <circle cx="256" cy="256" r="208" fill="#c69042" stroke="#1a0e06" stroke-width="10"/>
+  <text x="256" y="352" font-family="Georgia, 'Times New Roman', serif"
+        font-size="290" font-weight="bold" text-anchor="middle"
+        fill="#1a0e06">T</text>
+  <g transform="translate(400,112) rotate(35)">
+    <rect x="-5" y="0" width="10" height="64" fill="#3a1f0a"/>
+    <rect x="-22" y="-12" width="44" height="16" fill="#8c95a1"/>
+  </g>
+</svg>

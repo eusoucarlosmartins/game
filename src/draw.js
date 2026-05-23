@@ -1013,7 +1013,15 @@ function drawDottedRoute(x1, y1, x2, y2) {
 
 function drawOverworld() {
   drawOverworldBg();
-  // Rota pontilhada mina → fábricas
+  // Vilarejos decorativos (entre as áreas principais)
+  drawVillage(480, 270, 'LAGES',         0.7);
+  drawVillage(680, 245, 'SÃO JOAQUIM',   0.6);
+  drawVillage(560, 660, 'CHAPECÓ',       0.7);
+  // Rotas pontilhadas decorativas para vilarejos
+  drawDottedRoute(280, 280, 470, 260);
+  drawDottedRoute(530, 270, 670, 250);
+  drawDottedRoute(380, 460, 540, 640);
+  // Rota mina → fábricas (raw materials)
   const d = OVERWORLD.dottedMineToFactory;
   drawDottedRoute(d.x1, d.y, d.x2, d.y);
   drawMineEntrance();
@@ -1024,6 +1032,46 @@ function drawOverworld() {
   drawWagon();
   drawActiveProjectPanel();
   drawContractPanelOverworld();
+}
+
+// Vilarejo decorativo (não interativo) — só pra dar densidade ao mapa
+function drawVillage(x, baseY, name, scale = 0.7) {
+  const houses = [
+    { dx: -14, dy: 0, w: 18, h: 22, face: '#e8c87a', roof: '#a82e1c' },
+    { dx: 6,   dy: -4, w: 14, h: 26, face: '#b8c8a8', roof: '#8a4a2a' },
+  ];
+  for (const b of houses) {
+    const hx = x + b.dx * scale;
+    const top = baseY - b.h * scale;
+    const w = b.w * scale, h = b.h * scale;
+    ctx.fillStyle = b.face;
+    ctx.fillRect(hx, top, w, h);
+    ctx.fillStyle = '#3a1f0a';
+    ctx.fillRect(hx, baseY - 2, w, 2);
+    // telhado
+    ctx.fillStyle = b.roof;
+    ctx.beginPath();
+    ctx.moveTo(hx - 2, top);
+    ctx.lineTo(hx + w / 2, top - 6 * scale);
+    ctx.lineTo(hx + w + 2, top);
+    ctx.closePath();
+    ctx.fill();
+    // janelinha
+    ctx.fillStyle = '#a8c8d8';
+    ctx.fillRect(hx + 2, top + 4 * scale, 3 * scale, 4 * scale);
+  }
+  // mini árvore ao lado
+  drawTree(x + 22 * scale, baseY + 2);
+  // placa com nome
+  ctx.fillStyle = '#3a1f0a';
+  ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const tw = ctx.measureText(name).width + 8;
+  ctx.fillStyle = 'rgba(241,227,194,0.85)';
+  ctx.fillRect(x - tw / 2, baseY + 6, tw, 13);
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillText(name, x, baseY + 8);
 }
 
 // ---------- Helpers: ícone de recurso + scroll/painel ----------

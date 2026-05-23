@@ -6,6 +6,7 @@ Protótipo em HTML5 Canvas + ES modules.
 ## Stack
 
 - **Runtime**: ES modules vanilla, sem framework
+- **PWA**: instalável como app (ícone na home/desktop, fullscreen landscape, offline via Service Worker)
 - **Build/Dev**: [Vite](https://vitejs.dev/) (HMR + bundle de produção)
 - **Tipos**: TypeScript em modo `allowJs + checkJs` (JSDoc, sem migrar `.js` → `.ts`)
 - **Testes**: [Vitest](https://vitest.dev/) com ambiente `happy-dom`
