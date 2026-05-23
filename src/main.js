@@ -547,10 +547,19 @@ $('save-btn').addEventListener('click', () => {
   else log('Falha ao salvar partida.', 'bad');
 });
 $('newgame-btn').addEventListener('click', () => {
-  if (confirm('Apagar a partida atual e começar de novo? Não dá para desfazer.')) {
+  document.getElementById('modal-newgame')?.classList.remove('hidden');
+});
+document.querySelectorAll('[data-newgame-diff]').forEach(btn => {
+  const el = /** @type {HTMLElement} */ (btn);
+  el.addEventListener('click', () => {
+    const diff = el.dataset.newgameDiff;
     deleteSave();
+    // Persiste o difficulty escolhido pro próximo load
+    try {
+      localStorage.setItem('tapuia_next_difficulty', diff || 'normal');
+    } catch { /* ignore */ }
     location.reload();
-  }
+  });
 });
 window.addEventListener('beforeunload', () => {
   if (!state.over) saveGame();
@@ -567,8 +576,22 @@ if (loaded) {
   log(`Partida carregada (dia ${state.day}, ${state.contractsCompleted} contratos, Era ${ROMAN[state.eraReached - 1]}).`, 'good');
   updateSaveStatus();
 } else {
+  // Aplica difficulty escolhido no modal de Novo Jogo (se houver)
+  try {
+    const nextDiff = localStorage.getItem('tapuia_next_difficulty');
+    if (nextDiff) {
+      state.difficulty = nextDiff;
+      // Dinheiro inicial varia: easy 2x, normal 1x, hard 0.5x
+      const mul = nextDiff === 'easy' ? 2 : nextDiff === 'hard' ? 0.5 : 1;
+      state.money = Math.floor(CFG.startMoney * mul);
+      localStorage.removeItem('tapuia_next_difficulty');
+    }
+  } catch { /* ignore */ }
   initMines();
   log('Bem-vindo, governador. Esta é a vista do mapa de Santa Catarina.');
+  const diffLabel = state.difficulty === 'easy' ? '🌿 Fácil'
+    : state.difficulty === 'hard' ? '🔥 Difícil' : '⚖ Normal';
+  log(`Modo de dificuldade: ${diffLabel}.`);
   log('Clique em uma das MINAS à esquerda para descer e cavar. Você tem 2 minas iniciais.');
   log('Recursos esgotam com o tempo — pode explorar várias minas em paralelo.');
 }

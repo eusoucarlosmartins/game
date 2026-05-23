@@ -66,6 +66,7 @@ export const state = {
 
   // Preferências
   muted: false,
+  difficulty: 'normal',     // 'easy' | 'normal' | 'hard' — afeta multiplicadores
 
   // Cena atual do canvas: 'overworld' (mapa) ou 'mine' (interior da mina)
   scene: 'overworld',

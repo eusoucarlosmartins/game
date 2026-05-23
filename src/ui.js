@@ -454,6 +454,14 @@ export function syncUI() {
   $('approval-fill').style.width = pct + '%';
   $('approval-text').textContent = pct + '%';
   const wagonEl = $('wagon-status');     if (wagonEl)  wagonEl.textContent  = statusWagons();
+  const diffEl = $('difficulty-badge');
+  if (diffEl) {
+    const d = state.difficulty || 'normal';
+    const map = { easy: '🌿', normal: '⚖', hard: '🔥' };
+    const lbl = { easy: 'Fácil', normal: 'Normal', hard: 'Difícil' };
+    diffEl.textContent = `${map[d]} ${lbl[d]}`;
+    diffEl.title = `Dificuldade: ${lbl[d]} (escolhida ao iniciar novo jogo)`;
+  }
   const factEl  = $('factory-count');    if (factEl)   factEl.textContent   = state.factories.length;
   const wkEl    = $('footer-workers');   if (wkEl)     wkEl.textContent     = `${workersActive()}/${state.workersTotal}`;
   const tilesEl = $('footer-tiles');     if (tilesEl)  tilesEl.textContent  = state.tilesDug;

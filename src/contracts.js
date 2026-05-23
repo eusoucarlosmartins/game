@@ -39,7 +39,8 @@ export function deliverProduct(amount) {
   if (state.contract.delivered >= state.contract.need) {
     const p = R[state.contract.product];
     const bonus = (state.eventContractBonus || 0) + (state.permContractBonus || 0);
-    const reward = Math.round((CFG.contractReward + p.price * state.contract.need) * (1 + bonus));
+    const diffMul = state.difficulty === 'easy' ? 1.3 : state.difficulty === 'hard' ? 0.8 : 1;
+    const reward = Math.round((CFG.contractReward + p.price * state.contract.need) * (1 + bonus) * diffMul);
     const rpBase = 5 + Math.floor(state.contract.need * 0.6 + p.price * 0.02);
     const rpGain = Math.round(rpBase * (1 + (state.rpBonus || 0)));
     state.money += reward;
@@ -71,7 +72,8 @@ export function deliverProduct(amount) {
 export function failContract() {
   const cityName = state.contract ? state.contract.city : 'Cidade';
   const floor = state.approvalFloor || 0;
-  state.approval = clamp(state.approval - CFG.contractApprovalLoss, floor, CFG.approvalMax);
+  const approvalLossMul = state.difficulty === 'easy' ? 0.7 : state.difficulty === 'hard' ? 1.3 : 1;
+  state.approval = clamp(state.approval - CFG.contractApprovalLoss * approvalLossMul, floor, CFG.approvalMax);
   log(`${cityName}: contrato expirou. −${CFG.contractApprovalLoss} aprovação.`, 'bad');
   state.contract = null;
   state.nextContractIn = rand(6, 12);

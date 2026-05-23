@@ -65,6 +65,7 @@
         <button id="save-btn" class="save-btn" title="Salvar agora">💾 Salvar</button>
         <button id="newgame-btn" class="save-btn danger" title="Apaga a partida atual">↻ Novo Jogo</button>
         <span class="save-status" id="save-status">—</span>
+        <span class="difficulty-badge" id="difficulty-badge" title="Modo de dificuldade">⚖</span>
       </div>
     </header>
 
@@ -277,6 +278,32 @@
       <h2 id="end-title">A população te destituiu</h2>
       <p id="end-text">A aprovação caiu a zero.</p>
       <button id="restart-btn">Recomeçar</button>
+    </div>
+  </div>
+
+  <!-- Modal: Novo Jogo (escolher dificuldade) -->
+  <div id="modal-newgame" class="modal hidden">
+    <div class="modal-card wide">
+      <button class="modal-close" data-close="modal-newgame">×</button>
+      <h2>Começar Novo Jogo</h2>
+      <p class="modal-sub">Apaga a partida atual e começa de novo. Escolha o nível de dificuldade:</p>
+      <div class="difficulty-options">
+        <button class="diff-option" data-newgame-diff="easy">
+          <div class="diff-emoji">🌿</div>
+          <div class="diff-name">Fácil</div>
+          <div class="diff-desc">2× dinheiro inicial · +30% mineração e contratos · perdas de aprovação reduzidas</div>
+        </button>
+        <button class="diff-option recommended" data-newgame-diff="normal">
+          <div class="diff-emoji">⚖</div>
+          <div class="diff-name">Normal <span class="diff-tag">recomendado</span></div>
+          <div class="diff-desc">Balanceamento padrão. Como o jogo foi projetado.</div>
+        </button>
+        <button class="diff-option" data-newgame-diff="hard">
+          <div class="diff-emoji">🔥</div>
+          <div class="diff-name">Difícil</div>
+          <div class="diff-desc">½ dinheiro inicial · -20% mineração e contratos · aprovação cai mais rápido</div>
+        </button>
+      </div>
     </div>
   </div>
 

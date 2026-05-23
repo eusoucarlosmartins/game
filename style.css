@@ -580,6 +580,77 @@ html, body {
   margin-left: 6px;
 }
 
+/* BADGE DE DIFICULDADE NA TOPBAR */
+.difficulty-badge {
+  background: rgba(20, 10, 5, 0.4);
+  border: 1px solid var(--brass-dark);
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--paper);
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+/* MODAL DIFICULDADE */
+.difficulty-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+.diff-option {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(to bottom, #e8c87a, #c69042);
+  border: 2px solid var(--wood-dark);
+  color: var(--ink);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 3px;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.diff-option:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+}
+.diff-option:active { transform: translateY(0); }
+.diff-option.recommended {
+  border-color: var(--good);
+  box-shadow: 0 0 0 2px rgba(77, 124, 58, 0.4);
+}
+.diff-option .diff-emoji {
+  font-size: 36px;
+  text-align: center;
+}
+.diff-option .diff-name {
+  font-weight: bold;
+  font-size: 16px;
+  letter-spacing: 1px;
+  color: var(--wood-dark);
+}
+.diff-option .diff-tag {
+  font-size: 10px;
+  background: var(--good);
+  color: var(--paper);
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-left: 6px;
+  font-weight: normal;
+}
+.diff-option .diff-desc {
+  grid-column: 2;
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
 /* CONQUISTAS */
 .achievements-list .ach {
   display: flex;

@@ -84,6 +84,17 @@ const SOUNDS = {
   fail(c) {
     tone(c, { freq: 220, dur: 0.18, vol: 0.08, type: 'sawtooth', sweep: -120 });
   },
+  era_up(c) {
+    // Fanfarra grande de transição de era — 5 notas ascendentes longas
+    const notes = [523, 659, 784, 1046, 1318];
+    notes.forEach((freq, i) => {
+      setTimeout(() => {
+        tone(c, { freq, dur: 0.35, vol: 0.07, type: 'triangle' });
+        // Harmônico mais grave em cada nota pra "encorpar"
+        tone(c, { freq: freq / 2, dur: 0.35, vol: 0.04, type: 'sine' });
+      }, i * 130);
+    });
+  },
 };
 
 export function play(type) {

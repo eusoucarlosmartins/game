@@ -47,8 +47,17 @@ export function checkEraProgression() {
     if (newDeps.length) log(`   Depósitos liberados: ${newDeps.map(d => R[d].name).join(', ')}.`, 'good');
     if (newRecs.length) log(`   Receitas liberadas: ${newRecs.map(d => R[d].name).join(', ')}.`, 'good');
     log(`🗺 Nova região do mapa desbloqueada — arraste pra explorar.`, 'good');
-    // Conquistas baseadas em era (import dinâmico pra evitar cycle)
+    // Som + conquistas + burst de partículas no centro da cidade
+    import('./audio.js').then(m => m.play('era_up'));
     import('./achievements.js').then(m => m.checkEraAchievements());
+    Promise.all([import('./particles.js'), import('./geometry.js')]).then(([P, G]) => {
+      const cx = G.CITY.x + G.CITY.w / 2;
+      const cy = G.CITY.y + G.CITY.h / 2;
+      P.spawnBurst(cx, cy, 50, '255,212,74', 'overworld');
+      P.spawnBurst(cx, cy, 30, '255,120,80', 'overworld');
+      P.spawnText(cx, cy - 30, `⚜ ERA ${ROMAN[era - 1]}`, '255,212,74');
+      P.spawnText(cx, cy + 10, e.name.toUpperCase(), '255,180,80');
+    });
   }
 }
 
@@ -69,7 +78,7 @@ export const cartCapacity   = () => Math.floor(CFG.cartCapacityBase * (1 + eqMod
 export const cartSpeed      = () => CFG.cartSpeedBase * (1 + eqMod('cartSpd'));
 export const wagonCapacity  = () => Math.floor(CFG.wagonCapacityBase * (1 + eqMod('wagonCap') + (state.wagonCapacityBonus || 0)));
 export const wagonSpeed     = () => CFG.wagonSpeedBase * (1 + eqMod('wagonSpd') + (state.wagonSpeedBonus || 0) + (state.eventWagonMul || 0));
-export const mineRateMul    = () => (1 + eqMod('mineRate')) * (state.eventMineMul !== undefined ? state.eventMineMul : 1);
+export const mineRateMul    = () => (1 + eqMod('mineRate')) * (state.eventMineMul !== undefined ? state.eventMineMul : 1) * (state.difficulty === 'easy' ? 1.3 : state.difficulty === 'hard' ? 0.8 : 1);
 export const factSpdMul     = () => 1 + eqMod('factSpd') + (state.factorySpeedBonus || 0) + (state.eventFactoryMul || 0);
 export const pileMaxMul     = () => 1 + eqMod('pileMax');
 export const pileMax        = () => Math.floor(CFG.minePileMaxBase * pileMaxMul());
