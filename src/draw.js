@@ -578,19 +578,74 @@ function drawCitySign(centerX, topY) {
 }
 
 // ---------- Estrada + carruagem ----------
-// Rotas pontilhadas de cada fábrica até a cidade (uma "estrada" por fábrica)
+// Rotas de cada fábrica até a cidade. Visual evolui pelo transportTier:
+// tier 1 (trilha pontilhada) → tier 2 (cascalho) → tier 3+ (pedra) →
+// tier 6+ (ferrovia com dormentes).
 function drawRoad() {
+  const tier = transportTier();
   for (let i = 0; i < state.factories.length; i++) {
     const fr = factoryRect(i);
     const sx = fr.x + fr.w;
     const sy = fr.y + fr.h / 2;
     const dx = CITY.x;
     const dy = CITY.y + CITY.h / 2;
-    drawDottedRoute(sx, sy, dx, dy);
+    drawTieredRoute(sx, sy, dx, dy, tier);
   }
-  // (transportTier() ainda existe e afeta a velocidade/capacidade da carruagem
-  // via progression.js — só o desenho da estrada principal mudou pra dotted.)
-  void transportTier;
+}
+
+function drawTieredRoute(x1, y1, x2, y2, tier) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const dist = Math.hypot(dx, dy);
+  const ang = Math.atan2(dy, dx);
+  if (tier >= 6) {
+    // Ferrovia: trilhos pretos paralelos + dormentes marrons
+    ctx.save();
+    ctx.translate(x1, y1);
+    ctx.rotate(ang);
+    // base de pedras / lastro
+    ctx.fillStyle = '#6a6058';
+    ctx.fillRect(0, -7, dist, 14);
+    // dormentes
+    ctx.fillStyle = '#5a3416';
+    for (let s = 4; s < dist - 4; s += 12) {
+      ctx.fillRect(s, -7, 6, 14);
+    }
+    // trilhos
+    ctx.fillStyle = '#3a3a3a';
+    ctx.fillRect(0, -4, dist, 1.5);
+    ctx.fillRect(0, 3, dist, 1.5);
+    ctx.restore();
+  } else if (tier >= 3) {
+    // Calçada de pedra: faixa cinza compacta + cantos arredondados
+    ctx.save();
+    ctx.translate(x1, y1);
+    ctx.rotate(ang);
+    ctx.fillStyle = '#7d7670';
+    ctx.fillRect(0, -5, dist, 10);
+    // detalhe de pedras (linhas claras)
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    for (let s = 6; s < dist - 6; s += 16) {
+      ctx.fillRect(s, -4, 8, 1);
+      ctx.fillRect(s + 4, 3, 6, 1);
+    }
+    ctx.restore();
+  } else if (tier >= 2) {
+    // Estrada de cascalho: faixa marrom-claro
+    ctx.save();
+    ctx.translate(x1, y1);
+    ctx.rotate(ang);
+    ctx.fillStyle = '#a07a4a';
+    ctx.fillRect(0, -4, dist, 8);
+    // pedrinhas
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    for (let s = 5; s < dist; s += 11) {
+      ctx.fillRect(s, -2, 2, 1.5);
+    }
+    ctx.restore();
+  } else {
+    // Trilha: linha pontilhada (mesma de antes)
+    drawDottedRoute(x1, y1, x2, y2);
+  }
 }
 
 // Desenha uma carruagem por fábrica, cada uma na sua rota até a cidade
@@ -610,29 +665,153 @@ function drawOneWagon(idx) {
   const dx = CITY.x;
   const dy = CITY.y + CITY.h / 2;
   const wx = sx + (dx - sx) * w.pos;
-  const wy = sy + (dy - sy) * w.pos - 6; // levemente acima da linha do chão
-  // corpo da carruagem
+  const wy = sy + (dy - sy) * w.pos - 6;
+  const ang = Math.atan2(dy - sy, dx - sx);
+  const tier = transportTier();
+  // Estilo do veículo varia por tier
+  if (tier >= 6) drawTrainCar(wx, wy, ang, w);
+  else if (tier >= 3) drawCoveredWagon(wx, wy, ang, w);
+  else if (tier >= 2) drawHorseCart(wx, wy, ang, w);
+  else drawMuleCart(wx, wy, ang, w);
+}
+
+// Tier 1: mula puxando carroça simples (visual original)
+function drawMuleCart(wx, wy, ang, w) {
   ctx.fillStyle = '#7a4b25';
   ctx.fillRect(wx - 12, wy, 24, 10);
   ctx.fillStyle = '#5a3416';
   ctx.fillRect(wx - 12, wy + 8, 24, 3);
-  // rodas
   ctx.fillStyle = '#222';
   ctx.beginPath(); ctx.arc(wx - 8, wy + 12, 3, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(wx + 8, wy + 12, 3, 0, Math.PI * 2); ctx.fill();
-  // carga (cor do produto)
+  drawCargo(wx, wy, w, 20);
+  if (w.state === 'hauling') {
+    // Mula cinza na frente
+    const hx = wx + Math.cos(ang) * 14 * w.dir;
+    const hy = wy + 4 + Math.sin(ang) * 14 * w.dir;
+    ctx.fillStyle = '#888';
+    ctx.fillRect(hx - 3, hy - 2, 6, 5);
+  }
+}
+
+// Tier 2: carroça com cavalo
+function drawHorseCart(wx, wy, ang, w) {
+  ctx.fillStyle = '#8a5a2a';
+  ctx.fillRect(wx - 14, wy - 2, 28, 12);
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(wx - 14, wy + 8, 28, 3);
+  ctx.fillStyle = '#1a0e06';
+  ctx.beginPath(); ctx.arc(wx - 10, wy + 12, 3.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(wx + 10, wy + 12, 3.5, 0, Math.PI * 2); ctx.fill();
+  drawCargo(wx, wy + 1, w, 24);
+  if (w.state === 'hauling') {
+    const hx = wx + Math.cos(ang) * 16 * w.dir;
+    const hy = wy + 4 + Math.sin(ang) * 16 * w.dir;
+    // Cavalo marrom
+    ctx.fillStyle = '#5a3416';
+    ctx.fillRect(hx - 4, hy - 3, 8, 7);
+    ctx.fillStyle = '#3a2010';
+    ctx.fillRect(hx + 2 * w.dir, hy - 4, 3, 4); // cabeça
+  }
+}
+
+// Tier 3-5: carroça coberta (estilo conestoga)
+function drawCoveredWagon(wx, wy, ang, w) {
+  // base
+  ctx.fillStyle = '#8a5a2a';
+  ctx.fillRect(wx - 16, wy + 2, 32, 10);
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(wx - 16, wy + 10, 32, 3);
+  // toldo branco arqueado
+  ctx.fillStyle = '#e8d4a4';
+  ctx.beginPath();
+  ctx.moveTo(wx - 16, wy + 2);
+  ctx.quadraticCurveTo(wx, wy - 10, wx + 16, wy + 2);
+  ctx.lineTo(wx + 16, wy + 4);
+  ctx.lineTo(wx - 16, wy + 4);
+  ctx.closePath();
+  ctx.fill();
+  // listras do toldo
+  ctx.strokeStyle = 'rgba(122,75,37,0.3)';
+  ctx.lineWidth = 0.8;
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(wx - 16 + i * 10, wy + 2);
+    ctx.quadraticCurveTo(wx - 11 + i * 10, wy - 7, wx - 6 + i * 10, wy + 2);
+    ctx.stroke();
+  }
+  // rodas grandes
+  ctx.fillStyle = '#1a0e06';
+  ctx.beginPath(); ctx.arc(wx - 11, wy + 14, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(wx + 11, wy + 14, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#666'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(wx - 11, wy + 14, 4, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(wx + 11, wy + 14, 4, 0, Math.PI * 2); ctx.stroke();
+  if (w.state === 'hauling') {
+    const hx = wx + Math.cos(ang) * 18 * w.dir;
+    const hy = wy + 6 + Math.sin(ang) * 18 * w.dir;
+    ctx.fillStyle = '#5a3416';
+    ctx.fillRect(hx - 4, hy - 4, 8, 8);
+    ctx.fillStyle = '#3a2010';
+    ctx.fillRect(hx + 3 * w.dir, hy - 5, 3, 4);
+  }
+}
+
+// Tier 6+: locomotiva pequena com vagão
+function drawTrainCar(wx, wy, ang, w) {
+  // vagão atrás (cargo)
+  const vx = wx - Math.cos(ang) * 18 * w.dir;
+  const vy = wy - Math.sin(ang) * 18 * w.dir;
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(vx - 8, vy + 2, 16, 10);
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(vx - 8, vy + 10, 16, 3);
+  ctx.fillStyle = '#1a0e06';
+  ctx.beginPath(); ctx.arc(vx - 5, vy + 14, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(vx + 5, vy + 14, 3, 0, Math.PI * 2); ctx.fill();
+  // locomotiva
+  ctx.fillStyle = '#3a3a3a';
+  ctx.fillRect(wx - 12, wy, 24, 12);
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillRect(wx - 12, wy + 10, 24, 3);
+  // cabine (atrás)
+  ctx.fillStyle = '#5a4030';
+  ctx.fillRect(wx - 10 * w.dir, wy - 8, 8 * w.dir, 10);
+  // janela
+  ctx.fillStyle = '#a8c8d8';
+  ctx.fillRect(wx - 8 * w.dir, wy - 6, 4 * w.dir, 5);
+  // caldeira (frente)
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.arc(wx + 6 * w.dir, wy + 6, 6, 0, Math.PI * 2);
+  ctx.fill();
+  // chaminé com fumaça
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillRect(wx + 4 * w.dir, wy - 5, 3, 6);
+  if (w.state === 'hauling') {
+    const t = performance.now() / 200;
+    for (let i = 0; i < 3; i++) {
+      const yOff = (t * 18 + i * 6) % 28;
+      ctx.fillStyle = `rgba(180,180,180,${0.5 - i * 0.15})`;
+      ctx.beginPath();
+      ctx.arc(wx + 5 * w.dir, wy - 8 - yOff, 3 + i, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // rodas locomotiva
+  ctx.fillStyle = '#1a0e06';
+  ctx.beginPath(); ctx.arc(wx - 7, wy + 14, 3.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(wx + 0, wy + 14, 3.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(wx + 7, wy + 14, 3.5, 0, Math.PI * 2); ctx.fill();
+  drawCargo(vx, vy + 1, w, 14);
+}
+
+// Carga (cor do produto) no compartimento
+function drawCargo(wx, wy, w, width) {
   if (w.load > 0 && w.product && R[w.product]) {
     ctx.fillStyle = R[w.product].color;
-    const barW = clamp(w.load / wagonCapacity(), 0, 1) * 20;
-    ctx.fillRect(wx - 10, wy + 2, barW, 5);
-  }
-  // cavalo simplificado na frente (indica direção)
-  if (w.state === 'hauling') {
-    const ang = Math.atan2(dy - sy, dx - sx);
-    const headX = wx + Math.cos(ang) * 14 * w.dir;
-    const headY = wy + 4 + Math.sin(ang) * 14 * w.dir;
-    ctx.fillStyle = '#3a2010';
-    ctx.fillRect(headX - 3, headY - 2, 6, 5);
+    const barW = clamp(w.load / wagonCapacity(), 0, 1) * width;
+    ctx.fillRect(wx - width / 2, wy + 2, barW, 5);
   }
 }
 

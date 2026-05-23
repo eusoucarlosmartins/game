@@ -240,7 +240,8 @@ export function updateEvents(dt) {
       if (def && def.onEnd) def.onEnd();
       log(`Evento "${state.activeEvent.name}" terminou.`);
       state.activeEvent = null;
-      state.nextEventIn = rand(60, 120);
+      // Intervalo até próximo evento, ajustado pela dificuldade
+      state.nextEventIn = rand(60, 120) * eventFreqMul();
     }
     return;
   }
@@ -249,8 +250,31 @@ export function updateEvents(dt) {
   if (state.nextEventIn <= 0) triggerRandomEvent();
 }
 
+// Multiplicador de frequência: easy = eventos mais espaçados, hard = mais
+function eventFreqMul() {
+  return state.difficulty === 'easy' ? 1.6 : state.difficulty === 'hard' ? 0.6 : 1;
+}
+
+// Pesos por kind ajustados por dificuldade.
+// Easy: enxuga muito eventos ruins, mantém bons.
+// Hard: aumenta peso de eventos ruins, reduz bons (gestão difícil).
+function kindWeight(kind) {
+  const d = state.difficulty;
+  if (kind === 'bad')  return d === 'easy' ? 0.35 : d === 'hard' ? 1.7 : 1;
+  if (kind === 'good') return d === 'easy' ? 1.4  : d === 'hard' ? 0.6 : 1;
+  return 1; // 'neutral'
+}
+
 function triggerRandomEvent() {
-  const evt = EVENT_TYPES[irand(0, EVENT_TYPES.length - 1)];
+  // Roleta ponderada por dificuldade
+  const weighted = EVENT_TYPES.map(e => ({ e, w: kindWeight(e.kind) }));
+  const total = weighted.reduce((s, x) => s + x.w, 0);
+  let roll = Math.random() * total;
+  let evt = weighted[weighted.length - 1].e;
+  for (const x of weighted) {
+    roll -= x.w;
+    if (roll <= 0) { evt = x.e; break; }
+  }
   if (evt.duration > 0) {
     state.activeEvent = {
       id: evt.id,
@@ -262,7 +286,7 @@ function triggerRandomEvent() {
     };
   } else {
     state.activeEvent = null; // evento instantâneo, sem banner
-    state.nextEventIn = rand(60, 120);
+    state.nextEventIn = rand(60, 120) * eventFreqMul();
   }
   if (evt.onStart) evt.onStart();
   const icon = evt.kind === 'good' ? '✨' : evt.kind === 'bad' ? '⚠' : '📰';
