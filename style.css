@@ -89,9 +89,21 @@
     z-index: 50;
     box-shadow: -4px 0 14px rgba(0,0,0,0.5);
     padding: 10px;
-    overflow-y: auto;
+    /* IMPORTANTE: scroll fica no .tab-panel; sidebar não pode scrollar
+       senão cria conflito de containers e iOS bloqueia o gesto. */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   .sidebar.open { transform: translateX(0); }
+  /* Scroll touch suave no painel da aba ativa */
+  .sidebar .tab-panel {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    flex: 1;
+    min-height: 0; /* permite flex-shrink dentro do drawer */
+  }
 
   /* Botão flutuante para abrir o drawer */
   #sidebar-toggle {
@@ -160,7 +172,12 @@
     max-width: 95vw !important;
     max-height: 92vh;
     padding: 12px !important;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
+  /* O .modal precisa rolar quando o card escapa em telinhas baixinhas */
+  .modal { padding: 4px; align-items: flex-start; }
   .upgrades-grid {
     grid-template-columns: 1fr;
     gap: 12px;
@@ -570,7 +587,17 @@ html, body {
   color: var(--wood-dark);
   box-shadow: inset 0 2px 0 var(--brass);
 }
-.tab-panel { display: none; flex: 1; overflow-y: auto; padding-right: 4px; flex-direction: column; gap: 8px; }
+.tab-panel {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  flex-direction: column;
+  gap: 8px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
 .tab-panel.active { display: flex; }
 
 .panel {
@@ -947,6 +974,9 @@ html, body {
   align-items: center;
   justify-content: center;
   z-index: 100;
+  overflow-y: auto;
+  padding: 16px 8px;
+  -webkit-overflow-scrolling: touch;
 }
 .modal.hidden { display: none; }
 .modal-card {
@@ -955,8 +985,12 @@ html, body {
   padding: 28px 32px;
   text-align: center;
   max-width: 480px;
+  max-height: 92vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 10px 40px rgba(0,0,0,0.6);
   position: relative;
+  overscroll-behavior: contain;
 }
 .modal-card.wide { max-width: 720px; text-align: left; }
 .modal-card h2 { margin-top: 0; color: var(--rust); font-size: 24px; letter-spacing: 3px; }
