@@ -5,6 +5,8 @@ import { R, CFG } from './data.js';
 import { fmtMoney, clamp } from './util.js';
 import { currentEra } from './progression.js';
 import { play } from './audio.js';
+import { CITY } from './geometry.js';
+import { spawnBurst, spawnMoneyText, spawnText } from './particles.js';
 
 /**
  * @typedef {object} ProjectDef
@@ -272,6 +274,15 @@ function completeProject(def) {
     `✨ Concluído: ${def.name}! +${fmtMoney(def.reward.money)}, +${def.reward.approval} aprov, +${def.reward.rp} PP.`,
     'good',
   );
+  // Confete grande no centro da cidade (visual de conclusão)
+  const cx = CITY.x + CITY.w / 2;
+  const cy = CITY.y + 60;
+  spawnBurst(cx, cy, 40, '255,212,74', 'overworld');
+  spawnBurst(cx, cy, 24, '255,120,80', 'overworld');
+  spawnBurst(cx, cy, 24, '120,200,120', 'overworld');
+  spawnMoneyText(cx, cy + 16, def.reward.money, 'overworld');
+  spawnText(cx, cy + 36, `+${def.reward.rp} PP`, '180,140,220');
+  spawnText(cx, cy + 54, `🏗 ${def.name}`, '255,212,74');
   if (def.effect) applyEffect(def.effect);
   state.projects.active = null;
   play('chime');

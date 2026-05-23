@@ -10,6 +10,7 @@ import {
   W, H, WORLD_W, WORLD_H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
   OVERWORLD, TOOLBAR, MINE_BACK_BTN, MINIMAP, factoryRect,
 } from './geometry.js';
+import { drawParticles } from './particles.js';
 
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game'));
 const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
@@ -1434,6 +1435,7 @@ function drawOverworld() {
   drawCity();
   drawRoad();
   drawWagon();
+  drawParticles(ctx, 'overworld');
   ctx.restore();
   // === Camada HUD (fixa na tela) ===
   drawActiveProjectPanel();
@@ -2148,6 +2150,7 @@ function drawMineScene() {
   ctx.translate(0, -state.mineCamera.y);
   drawMineGrid();
   drawElevator();
+  drawParticles(ctx, 'mine');
   ctx.restore();
   drawDepthMeter();
   drawToolbar();

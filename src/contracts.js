@@ -4,6 +4,8 @@ import { R, CFG } from './data.js';
 import { fmtMoney, rand, irand, clamp } from './util.js';
 import { currentEra, eraData, checkEraProgression } from './progression.js';
 import { play } from './audio.js';
+import { CITY } from './geometry.js';
+import { spawnMoneyText, spawnText, spawnBurst } from './particles.js';
 
 export function pickContractProduct() {
   const era = eraData(currentEra());
@@ -46,6 +48,13 @@ export function deliverProduct(amount) {
     state.approval = clamp(state.approval + apGain, 0, CFG.approvalMax);
     state.contractsCompleted++;
     state.cityGrowth = (state.cityGrowth || 0) + 1;
+    // Floating numbers no centro da cidade
+    const cx = CITY.x + CITY.w / 2;
+    const cy = CITY.y + 100;
+    spawnMoneyText(cx, cy, reward, 'overworld');
+    spawnText(cx, cy + 22, `+${rpGain} PP`, '180,140,220');
+    spawnText(cx, cy + 40, `+${apGain} aprov`, '120,200,120');
+    spawnBurst(cx, cy, 14, '255,212,74');
     const bonusTxt = bonus > 0 ? ` (+${Math.round(bonus*100)}% evento!)` : '';
     log(`${state.contract.city}: ${p.name} entregue! +${fmtMoney(reward)}${bonusTxt}, +${rpGain} PP e +${CFG.contractApprovalGain} aprovação.`, 'good');
     state.contract = null;

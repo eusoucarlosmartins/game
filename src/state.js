@@ -82,6 +82,9 @@ export const state = {
   eventWagonMul: 0,         // bônus temporário aditivo na velocidade da carruagem
   eventFactoryMul: 0,       // bônus temporário aditivo na velocidade das fábricas
 
+  // Partículas (floating numbers, sparks, dust) — efêmeras, não persistidas
+  particles: [],
+
   // Câmera do overworld (drag-to-pan + scroll-to-zoom) — não persistido
   camera: { x: 0, y: 0, zoom: 1 },
   // Câmera da mina (scroll vertical pelas profundezas) — não persistido

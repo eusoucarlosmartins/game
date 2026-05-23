@@ -5,6 +5,7 @@ import { R, DEPOSIT_TYPES, MINE, TOOLS, SILO_DEFAULT_CAP, WORKER_COST, MINE_CATA
 import { irand, fmtMoney } from './util.js';
 import { mineRateMul, currentEra, eraData } from './progression.js';
 import { play } from './audio.js';
+import { spawnBurst, spawnDust } from './particles.js';
 
 export function isResourceUnlocked(resource) {
   return eraData(currentEra()).deposits.includes(resource);
@@ -201,13 +202,19 @@ export function tryDigClick(r, c) {
 function digTile(grid, r, c) {
   const t = tileAt(grid, r, c);
   if (!t) return;
+  // Poeira no centro do tile que tá sendo cavado
+  const px = MINE.x + (c + 0.5) * MINE.cell;
+  const py = MINE.y + (c + 0.5) * MINE.cell;
   if (t.type === 'dirt' || t.type === 'stone') {
     grid[r][c] = airTile(true);
     state.tilesDug++;
+    spawnDust(MINE.x + (c + 0.5) * MINE.cell, MINE.y + (r + 0.5) * MINE.cell, 'mine');
   } else if (t.type === 'ore') {
     t.revealed = true;
+    spawnBurst(MINE.x + (c + 0.5) * MINE.cell, MINE.y + (r + 0.5) * MINE.cell, 6, '255,212,74', 'mine');
   }
   revealAround(grid, r, c, 1);
+  void px; void py;
   play('pickaxe');
 }
 
@@ -238,6 +245,11 @@ export function tryTNT(r, c) {
   state.tilesDug += dug;
   log(`Dinamite: ${dug} tiles. ${oreCollected > 0 ? '+' + oreCollected + ' de minério.' : ''}`, 'good');
   mine.tntFx = { r, c, t: 0.8 };
+  // Explosão visual: 30 sparks vermelho-laranja partindo do centro
+  const px = MINE.x + (c + 0.5) * MINE.cell;
+  const py = MINE.y + (r + 0.5) * MINE.cell;
+  spawnBurst(px, py, 30, '255,120,40', 'mine');
+  spawnBurst(px, py, 16, '255,220,80', 'mine');
   play('boom');
 }
 
