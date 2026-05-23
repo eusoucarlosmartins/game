@@ -1,15 +1,15 @@
-// save.js — persistência em localStorage
+// save.js — persistência em localStorage. Versão 2 = mina em grid (incompatível com v1).
 import { state } from './state.js';
-import { R } from './data.js';
+import { R, SILO_DEFAULT_CAP } from './data.js';
 import { $ } from './util.js';
 
-export const SAVE_KEY = 'tapuia_save_v1';
-export const SAVE_VERSION = 1;
+export const SAVE_KEY = 'tapuia_save_v2';
+export const SAVE_VERSION = 2;
 export const AUTOSAVE_INTERVAL = 15; // segundos de tempo real
 
 const PERSIST_KEYS = [
   'money','approval','day','dayTimer','speed','over',
-  'deposits','factories','warehouse','products',
+  'mine','workersTotal','tilesDug','factories','warehouse','products','silos',
   'contract','currentCity','nextContractIn','contractsCompleted',
   'equipment','research','rp','eraReached','log',
 ];
@@ -44,11 +44,15 @@ export function loadGame() {
     }
     // Garante chaves para recursos novos adicionados após o save
     for (const k in R) {
-      if (R[k].kind === 'raw' && state.warehouse[k] === undefined) state.warehouse[k] = 0;
+      if (R[k].kind === 'raw' && !R[k].free) {
+        if (state.warehouse[k] === undefined) state.warehouse[k] = 0;
+        if (!state.silos[k]) state.silos[k] = { cap: SILO_DEFAULT_CAP };
+      }
       if (R[k].kind === 'prod' && state.products[k] === undefined) state.products[k] = 0;
     }
-    // Estados de transporte voltam ao idle para evitar travas
-    state.cart = { pos: 1, dir: 0, load: {}, state: 'idle', timer: 0 };
+    // Reseta efeitos transitórios da mina
+    if (state.mine) state.mine.tntFx = null;
+    // Wagon volta ao idle pra evitar travas
     state.wagon = { pos: 0, dir: 0, product: null, load: 0, state: 'idle', timer: 0 };
     lastSaveTime = data.savedAt || Date.now();
     return true;

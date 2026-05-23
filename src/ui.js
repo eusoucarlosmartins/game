@@ -1,21 +1,12 @@
-// ui.js — renderização da sidebar e modais (depósito, receita, etc.)
+// ui.js — renderização da sidebar e modais (receita)
 import { state } from './state.js';
-import { R, RECIPE_BY_ID, RECIPES_BY_TIER, DEPOSIT_TYPES, EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY_ID, RES_CATS, ERAS, ROMAN, CFG } from './data.js';
+import { R, RECIPE_BY_ID, RECIPES_BY_TIER, EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY_ID, RES_CATS, ERAS, ROMAN, CFG, TOOLS, WORKER_COST } from './data.js';
 import { $, fmtMoney } from './util.js';
-import {
-  currentEra, eraData, isDepositUnlocked, isRecipeUnlocked, pileMax,
-} from './progression.js';
+import { currentEra, eraData, isRecipeUnlocked } from './progression.js';
 import { ingredientHave } from './factories.js';
+import { workersAvailable, workersActive } from './mine.js';
 import { openModal, closeModal } from './modals.js';
 
-// ----- Status compactos -----
-function statusCart() {
-  const c = state.cart;
-  if (c.state === 'idle') return c.pos > 0.5 ? 'aguardando minério' : 'pronto p/ descer';
-  if (c.state === 'loading') return 'carregando';
-  if (c.state === 'unloading') return 'descarregando';
-  return c.dir < 0 ? 'subindo' : 'descendo';
-}
 function statusWagon() {
   const w = state.wagon;
   if (w.state === 'idle') return w.pos > 0.5 ? 'aguardando contrato' : 'aguardando produto';
@@ -67,41 +58,45 @@ function renderStockLists() {
     : whItems.map(it => `<li><span class="dot" style="background:${R[it.k].color}"></span>${R[it.k].name} <strong>${Math.floor(it.n)}</strong></li>`).join('');
 }
 
-function renderDeposits() {
-  const cont = $('deposits-list');
-  cont.innerHTML = state.deposits.map((d, i) => {
-    if (!d.resource) {
-      return `
-        <div class="deposit">
-          <span class="dot" style="background:#1a0e06"></span>
-          <div class="deposit-info">
-            <span class="deposit-name">Slot ${i + 1} — vazio</span>
-            <span class="deposit-meta">Clique em "Abrir" para escolher um recurso.</span>
-          </div>
-          <div class="deposit-actions">
-            <button class="mini-btn open" data-action="open-deposit" data-slot="${i}">Abrir</button>
-          </div>
-        </div>
-      `;
-    }
-    const res = R[d.resource];
-    const pct = Math.round((d.pile / pileMax()) * 100);
-    const cantHire = state.money < CFG.minerCost;
-    return `
-      <div class="deposit">
-        <span class="dot" style="background:${res.color}"></span>
-        <div class="deposit-info">
-          <span class="deposit-name">${res.name}</span>
-          <span class="deposit-meta">Mineradores: ${d.miners} · Pilha: ${Math.floor(d.pile)}/${pileMax()}</span>
-          <div class="deposit-pile"><div class="deposit-pile-fill" style="width:${pct}%"></div></div>
-        </div>
-        <div class="deposit-actions">
-          <button class="mini-btn" data-action="hire" data-slot="${i}" ${cantHire ? 'disabled' : ''}>+ Minerador (${fmtMoney(CFG.minerCost)})</button>
-          <button class="mini-btn" data-action="fire" data-slot="${i}" ${d.miners <= 0 ? 'disabled' : ''}>− Dispensar</button>
-        </div>
-      </div>
-    `;
-  }).join('');
+function renderMinePanel() {
+  const total = state.workersTotal;
+  const active = workersActive();
+  const avail = total - active;
+  const tWorkers = $('workers-total');     if (tWorkers) tWorkers.textContent = total;
+  const tAvail   = $('workers-available'); if (tAvail)   tAvail.textContent   = avail;
+  const tAct     = $('workers-active');    if (tAct)     tAct.textContent     = active;
+
+  const hireBtn = $('hire-worker-btn');
+  if (hireBtn) hireBtn.disabled = state.money < WORKER_COST;
+
+  const tool = TOOLS[state.mine.tool] || TOOLS.pick;
+  const info = $('tool-info');
+  if (info) info.innerHTML = `<strong>${tool.name}</strong> — ${tool.desc}`;
+
+  // Silos por recurso (apenas com estoque > 0 ou desbloqueados pela era atual)
+  const era = eraData(currentEra());
+  const items = [];
+  for (const k in state.warehouse) {
+    if (R[k] && R[k].free) continue;
+    const inEra = era.deposits.includes(k);
+    const stock = state.warehouse[k] || 0;
+    if (inEra || stock > 0) items.push({ k, n: stock, cap: (state.silos[k] && state.silos[k].cap) || 400 });
+  }
+  items.sort((a, b) => b.n - a.n);
+  const list = $('silos-list');
+  if (list) {
+    list.innerHTML = items.length === 0
+      ? '<li><em>Nenhum silo em uso ainda.</em></li>'
+      : items.map(it => {
+          const pct = Math.min(100, Math.round((it.n / it.cap) * 100));
+          const full = pct >= 99;
+          return `<li>
+            <span class="dot" style="background:${R[it.k].color}"></span>
+            <span style="flex:1">${R[it.k].name}</span>
+            <span style="font-size:11px;${full ? 'color:var(--bad)' : ''}">${Math.floor(it.n)}/${it.cap}${full ? ' CHEIO' : ''}</span>
+          </li>`;
+        }).join('');
+  }
 }
 
 function renderFactories() {
@@ -219,7 +214,7 @@ function renderEraBanner() {
   }
 }
 
-// função adicional injetada pelo upgrades.js para refresh quando modal aberto
+// Hook do modal de upgrades (registrado por upgrades.js)
 let upgradesRefreshFn = null;
 export function registerUpgradesRefresh(fn) { upgradesRefreshFn = fn; }
 
@@ -230,15 +225,15 @@ export function syncUI() {
   const pct = Math.round(state.approval);
   $('approval-fill').style.width = pct + '%';
   $('approval-text').textContent = pct + '%';
-  $('cart-status').textContent = statusCart();
-  $('wagon-status').textContent = statusWagon();
-  $('factory-count').textContent = state.factories.length;
-  $('deposit-count').textContent = state.deposits.filter(d => d.resource).length;
+  const wagonEl = $('wagon-status');     if (wagonEl)  wagonEl.textContent  = statusWagon();
+  const factEl  = $('factory-count');    if (factEl)   factEl.textContent   = state.factories.length;
+  const wkEl    = $('footer-workers');   if (wkEl)     wkEl.textContent     = `${workersActive()}/${state.workersTotal}`;
+  const tilesEl = $('footer-tiles');     if (tilesEl)  tilesEl.textContent  = state.tilesDug;
 
   renderEraBanner();
   renderContract();
   renderStockLists();
-  renderDeposits();
+  renderMinePanel();
   renderFactories();
   renderEquipment();
   renderResearch();
@@ -250,29 +245,7 @@ export function syncUI() {
   }
 }
 
-// ----- Modais (re-exporta de modals.js) -----
 export { openModal, closeModal };
-
-export function openDepositModal(slotIndex) {
-  const used = new Set(state.deposits.map(d => d.resource).filter(Boolean));
-  const opts = $('deposit-options');
-  opts.innerHTML = DEPOSIT_TYPES.map(t => {
-    const usedAlready = used.has(t.id);
-    const tooExpensive = state.money < t.cost;
-    const locked = !isDepositUnlocked(t.id);
-    const disabled = usedAlready || tooExpensive || locked;
-    let unlockEra = ERAS.find(e => e.deposits.includes(t.id));
-    const lockMsg = locked && unlockEra ? ` — Era ${ROMAN[unlockEra.id - 1]} necessária` : '';
-    return `
-      <button class="grid-option" ${disabled ? 'disabled' : ''} data-action="confirm-open" data-slot="${slotIndex}" data-res="${t.id}" title="${locked ? 'Bloqueado nesta era' : ''}">
-        <div class="grid-option-title"><span class="dot" style="background:${R[t.id].color}"></span>${R[t.id].name}${locked ? ' 🔒' : ''}</div>
-        <div class="grid-option-detail">Taxa: ${t.rate.toFixed(2)}/s · Vende a ${fmtMoney(R[t.id].price)}/un</div>
-        <div class="grid-option-cost">${t.cost === 0 ? 'Grátis' : fmtMoney(t.cost)}${usedAlready ? ' — já aberto' : ''}${lockMsg}</div>
-      </button>
-    `;
-  }).join('');
-  openModal('modal-deposit');
-}
 
 export function openRecipeModal(factoryIndex) {
   const opts = $('recipe-options');

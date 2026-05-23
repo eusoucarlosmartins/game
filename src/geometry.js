@@ -1,16 +1,15 @@
-// geometry.js — constantes de geometria do canvas (compartilhado entre sim e draw)
-import { NUM_DEPOSITS } from './data.js';
-
+// geometry.js — coordenadas do canvas (novo layout: mina ocupa boa parte da tela)
 export const W = 1280;
 export const H = 720;
-export const GROUND_Y = 320;
-export const WAREHOUSE = { x: 80, y: 180, w: 130, h: 140 };
-export const FACTORY_AREA = { x: 230, y: 180, w: 590, h: 140, gap: 10, slots: 3 };
-export const CITY = { x: 1000, y: 150, w: 240, h: 170 };
-export const MINE_SHAFT = { x: 100, top: GROUND_Y, bottom: H - 110, w: 50 };
-export const TUNNEL = { x: 160, y: H - 160, w: W - 170, h: 90 };
-export const DEPOSIT_W = TUNNEL.w / NUM_DEPOSITS;
-export const ROAD = { y: GROUND_Y, x1: FACTORY_AREA.x + FACTORY_AREA.w + 20, x2: CITY.x };
+export const GROUND_Y = 200; // linha de chão (superfície <-> mina)
+
+// Superfície: silos à esquerda, fábricas + cidade à direita
+export const FACTORY_AREA = { x: 760, y: 60, w: 300, h: 130, gap: 6, slots: 3 };
+export const CITY = { x: 1090, y: 8, w: 140, h: 182 };
+export const ROAD = { y: GROUND_Y - 12, x1: FACTORY_AREA.x + FACTORY_AREA.w + 6, x2: CITY.x };
+
+// Painel de ferramentas (à direita do grid)
+export const TOOLBAR = { x: 1220, y: 220, w: 60, slotH: 65 };
 
 export function factoryRect(i) {
   const slotW = (FACTORY_AREA.w - (FACTORY_AREA.slots - 1) * FACTORY_AREA.gap) / FACTORY_AREA.slots;

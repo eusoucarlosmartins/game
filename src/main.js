@@ -1,16 +1,17 @@
-// main.js — entry point: ciclo principal, eventos e inicialização
+// main.js — entry: loop, eventos, init
 import { state, log } from './state.js';
 import { $ } from './util.js';
-import { ROMAN, CFG } from './data.js';
+import { ROMAN, CFG, MINE, TOOLS } from './data.js';
 import { currentEra } from './progression.js';
 import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL } from './save.js';
-import { tryHire, tryFireMiner, openDeposit, updateDeposits, updateCart } from './mine.js';
+import { initMine, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool } from './mine.js';
 import { buyFactory, setRecipe, updateFactories } from './factories.js';
 import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
 import { draw } from './draw.js';
-import { syncUI, openDepositModal, openRecipeModal, closeModal } from './ui.js';
+import { syncUI, openRecipeModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
+import { TOOLBAR } from './geometry.js';
 
 // ---------- Game over / vitória ----------
 function checkEnd() {
@@ -30,8 +31,7 @@ function checkEnd() {
 
 function tick(dt) {
   if (state.over) return;
-  updateDeposits(dt);
-  updateCart(dt);
+  updateMine(dt);
   updateFactories(dt);
   updateWagon(dt);
   updateContract(dt);
@@ -62,7 +62,38 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-// ---------- Event handlers ----------
+// ---------- Canvas: click handler (tools + grid) ----------
+const canvas = document.getElementById('game');
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+  // Toolbar (lado direito do grid)
+  if (x >= TOOLBAR.x && x < TOOLBAR.x + TOOLBAR.w && y >= TOOLBAR.y) {
+    const idx = Math.floor((y - TOOLBAR.y) / TOOLBAR.slotH);
+    const order = ['pick', 'tnt', 'compass', 'miner'];
+    if (idx >= 0 && idx < order.length) {
+      const slotY = TOOLBAR.y + idx * TOOLBAR.slotH;
+      if (y < slotY + TOOLBAR.w) setTool(order[idx]);
+    }
+    return;
+  }
+
+  // Grid da mina
+  if (x >= MINE.x && x < MINE.x + MINE.cols * MINE.cell &&
+      y >= MINE.y && y < MINE.y + MINE.rows * MINE.cell) {
+    const c = Math.floor((x - MINE.x) / MINE.cell);
+    const r = Math.floor((y - MINE.y) / MINE.cell);
+    const tool = state.mine.tool || 'pick';
+    if (tool === 'pick') tryDigClick(r, c);
+    else if (tool === 'tnt') tryTNT(r, c);
+    else if (tool === 'compass') tryCompass(r, c);
+    else if (tool === 'miner') tryPlaceWorker(r, c);
+  }
+});
+
+// ---------- Event handlers (DOM) ----------
 document.querySelectorAll('.speed-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     state.speed = parseFloat(btn.dataset.speed);
@@ -86,10 +117,6 @@ document.addEventListener('click', (e) => {
   if (!t) return;
   const a = t.dataset.action;
   switch (a) {
-    case 'hire':           tryHire(+t.dataset.slot); break;
-    case 'fire':           tryFireMiner(+t.dataset.slot); break;
-    case 'open-deposit':   openDepositModal(+t.dataset.slot); break;
-    case 'confirm-open':   openDeposit(+t.dataset.slot, t.dataset.res); break;
     case 'change-recipe':  openRecipeModal(+t.dataset.fact); break;
     case 'confirm-recipe': setRecipe(+t.dataset.fact, t.dataset.recipe); break;
     case 'buy-eq':         buyEquipment(t.dataset.id); break;
@@ -100,6 +127,7 @@ document.addEventListener('click', (e) => {
 
 $('buy-factory-btn').addEventListener('click', buyFactory);
 $('upgrades-btn').addEventListener('click', openUpgradesModal);
+$('hire-worker-btn').addEventListener('click', tryHireWorker);
 
 document.querySelectorAll('[data-close]').forEach(b => {
   b.addEventListener('click', () => closeModal(b.dataset.close));
@@ -130,11 +158,14 @@ window.addEventListener('beforeunload', () => {
 const loaded = loadGame();
 if (loaded) {
   state.eraReached = Math.max(state.eraReached || 1, currentEra());
+  if (!state.mine || !state.mine.grid) initMine();
   log(`Partida carregada (dia ${state.day}, ${state.contractsCompleted} contratos, Era ${ROMAN[state.eraReached - 1]}).`, 'good');
   updateSaveStatus();
 } else {
+  initMine();
   log('Nomeado governador de Santa Catarina. Apenas a Tapuia pode salvar o estado.');
-  log(`Era I — Colônia Mineradora. Recursos limitados: comece pelo essencial.`);
-  log('Extraia Carvão + Minério de Ferro → produza Lingotes de Ferro → cumpra os contratos para liberar a próxima era.');
+  log('Use a Picareta para cavar terra/pedra/veios. Veios expostos podem receber mineradores.');
+  log('Selecione "Minerador" e clique num veio descoberto (Coal, Fe) para começar a extrair.');
+  log('Ferramentas: Picareta ($), Dinamite ($120, 3x3), Bússola ($40, revela neblina).');
 }
 requestAnimationFrame((t) => { lastT = t; frame(t); });

@@ -1,5 +1,5 @@
-// state.js — estado mutável global + função log que altera state.log
-import { R, CFG, NUM_DEPOSITS } from './data.js';
+// state.js — estado mutável global + função log
+import { R, CFG, SILO_DEFAULT_CAP } from './data.js';
 
 export const state = {
   money: CFG.startMoney,
@@ -9,12 +9,10 @@ export const state = {
   speed: 1,
   over: false,
 
-  deposits: Array.from({ length: NUM_DEPOSITS }, (_, i) => ({
-    slot: i,
-    resource: i === 0 ? 'coal' : (i === 1 ? 'iron_ore' : null),
-    miners: (i < 2) ? 1 : 0,
-    pile: 0,
-  })),
+  // Mina (grid criado em initMine() durante boot)
+  mine: { grid: null, tool: 'pick', tntFx: null },
+  workersTotal: 2,
+  tilesDug: 0,
 
   factories: [
     { recipeId: 'iron_ingot', brewing: 0, output: 0 },
@@ -23,7 +21,13 @@ export const state = {
   warehouse: Object.fromEntries(Object.keys(R).filter(k => R[k].kind === 'raw').map(k => [k, 0])),
   products: Object.fromEntries(Object.keys(R).filter(k => R[k].kind === 'prod').map(k => [k, 0])),
 
-  cart: { pos: 1, dir: 0, load: {}, state: 'idle', timer: 0 },
+  // Silo por recurso bruto (capacidade individual)
+  silos: Object.fromEntries(
+    Object.keys(R)
+      .filter(k => R[k].kind === 'raw' && !R[k].free)
+      .map(k => [k, { cap: SILO_DEFAULT_CAP }])
+  ),
+
   wagon: { pos: 0, dir: 0, product: null, load: 0, state: 'idle', timer: 0 },
 
   contract: null,

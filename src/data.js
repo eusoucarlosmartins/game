@@ -207,6 +207,23 @@ export const ROMAN = ['I','II','III','IV','V','VI'];
 
 // ---------- CONFIG ----------
 export const NUM_DEPOSITS = 7;
+
+// ---------- MINE GRID ----------
+export const MINE = {
+  cols: 30, rows: 13, cell: 40,
+  x: 0, y: 200,
+};
+export const TOOLS = {
+  pick:    { id:'pick',    name: 'Picareta',  costDirt: 5, costStone: 12, costOre: 6,
+             desc: 'Clique em terra/pedra/veio adjacente a um túnel para cavar 1 tile.' },
+  tnt:     { id:'tnt',     name: 'Dinamite',  costPerUse: 120, radius: 1,
+             desc: 'Clique para explodir 3×3. Ignora adjacência. Coleta minério com 30% de perda. $120/uso.' },
+  compass: { id:'compass', name: 'Bússola',   costPerUse: 40,  radius: 4,
+             desc: 'Clique para revelar a neblina em raio 4 sem cavar. $40/uso.' },
+  miner:   { id:'miner',   name: 'Minerador', desc: 'Clique num veio descoberto para alocar/retirar 1 minerador.' },
+};
+export const SILO_DEFAULT_CAP = 400;
+export const WORKER_COST = 80;
 export const CFG = {
   startMoney: 700,
   minerCost: 60,

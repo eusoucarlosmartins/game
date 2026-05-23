@@ -81,9 +81,24 @@
 
         <section class="tab-panel" data-panel="mine">
           <div class="panel">
-            <h3>Depósitos da Mina (6 slots)</h3>
-            <div id="deposits-list" class="deposits"></div>
-            <p class="hint">Cada slot é um veio. Contrate mineradores para acelerar a extração. Recursos ficam parados se a pilha encher.</p>
+            <h3>Mineradores</h3>
+            <div class="worker-stats">
+              <div>Contratados: <strong id="workers-total">2</strong></div>
+              <div>Disponíveis: <strong id="workers-available">2</strong></div>
+              <div>Em ação: <strong id="workers-active">0</strong></div>
+            </div>
+            <button id="hire-worker-btn" class="big-btn">Contratar Minerador ($80)</button>
+            <p class="hint">Selecione "Minerador" na barra direita do canvas e clique num veio descoberto para alocar.</p>
+          </div>
+          <div class="panel">
+            <h3>Ferramenta Atual</h3>
+            <div id="tool-info" class="tool-info"><strong>Picareta</strong> — clique em rocha adjacente a um túnel para cavar.</div>
+            <p class="hint">Clique nos ícones à direita do canvas para trocar de ferramenta.</p>
+          </div>
+          <div class="panel">
+            <h3>Silos por Recurso</h3>
+            <ul id="silos-list" class="stockpile compact"></ul>
+            <p class="hint">Cada silo armazena 400 de seu recurso. Quando enche, a extração daquele recurso pausa.</p>
           </div>
         </section>
 
@@ -122,23 +137,13 @@
     </main>
 
     <footer class="bottombar">
-      <span>Carrinho: <strong id="cart-status">parado</strong></span>
+      <span>Mineradores: <strong id="footer-workers">0/2</strong></span>
       <span>Carruagem: <strong id="wagon-status">parada</strong></span>
       <span>Fábricas: <strong id="factory-count">1</strong>/3</span>
-      <span>Depósitos ativos: <strong id="deposit-count">2</strong>/6</span>
+      <span>Tiles cavados: <strong id="footer-tiles">0</strong></span>
       <span class="spacer"></span>
-      <span class="tip">Começou com $600. Estratégia: abra novos depósitos antes de comprar nova fábrica.</span>
+      <span class="tip">Cave para encontrar veios. Use "Minerador" pra alocar trabalhador num veio descoberto.</span>
     </footer>
-  </div>
-
-  <!-- Modal: Abrir Depósito (escolher recurso) -->
-  <div id="modal-deposit" class="modal hidden">
-    <div class="modal-card wide">
-      <button class="modal-close" data-close="modal-deposit">×</button>
-      <h2>Abrir Depósito</h2>
-      <p class="modal-sub">Escolha o recurso a ser extraído neste slot:</p>
-      <div id="deposit-options" class="grid-options"></div>
-    </div>
   </div>
 
   <!-- Modal: Escolher Receita -->
