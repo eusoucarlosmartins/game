@@ -11,6 +11,7 @@ import {
   OVERWORLD, TOOLBAR, MINE_BACK_BTN, MINIMAP, factoryRect, unlockedWorldSize,
 } from './geometry.js';
 import { drawParticles } from './particles.js';
+import { topPopup } from './achievements.js';
 
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game'));
 const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
@@ -2417,4 +2418,54 @@ export function draw() {
   }
   drawEventBanner();
   drawTutorial();
+  drawAchievementPopup();
+}
+
+// Popup grande no topo da tela quando uma conquista é desbloqueada.
+// Anima entrada (slide-down) e saída (fade-out) automaticamente.
+function drawAchievementPopup() {
+  const p = topPopup();
+  if (!p) return;
+  const def = p.def;
+  // Anima: primeiro 0.4s slide-in, último 0.6s fade-out, no meio estável
+  const lifeFrac = p.life / p.total;
+  let slideIn = 0;
+  if (lifeFrac > 0.85) {
+    // entrada
+    slideIn = (1 - lifeFrac) / 0.15;
+  } else {
+    slideIn = 1;
+  }
+  const alpha = lifeFrac < 0.15 ? lifeFrac / 0.15 : 1;
+  const popW = 420, popH = 84;
+  const x = (W - popW) / 2;
+  const targetY = 30;
+  const startY = -popH - 10;
+  const y = startY + (targetY - startY) * slideIn;
+  ctx.globalAlpha = alpha;
+  // Moldura escura
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillRect(x - 4, y - 4, popW + 8, popH + 8);
+  // Faixa dourada
+  ctx.fillStyle = '#c69042';
+  ctx.fillRect(x, y, popW, popH);
+  // Borda interna
+  ctx.strokeStyle = '#ffd44a';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + 4, y + 4, popW - 8, popH - 8);
+  // Texto "CONQUISTA DESBLOQUEADA"
+  ctx.fillStyle = '#1a0e06';
+  ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('🏆 CONQUISTA DESBLOQUEADA', x + 14, y + 10);
+  // Nome em destaque
+  ctx.fillStyle = '#1a0e06';
+  ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+  ctx.fillText(`${def.emoji}  ${def.name}`, x + 14, y + 28);
+  // Descrição
+  ctx.fillStyle = '#3a1f0a';
+  ctx.font = '12px "Segoe UI", Arial, sans-serif';
+  ctx.fillText(def.desc, x + 14, y + 56);
+  ctx.globalAlpha = 1;
 }

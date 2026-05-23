@@ -47,6 +47,8 @@ export function checkEraProgression() {
     if (newDeps.length) log(`   Depósitos liberados: ${newDeps.map(d => R[d].name).join(', ')}.`, 'good');
     if (newRecs.length) log(`   Receitas liberadas: ${newRecs.map(d => R[d].name).join(', ')}.`, 'good');
     log(`🗺 Nova região do mapa desbloqueada — arraste pra explorar.`, 'good');
+    // Conquistas baseadas em era (import dinâmico pra evitar cycle)
+    import('./achievements.js').then(m => m.checkEraAchievements());
   }
 }
 

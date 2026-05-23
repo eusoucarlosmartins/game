@@ -10,6 +10,7 @@ import { openModal, closeModal } from './modals.js';
 import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
 import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } from './projects.js';
 import { statusWagons } from './wagon.js';
+import { listAchievements } from './achievements.js';
 
 function renderContract() {
   const box = $('contract-box');
@@ -393,6 +394,23 @@ function renderStats() {
       return `<li><span class="label">${m.name}</span>${status}</li>`;
     });
     minesEl.innerHTML = rows.length === 0 ? '<li><em>Nenhuma mina.</em></li>' : rows.join('');
+  }
+  // Lista de conquistas (todas, com desbloqueio destacado)
+  const achEl = $('stats-achievements');
+  if (achEl) {
+    const items = listAchievements();
+    const unlockedCount = items.filter(a => a.unlocked).length;
+    const rows = items.map(a => {
+      const cls = a.unlocked ? 'unlocked' : 'locked';
+      return `<li class="ach ${cls}">
+        <span class="ach-emoji">${a.unlocked ? a.emoji : '🔒'}</span>
+        <span class="ach-body">
+          <span class="ach-name">${a.name}</span>
+          <span class="ach-desc">${a.desc}</span>
+        </span>
+      </li>`;
+    }).join('');
+    achEl.innerHTML = `<li class="ach-header"><strong>${unlockedCount}/${items.length}</strong> desbloqueadas</li>` + rows;
   }
 }
 

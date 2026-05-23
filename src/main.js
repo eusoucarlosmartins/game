@@ -12,6 +12,7 @@ import { updateEvents } from './events.js';
 import { updateProjects, activateProject, cancelProject } from './projects.js';
 import { play, toggleMute, unlockOnFirstGesture } from './audio.js';
 import { updateParticles } from './particles.js';
+import { updateAchievementPopups } from './achievements.js';
 import { draw } from './draw.js';
 import { syncUI, openRecipeModal, openBuyMineModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
@@ -45,6 +46,7 @@ function tick(dt) {
   updateProjects(dt);
   updateDay(dt);
   updateParticles(dt);
+  updateAchievementPopups(dt);
   // Auto-dismiss do último passo do tutorial
   if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 2) {
     state.tutorial.autoDismissIn = (state.tutorial.autoDismissIn ?? 12) - dt;

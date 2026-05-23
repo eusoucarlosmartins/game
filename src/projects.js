@@ -7,6 +7,7 @@ import { currentEra } from './progression.js';
 import { play } from './audio.js';
 import { CITY } from './geometry.js';
 import { spawnBurst, spawnMoneyText, spawnText } from './particles.js';
+import { checkProjectAchievements } from './achievements.js';
 
 /**
  * @typedef {object} ProjectDef
@@ -286,6 +287,7 @@ function completeProject(def) {
   if (def.effect) applyEffect(def.effect);
   state.projects.active = null;
   play('chime');
+  checkProjectAchievements();
 }
 
 function applyEffect(eff) {

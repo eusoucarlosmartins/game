@@ -61,6 +61,8 @@ export const state = {
   totalEarnings: 0,        // soma de tudo que entrou em $ (contratos + mercado + impostos + passivo)
   oreMined: {},            // recurso -> quantidade total minerada
   cityGrowth: 0,           // pontos de crescimento da cidade (sobe a cada contrato cumprido)
+  tntUses: 0,              // contador pra conquista de TNT
+  achievements: {},        // id -> timestamp quando desbloqueado
 
   // Preferências
   muted: false,

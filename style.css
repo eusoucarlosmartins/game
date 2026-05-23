@@ -579,6 +579,45 @@ html, body {
   opacity: 0.7;
   margin-left: 6px;
 }
+
+/* CONQUISTAS */
+.achievements-list .ach {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 2px;
+  border-bottom: 1px dashed rgba(122, 75, 37, 0.3);
+}
+.achievements-list .ach.locked { opacity: 0.45; }
+.achievements-list .ach.unlocked { opacity: 1; }
+.achievements-list .ach-emoji {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.achievements-list .ach-body { display: flex; flex-direction: column; min-width: 0; }
+.achievements-list .ach-name {
+  font-weight: bold;
+  font-size: 12px;
+  color: var(--wood-dark);
+}
+.achievements-list .ach.unlocked .ach-name { color: var(--good); }
+.achievements-list .ach-desc {
+  font-size: 10px;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+.achievements-list .ach-header {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--brass-dark);
+  text-align: center;
+  padding: 4px 0 8px 0;
+  border-bottom: 2px solid var(--brass-dark);
+  display: block;
+}
 .research-section {
   margin-top: 12px;
   font-size: 11px;

@@ -6,6 +6,7 @@ import { currentEra, eraData, checkEraProgression } from './progression.js';
 import { play } from './audio.js';
 import { CITY } from './geometry.js';
 import { spawnMoneyText, spawnText, spawnBurst } from './particles.js';
+import { checkContractAchievements, checkEarningsAchievements } from './achievements.js';
 
 export function pickContractProduct() {
   const era = eraData(currentEra());
@@ -62,6 +63,8 @@ export function deliverProduct(amount) {
     if (bonus > 0) state.eventContractBonus = 0; // consome o bônus
     play('success');
     checkEraProgression();
+    checkContractAchievements();
+    checkEarningsAchievements();
   }
 }
 

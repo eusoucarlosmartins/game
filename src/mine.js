@@ -6,6 +6,10 @@ import { irand, fmtMoney } from './util.js';
 import { mineRateMul, currentEra, eraData } from './progression.js';
 import { play } from './audio.js';
 import { spawnBurst, spawnDust } from './particles.js';
+import {
+  checkMineAchievements, checkMineCountAchievements,
+  checkExhaustionAchievement, checkRegenerationAchievement, checkTntAchievement,
+} from './achievements.js';
 
 export function isResourceUnlocked(resource) {
   return eraData(currentEra()).deposits.includes(resource);
@@ -50,6 +54,7 @@ export function buyMine(catalogId) {
   state.mines.push(createMineFromCatalog(catalog));
   log(`✨ Nova mina aberta: ${catalog.name} por ${fmtMoney(catalog.cost)}.`, 'good');
   play('success');
+  checkMineCountAchievements();
 }
 
 export function isMineOwned(catalogId) {
@@ -303,6 +308,8 @@ export function tryTNT(r, c) {
   const py = MINE.y + (r + 0.5) * MINE.cell;
   spawnBurst(px, py, 30, '255,120,40', 'mine');
   spawnBurst(px, py, 16, '255,220,80', 'mine');
+  state.tntUses = (state.tntUses || 0) + 1;
+  checkTntAchievement();
   play('boom');
 }
 
@@ -410,6 +417,7 @@ export function regenerateMine(idx) {
   mine.exhausted = false;
   mine.tntFx = null;
   log(`✨ ${mine.name} regenerada por ${fmtMoney(cost)}.`, 'good');
+  checkRegenerationAchievement();
   play('success');
 }
 
@@ -459,7 +467,10 @@ function updateSingleMine(mine, dt, rate) {
   if (!wasExhausted && mine.exhausted) {
     log(`⚠ ${mine.name} esgotada! Veja outras minas no mapa.`, 'bad');
     play('fail');
+    checkExhaustionAchievement();
   }
+  // Conquistas de tilesDug (cheap: checa só se houve update de tilesDug recente)
+  checkMineAchievements();
 }
 
 function isMineExhausted(mine) {
