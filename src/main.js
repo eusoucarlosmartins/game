@@ -15,7 +15,7 @@ import { draw } from './draw.js';
 import { syncUI, openRecipeModal, openBuyMineModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
 import { sellRaw, sellAllRaw, sellProduct, sellAllProduct } from './market.js';
-import { W, H, WORLD_W, WORLD_H, TOOLBAR, MINE_BACK_BTN, OVERWORLD, factoryRect } from './geometry.js';
+import { W, H, WORLD_W, WORLD_H, TOOLBAR, MINE_BACK_BTN, MINIMAP, OVERWORLD, factoryRect } from './geometry.js';
 import { clamp } from './util.js';
 
 // ---------- Game over / vitória ----------
@@ -104,8 +104,14 @@ function canvasCoords(e) {
 // state.mouseX/Y guarda WORLD coords (overworld) ou mine-world coords (mine area)
 // pra hover detection nas funções de draw funcionarem direto.
 const MINE_AREA_TOP = MINE.y; // y screen acima do qual click NÃO ativa pan da mina
+function inMinimap(sx, sy) {
+  return sx >= MINIMAP.x && sx < MINIMAP.x + MINIMAP.w &&
+         sy >= MINIMAP.y && sy < MINIMAP.y + MINIMAP.h;
+}
 canvas.addEventListener('mousedown', (e) => {
   const p = canvasCoords(e);
+  // No overworld, mousedown no minimap NÃO inicia pan (vira click pra teleportar)
+  if (state.scene === 'overworld' && inMinimap(p.x, p.y)) return;
   if (state.scene === 'overworld') {
     state.isPanning = true;
     state.panStart = { mouseX: p.x, mouseY: p.y, cameraX: state.camera.x, cameraY: state.camera.y };
@@ -193,6 +199,17 @@ canvas.addEventListener('click', (e) => {
   const y = state.scene === 'overworld' ? sc.y + state.camera.y : sc.y;
 
   if (state.scene === 'overworld') {
+    // Click no minimap: teleporta a câmera pra área clicada
+    if (inMinimap(sc.x, sc.y)) {
+      const scaleX = WORLD_W / MINIMAP.w;
+      const scaleY = WORLD_H / MINIMAP.h;
+      const worldX = (sc.x - MINIMAP.x) * scaleX;
+      const worldY = (sc.y - MINIMAP.y) * scaleY;
+      state.camera.x = clamp(worldX - W / 2, 0, WORLD_W - W);
+      state.camera.y = clamp(worldY - H / 2, 0, WORLD_H - H);
+      play('click');
+      return;
+    }
     // Click em entrada de mina (ocupada → entra; vazia → abre catálogo)
     for (let i = 0; i < OVERWORLD.mineEntrances.length; i++) {
       if (hitTest(x, y, OVERWORLD.mineEntrances[i])) {

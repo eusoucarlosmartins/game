@@ -8,6 +8,8 @@ export const H = 720;
 // Conteúdo inicial fica em (0,0)-(W,H); o mundo se estende pra direita/baixo.
 export const WORLD_W = 2560;
 export const WORLD_H = 1440;
+// Minimap fixo no canto inferior-direito da tela (screen coords)
+export const MINIMAP = { x: W - 200, y: H - 116, w: 190, h: 106 };
 
 // ---------- Overworld (mapa) ----------
 // Layout estilo mapa: minas pequenas espalhadas pelos 4 cantos,
@@ -44,14 +46,24 @@ export const FACTORY_AREA = OVERWORLD.factoryArea;
 export const ROAD = OVERWORLD.road;
 export const GROUND_Y = 580; // linha de chão visual em overworld (mountains acima)
 
+// Slots 0-2: cluster central original (próximo da estrada da carruagem).
+// Slots 3+: espalhados pelos quadrantes expandidos do mundo, viram landmarks
+// distantes (similar à referência onde fábricas pontilham o mapa todo).
+const EXTRA_FACTORY_POSITIONS = [
+  { x: 1500, y: 470, w: 145, h: 180 }, // F4: leste (perto de Itajaí)
+  { x: 1700, y: 1000, w: 145, h: 180 }, // F5: sudeste (perto de Criciúma)
+];
 export function factoryRect(i) {
-  const slotW = (FACTORY_AREA.w - (FACTORY_AREA.slots - 1) * FACTORY_AREA.gap) / FACTORY_AREA.slots;
-  return {
-    x: FACTORY_AREA.x + i * (slotW + FACTORY_AREA.gap),
-    y: FACTORY_AREA.y,
-    w: slotW,
-    h: FACTORY_AREA.h,
-  };
+  if (i < FACTORY_AREA.slots) {
+    const slotW = (FACTORY_AREA.w - (FACTORY_AREA.slots - 1) * FACTORY_AREA.gap) / FACTORY_AREA.slots;
+    return {
+      x: FACTORY_AREA.x + i * (slotW + FACTORY_AREA.gap),
+      y: FACTORY_AREA.y,
+      w: slotW,
+      h: FACTORY_AREA.h,
+    };
+  }
+  return EXTRA_FACTORY_POSITIONS[i - FACTORY_AREA.slots] || EXTRA_FACTORY_POSITIONS[0];
 }
 
 // ---------- Cena Mina ----------

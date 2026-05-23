@@ -293,8 +293,8 @@ export const MINE_CATALOG = [
 export const CFG = {
   startMoney: 700,
   minerCost: 60,
-  factoryCosts: [0, 900, 2200, 5000],
-  factorySlotsMax: 3,
+  factoryCosts: [0, 900, 2200, 5000, 11000],
+  factorySlotsMax: 5,
   cartCapacityBase: 8,
   cartSpeedBase: 60,
   wagonCapacityBase: 5,

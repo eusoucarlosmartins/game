@@ -8,7 +8,7 @@ import { getProjectDef } from './projects.js';
 import { activeMine, regenCost } from './mine.js';
 import {
   W, H, WORLD_W, WORLD_H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
-  OVERWORLD, TOOLBAR, MINE_BACK_BTN, factoryRect,
+  OVERWORLD, TOOLBAR, MINE_BACK_BTN, MINIMAP, factoryRect,
 } from './geometry.js';
 
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game'));
@@ -1379,6 +1379,82 @@ function drawOverworld() {
   drawActiveProjectPanel();
   drawContractPanelOverworld();
   drawPanIndicators();
+  drawMinimap();
+}
+
+// Minimap no canto inferior-direito. Mostra mina/fábrica/cidade como pontos
+// e a viewport atual como retângulo amarelo. Click teleporta câmera.
+function drawMinimap() {
+  const m = MINIMAP;
+  // Moldura
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(m.x - 3, m.y - 3, m.w + 6, m.h + 6);
+  // Fundo papel
+  ctx.fillStyle = 'rgba(212,180,120,0.92)';
+  ctx.fillRect(m.x, m.y, m.w, m.h);
+  // Textura sutil
+  ctx.fillStyle = 'rgba(80,50,20,0.08)';
+  for (let i = 0; i < 40; i++) {
+    const x = m.x + ((i * 17) % m.w);
+    const y = m.y + ((i * 11) % m.h);
+    ctx.fillRect(x, y, 1, 1);
+  }
+  const sx = m.w / WORLD_W;
+  const sy = m.h / WORLD_H;
+  // Minas (cavernas marrons)
+  ctx.fillStyle = '#5a3416';
+  for (let i = 0; i < OVERWORLD.mineEntrances.length; i++) {
+    const e = OVERWORLD.mineEntrances[i];
+    const mx = m.x + (e.x + e.w / 2) * sx;
+    const my = m.y + (e.y + e.h / 2) * sy;
+    ctx.beginPath();
+    ctx.arc(mx, my, 4, 0, Math.PI * 2);
+    ctx.fill();
+    // ponto amarelo se a mina existe (foi construída)
+    if (state.mines[i]) {
+      ctx.fillStyle = '#ffd44a';
+      ctx.beginPath();
+      ctx.arc(mx, my, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#5a3416';
+    }
+  }
+  // Fábricas
+  ctx.fillStyle = '#a8442a';
+  for (let i = 0; i < state.factories.length; i++) {
+    const r = factoryRect(i);
+    const fx = m.x + (r.x + r.w / 2) * sx;
+    const fy = m.y + (r.y + r.h / 2) * sy;
+    ctx.fillRect(fx - 2, fy - 2, 4, 4);
+  }
+  // Cidade (estrela vermelha)
+  ctx.fillStyle = '#d04030';
+  const cmx = m.x + (CITY.x + CITY.w / 2) * sx;
+  const cmy = m.y + (CITY.y + CITY.h / 2) * sy;
+  ctx.beginPath();
+  ctx.arc(cmx, cmy, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffd44a';
+  ctx.font = 'bold 8px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('★', cmx, cmy);
+  // Viewport atual (retângulo amarelo)
+  const vx = m.x + state.camera.x * sx;
+  const vy = m.y + state.camera.y * sy;
+  const vw = W * sx;
+  const vh = H * sy;
+  ctx.strokeStyle = '#ffd44a';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(vx, vy, vw, vh);
+  // Label
+  ctx.fillStyle = 'rgba(20,10,5,0.75)';
+  ctx.fillRect(m.x, m.y - 14, 46, 14);
+  ctx.fillStyle = '#ffd44a';
+  ctx.font = 'bold 9px "Segoe UI", Arial';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('MAPA', m.x + 4, m.y - 7);
 }
 
 // Setinhas nos cantos pra avisar que dá pra arrastar o mapa
