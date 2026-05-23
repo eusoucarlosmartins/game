@@ -205,7 +205,53 @@ function drawCity() {
   else if (style === 'industrial') drawIndustrialCity(cx0, w);
   else drawColonialCity(cx0, w);
 
+  // Casas extras de crescimento (1 a cada ~3 contratos cumpridos)
+  drawCityGrowthBuildings(cx0, w);
+
   drawCitySign(cx0 + w / 2, CITY.y);
+}
+
+// Adiciona prédios pequenos extras flanqueando a cidade conforme cityGrowth sobe.
+// Visual: cada nível extra acrescenta 1 casa simples nas laterais.
+function drawCityGrowthBuildings(cx0, w) {
+  const growth = state.cityGrowth || 0;
+  const extras = Math.min(8, Math.floor(growth / 3)); // até 8 casas extras
+  for (let i = 0; i < extras; i++) {
+    const side = i % 2 === 0 ? -1 : 1; // alterna esquerda/direita
+    const idx = Math.floor(i / 2);
+    const offset = 16 + idx * 26; // cada par afasta mais da cidade
+    const baseX = side < 0 ? cx0 - offset - 18 : cx0 + w + offset;
+    const heights = [44, 58, 38, 52, 46];
+    const widths = [22, 18, 24, 20, 22];
+    const faces  = ['#d8b070', '#c9a460', '#b89058', '#e8c87a', '#a88a4a'];
+    const roofs  = ['#a82e1c', '#7a4b25', '#5a3416', '#8a4a2a', '#a8442a'];
+    const k = idx % heights.length;
+    const top = GROUND_Y - heights[k];
+    const ww = widths[k];
+    // sombra
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(baseX, GROUND_Y, ww + 2, 3);
+    // parede
+    ctx.fillStyle = faces[k];
+    ctx.fillRect(baseX, top, ww, heights[k]);
+    // rodapé escuro
+    ctx.fillStyle = '#3a1f0a';
+    ctx.fillRect(baseX, GROUND_Y - 3, ww, 3);
+    // telhado triangular
+    ctx.fillStyle = roofs[k];
+    ctx.beginPath();
+    ctx.moveTo(baseX - 3, top);
+    ctx.lineTo(baseX + ww / 2, top - 9);
+    ctx.lineTo(baseX + ww + 3, top);
+    ctx.closePath();
+    ctx.fill();
+    // janela
+    ctx.fillStyle = '#a8c8d8';
+    ctx.fillRect(baseX + 3, top + 8, 5, 6);
+    // porta
+    ctx.fillStyle = '#3a1f0a';
+    ctx.fillRect(baseX + ww / 2 - 2, GROUND_Y - 11, 4, 8);
+  }
 }
 
 function drawColonialCity(cx0, w) {
@@ -497,6 +543,19 @@ function drawCitySign(centerX, topY) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(cityLabel, centerX, topY + labelH / 2);
+  // selo de população crescente (baseado em cityGrowth)
+  const growth = state.cityGrowth || 0;
+  if (growth > 0) {
+    const popY = topY + labelH + 4;
+    ctx.font = 'bold 10px "Segoe UI", Arial';
+    const popTxt = `pop. ${100 + growth * 30}`;
+    const pw = ctx.measureText(popTxt).width + 10;
+    ctx.fillStyle = 'rgba(20,10,5,0.7)';
+    ctx.fillRect(centerX - pw / 2, popY, pw, 12);
+    ctx.fillStyle = '#ffd44a';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(popTxt, centerX, popY + 6);
+  }
   // pregos nos cantos
   ctx.fillStyle = '#5a3416';
   for (const dx of [-labelW / 2 + 5, labelW / 2 - 5]) {
@@ -1357,8 +1416,9 @@ function drawDottedRoute(x1, y1, x2, y2) {
 }
 
 function drawOverworld() {
-  // === Camada do MUNDO (pan pela câmera) ===
+  // === Camada do MUNDO (pan + zoom pela câmera) ===
   ctx.save();
+  ctx.scale(state.camera.zoom, state.camera.zoom);
   ctx.translate(-state.camera.x, -state.camera.y);
   drawOverworldBg();
   drawRiver();
@@ -1439,14 +1499,22 @@ function drawMinimap() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('★', cmx, cmy);
-  // Viewport atual (retângulo amarelo)
+  // Viewport atual (retângulo amarelo) — ajusta tamanho pelo zoom
   const vx = m.x + state.camera.x * sx;
   const vy = m.y + state.camera.y * sy;
-  const vw = W * sx;
-  const vh = H * sy;
+  const vw = (W / state.camera.zoom) * sx;
+  const vh = (H / state.camera.zoom) * sy;
   ctx.strokeStyle = '#ffd44a';
   ctx.lineWidth = 1.5;
   ctx.strokeRect(vx, vy, vw, vh);
+  // Indicador de zoom (canto da minimap)
+  ctx.fillStyle = 'rgba(20,10,5,0.75)';
+  ctx.fillRect(m.x + m.w - 40, m.y - 14, 40, 14);
+  ctx.fillStyle = '#ffd44a';
+  ctx.font = 'bold 9px "Segoe UI", Arial';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(state.camera.zoom.toFixed(1) + 'x', m.x + m.w - 4, m.y - 7);
   // Label
   ctx.fillStyle = 'rgba(20,10,5,0.75)';
   ctx.fillRect(m.x, m.y - 14, 46, 14);

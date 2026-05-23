@@ -131,8 +131,9 @@ canvas.addEventListener('mousemove', (e) => {
     const dx = p.x - state.panStart.mouseX;
     const dy = p.y - state.panStart.mouseY;
     if (state.scene === 'overworld') {
-      state.camera.x = clamp(state.panStart.cameraX - dx, 0, WORLD_W - W);
-      state.camera.y = clamp(state.panStart.cameraY - dy, 0, WORLD_H - H);
+      const z = state.camera.zoom;
+      state.camera.x = clamp(state.panStart.cameraX - dx / z, 0, Math.max(0, WORLD_W - W / z));
+      state.camera.y = clamp(state.panStart.cameraY - dy / z, 0, Math.max(0, WORLD_H - H / z));
     } else if (state.scene === 'mine') {
       // Mina só permite scroll vertical (grid mais alto que viewport)
       const mineMaxY = Math.max(0, MINE.rows * MINE.cell - (H - MINE.y));
@@ -141,8 +142,8 @@ canvas.addEventListener('mousemove', (e) => {
     state.panDistance = Math.max(state.panDistance, Math.hypot(dx, dy));
   }
   if (state.scene === 'overworld') {
-    state.mouseX = p.x + state.camera.x;
-    state.mouseY = p.y + state.camera.y;
+    state.mouseX = p.x / state.camera.zoom + state.camera.x;
+    state.mouseY = p.y / state.camera.zoom + state.camera.y;
   } else if (state.scene === 'mine') {
     // mouseX = screen x; mouseY = world y na mina (incluindo área panned)
     state.mouseX = p.x;
@@ -167,6 +168,21 @@ canvas.addEventListener('mouseleave', () => {
 canvas.addEventListener('mouseenter', () => {
   canvas.style.cursor = (state.scene === 'overworld' || state.scene === 'mine') ? 'grab' : 'default';
 });
+// Scroll wheel = zoom (só no overworld). Zoom em volta do cursor (estilo Google Maps).
+canvas.addEventListener('wheel', (e) => {
+  if (state.scene !== 'overworld') return;
+  e.preventDefault();
+  const p = canvasCoords(e);
+  const oldZoom = state.camera.zoom;
+  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  const newZoom = clamp(oldZoom * factor, 0.5, 2.2);
+  // Mantém o ponto sob o cursor fixo durante o zoom
+  const worldX = state.camera.x + p.x / oldZoom;
+  const worldY = state.camera.y + p.y / oldZoom;
+  state.camera.zoom = newZoom;
+  state.camera.x = clamp(worldX - p.x / newZoom, 0, Math.max(0, WORLD_W - W / newZoom));
+  state.camera.y = clamp(worldY - p.y / newZoom, 0, Math.max(0, WORLD_H - H / newZoom));
+}, { passive: false });
 function hitTest(x, y, r) {
   return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 }
@@ -195,8 +211,8 @@ canvas.addEventListener('click', (e) => {
   // Hit tests de HUD usam SCREEN coords (sc.x/sc.y).
   // Hit tests do MUNDO (overworld bg/buildings, grid da mina) precisam de offset
   // pela câmera adequada — feito caso a caso abaixo.
-  const x = state.scene === 'overworld' ? sc.x + state.camera.x : sc.x;
-  const y = state.scene === 'overworld' ? sc.y + state.camera.y : sc.y;
+  const x = state.scene === 'overworld' ? sc.x / state.camera.zoom + state.camera.x : sc.x;
+  const y = state.scene === 'overworld' ? sc.y / state.camera.zoom + state.camera.y : sc.y;
 
   if (state.scene === 'overworld') {
     // Click no minimap: teleporta a câmera pra área clicada

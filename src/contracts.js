@@ -45,6 +45,7 @@ export function deliverProduct(amount) {
     const apGain = Math.round(CFG.contractApprovalGain * (1 + (state.approvalPerContractBonus || 0)));
     state.approval = clamp(state.approval + apGain, 0, CFG.approvalMax);
     state.contractsCompleted++;
+    state.cityGrowth = (state.cityGrowth || 0) + 1;
     const bonusTxt = bonus > 0 ? ` (+${Math.round(bonus*100)}% evento!)` : '';
     log(`${state.contract.city}: ${p.name} entregue! +${fmtMoney(reward)}${bonusTxt}, +${rpGain} PP e +${CFG.contractApprovalGain} aprovação.`, 'good');
     state.contract = null;

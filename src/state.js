@@ -60,6 +60,7 @@ export const state = {
   // Estatísticas globais (acumuladas pra sempre)
   totalEarnings: 0,        // soma de tudo que entrou em $ (contratos + mercado + impostos + passivo)
   oreMined: {},            // recurso -> quantidade total minerada
+  cityGrowth: 0,           // pontos de crescimento da cidade (sobe a cada contrato cumprido)
 
   // Preferências
   muted: false,
@@ -78,8 +79,8 @@ export const state = {
   eventMineMul: 1,
   eventContractBonus: 0,
 
-  // Câmera do overworld (drag-to-pan) — não persistido
-  camera: { x: 0, y: 0 },
+  // Câmera do overworld (drag-to-pan + scroll-to-zoom) — não persistido
+  camera: { x: 0, y: 0, zoom: 1 },
   // Câmera da mina (scroll vertical pelas profundezas) — não persistido
   mineCamera: { y: 0 },
   isPanning: false,
