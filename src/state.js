@@ -17,7 +17,7 @@ export const state = {
   tilesDug: 0,          // contador global
 
   factories: [
-    { recipeId: 'iron_ingot', brewing: 0, output: 0 },
+    { recipeId: 'iron_ingot', brewing: 0, output: 0, wagon: { pos: 0, dir: 0, product: null, load: 0, state: 'idle', timer: 0 } },
   ],
 
   warehouse: Object.fromEntries(Object.keys(R).filter(k => R[k].kind === 'raw').map(k => [k, 0])),
@@ -30,7 +30,7 @@ export const state = {
       .map(k => [k, { cap: SILO_DEFAULT_CAP }])
   ),
 
-  wagon: { pos: 0, dir: 0, product: null, load: 0, state: 'idle', timer: 0 },
+  // (state.wagon removido — agora cada factory tem seu próprio wagon)
 
   contract: null,
   currentCity: 'Florianópolis',

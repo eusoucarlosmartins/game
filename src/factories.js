@@ -10,7 +10,10 @@ export function buyFactory() {
   const cost = CFG.factoryCosts[state.factories.length];
   if (state.money < cost) return;
   state.money -= cost;
-  state.factories.push({ recipeId: 'wood_plank', brewing: 0, output: 0 });
+  state.factories.push({
+    recipeId: 'wood_plank', brewing: 0, output: 0,
+    wagon: { pos: 0, dir: 0, product: null, load: 0, state: 'idle', timer: 0 },
+  });
   log(`Nova fábrica construída por ${fmtMoney(cost)}.`, 'good');
 }
 

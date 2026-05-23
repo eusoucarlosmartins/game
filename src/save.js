@@ -75,8 +75,13 @@ export function loadGame() {
     }
     // Reseta efeitos transitórios das minas
     for (const m of (state.mines || [])) m.tntFx = null;
-    // Wagon volta ao idle pra evitar travas
-    state.wagon = { pos: 0, dir: 0, product: null, load: 0, state: 'idle', timer: 0 };
+    // Migração de saves antigos: cada factory precisa ter seu próprio wagon
+    // (antes era um state.wagon global; agora é por fábrica)
+    for (const f of (state.factories || [])) {
+      if (!f.wagon) f.wagon = { pos: 0, dir: 0, product: null, load: 0, state: 'idle', timer: 0 };
+    }
+    // @ts-ignore — campo legado
+    if (state.wagon) delete state.wagon;
     lastSaveTime = data.savedAt || Date.now();
     return true;
   } catch (e) {

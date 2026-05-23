@@ -11,6 +11,17 @@ export const WORLD_H = 1440;
 // Minimap fixo no canto inferior-direito da tela (screen coords)
 export const MINIMAP = { x: W - 200, y: H - 116, w: 190, h: 106 };
 
+// Expansão gradual do mundo por era — Era 1 só vê o quadrante inicial,
+// cada era nova destrava +320px de largura e +180px de altura.
+// Retorna { w, h } com as dimensões "destravadas" do mundo na era atual.
+export function unlockedWorldSize(era) {
+  const dw = 320, dh = 180;
+  return {
+    w: Math.min(WORLD_W, W + Math.max(0, era - 1) * dw),
+    h: Math.min(WORLD_H, H + Math.max(0, era - 1) * dh),
+  };
+}
+
 // ---------- Overworld (mapa) ----------
 // Layout estilo mapa: minas pequenas espalhadas pelos 4 cantos,
 // cidade + fábricas + mercado/pesquisa concentrados no meio.

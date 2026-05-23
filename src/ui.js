@@ -9,14 +9,7 @@ import { workersActive, getRevealedOreCounts, isResourceUnlocked } from './mine.
 import { openModal, closeModal } from './modals.js';
 import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
 import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } from './projects.js';
-
-function statusWagon() {
-  const w = state.wagon;
-  if (w.state === 'idle') return w.pos > 0.5 ? 'aguardando contrato' : 'aguardando produto';
-  if (w.state === 'loading') return 'carregando';
-  if (w.state === 'unloading') return 'entregando';
-  return w.dir > 0 ? 'a caminho da cidade' : 'voltando';
-}
+import { statusWagons } from './wagon.js';
 
 function renderContract() {
   const box = $('contract-box');
@@ -442,7 +435,7 @@ export function syncUI() {
   const pct = Math.round(state.approval);
   $('approval-fill').style.width = pct + '%';
   $('approval-text').textContent = pct + '%';
-  const wagonEl = $('wagon-status');     if (wagonEl)  wagonEl.textContent  = statusWagon();
+  const wagonEl = $('wagon-status');     if (wagonEl)  wagonEl.textContent  = statusWagons();
   const factEl  = $('factory-count');    if (factEl)   factEl.textContent   = state.factories.length;
   const wkEl    = $('footer-workers');   if (wkEl)     wkEl.textContent     = `${workersActive()}/${state.workersTotal}`;
   const tilesEl = $('footer-tiles');     if (tilesEl)  tilesEl.textContent  = state.tilesDug;

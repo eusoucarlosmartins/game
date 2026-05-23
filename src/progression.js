@@ -46,6 +46,7 @@ export function checkEraProgression() {
     const newRecs = e.recipes.filter(x => !prev.recipes.includes(x));
     if (newDeps.length) log(`   Depósitos liberados: ${newDeps.map(d => R[d].name).join(', ')}.`, 'good');
     if (newRecs.length) log(`   Receitas liberadas: ${newRecs.map(d => R[d].name).join(', ')}.`, 'good');
+    log(`🗺 Nova região do mapa desbloqueada — arraste pra explorar.`, 'good');
   }
 }
 

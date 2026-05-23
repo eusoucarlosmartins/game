@@ -8,7 +8,7 @@ import { getProjectDef } from './projects.js';
 import { activeMine, regenCost } from './mine.js';
 import {
   W, H, WORLD_W, WORLD_H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
-  OVERWORLD, TOOLBAR, MINE_BACK_BTN, MINIMAP, factoryRect,
+  OVERWORLD, TOOLBAR, MINE_BACK_BTN, MINIMAP, factoryRect, unlockedWorldSize,
 } from './geometry.js';
 import { drawParticles } from './particles.js';
 
@@ -576,44 +576,61 @@ function drawCitySign(centerX, topY) {
 }
 
 // ---------- Estrada + carruagem ----------
+// Rotas pontilhadas de cada fábrica até a cidade (uma "estrada" por fábrica)
 function drawRoad() {
-  const tier = transportTier();
-  if (tier >= 6) {
-    ctx.fillStyle = '#6b3f1a';
-    ctx.fillRect(ROAD.x1, ROAD.y - 6, ROAD.x2 - ROAD.x1, 14);
-    ctx.fillStyle = '#3a1f0a';
-    for (let x = ROAD.x1; x < ROAD.x2; x += 14) ctx.fillRect(x, ROAD.y - 4, 8, 12);
-    ctx.strokeStyle = '#888';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(ROAD.x1, ROAD.y - 2); ctx.lineTo(ROAD.x2, ROAD.y - 2);
-    ctx.moveTo(ROAD.x1, ROAD.y + 6); ctx.lineTo(ROAD.x2, ROAD.y + 6);
-    ctx.stroke();
-  } else if (tier >= 2) {
-    ctx.fillStyle = '#4a4a4a';
-    ctx.fillRect(ROAD.x1, ROAD.y - 6, ROAD.x2 - ROAD.x1, 14);
-  } else {
-    ctx.fillStyle = '#a07a4a';
-    ctx.fillRect(ROAD.x1, ROAD.y - 5, ROAD.x2 - ROAD.x1, 12);
+  for (let i = 0; i < state.factories.length; i++) {
+    const fr = factoryRect(i);
+    const sx = fr.x + fr.w;
+    const sy = fr.y + fr.h / 2;
+    const dx = CITY.x;
+    const dy = CITY.y + CITY.h / 2;
+    drawDottedRoute(sx, sy, dx, dy);
+  }
+  // (transportTier() ainda existe e afeta a velocidade/capacidade da carruagem
+  // via progression.js — só o desenho da estrada principal mudou pra dotted.)
+  void transportTier;
+}
+
+// Desenha uma carruagem por fábrica, cada uma na sua rota até a cidade
+function drawWagon() {
+  for (let i = 0; i < state.factories.length; i++) {
+    drawOneWagon(i);
   }
 }
 
-function drawWagon() {
-  const w = state.wagon;
-  const wx = ROAD.x1 + (ROAD.x2 - ROAD.x1) * w.pos;
-  const wy = ROAD.y - 12;
-  // versão compacta — só uma carruagem (sem progressão visual por tier neste layout)
+function drawOneWagon(idx) {
+  const factory = state.factories[idx];
+  const w = factory?.wagon;
+  if (!w) return;
+  const fr = factoryRect(idx);
+  const sx = fr.x + fr.w;
+  const sy = fr.y + fr.h / 2;
+  const dx = CITY.x;
+  const dy = CITY.y + CITY.h / 2;
+  const wx = sx + (dx - sx) * w.pos;
+  const wy = sy + (dy - sy) * w.pos - 6; // levemente acima da linha do chão
+  // corpo da carruagem
   ctx.fillStyle = '#7a4b25';
-  ctx.fillRect(wx - 14, wy, 28, 12);
+  ctx.fillRect(wx - 12, wy, 24, 10);
   ctx.fillStyle = '#5a3416';
-  ctx.fillRect(wx - 14, wy + 10, 28, 3);
+  ctx.fillRect(wx - 12, wy + 8, 24, 3);
+  // rodas
   ctx.fillStyle = '#222';
-  ctx.beginPath(); ctx.arc(wx - 10, wy + 14, 4, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(wx + 10, wy + 14, 4, 0, Math.PI * 2); ctx.fill();
-  if (w.load > 0 && w.product) {
+  ctx.beginPath(); ctx.arc(wx - 8, wy + 12, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(wx + 8, wy + 12, 3, 0, Math.PI * 2); ctx.fill();
+  // carga (cor do produto)
+  if (w.load > 0 && w.product && R[w.product]) {
     ctx.fillStyle = R[w.product].color;
-    const barW = clamp(w.load / wagonCapacity(), 0, 1) * 24;
-    ctx.fillRect(wx - 12, wy + 2, barW, 6);
+    const barW = clamp(w.load / wagonCapacity(), 0, 1) * 20;
+    ctx.fillRect(wx - 10, wy + 2, barW, 5);
+  }
+  // cavalo simplificado na frente (indica direção)
+  if (w.state === 'hauling') {
+    const ang = Math.atan2(dy - sy, dx - sx);
+    const headX = wx + Math.cos(ang) * 14 * w.dir;
+    const headY = wy + 4 + Math.sin(ang) * 14 * w.dir;
+    ctx.fillStyle = '#3a2010';
+    ctx.fillRect(headX - 3, headY - 2, 6, 5);
   }
 }
 
@@ -1467,6 +1484,7 @@ function drawOverworld() {
   drawRoad();
   drawWagon();
   drawParticles(ctx, 'overworld');
+  drawLockedAreaFog();
   ctx.restore();
   // === Camada HUD (fixa na tela) ===
   drawActiveProjectPanel();
@@ -1494,6 +1512,13 @@ function drawMinimap() {
   }
   const sx = m.w / WORLD_W;
   const sy = m.h / WORLD_H;
+  // Sombreia área ainda bloqueada (proporcionalmente)
+  const u = unlockedWorldSize(currentEra());
+  if (u.w < WORLD_W || u.h < WORLD_H) {
+    ctx.fillStyle = 'rgba(20,12,4,0.55)';
+    if (u.w < WORLD_W) ctx.fillRect(m.x + u.w * sx, m.y, (WORLD_W - u.w) * sx, m.h);
+    if (u.h < WORLD_H) ctx.fillRect(m.x, m.y + u.h * sy, u.w * sx, (WORLD_H - u.h) * sy);
+  }
   // Minas (cavernas marrons)
   ctx.fillStyle = '#5a3416';
   for (let i = 0; i < OVERWORLD.mineEntrances.length; i++) {
@@ -1558,16 +1583,53 @@ function drawMinimap() {
   ctx.fillText('MAPA', m.x + 4, m.y - 7);
 }
 
+// Áreas ainda bloqueadas (acima do limite da era atual) ficam com névoa
+// escura translúcida + texto "DESBLOQUEADO NA ERA N". O fog é desenhado no
+// espaço do mundo (dentro do translate da câmera).
+function drawLockedAreaFog() {
+  const era = currentEra();
+  const u = unlockedWorldSize(era);
+  if (u.w >= WORLD_W && u.h >= WORLD_H) return; // tudo destravado
+  // Faixa vertical à direita (área não destravada horizontalmente)
+  ctx.fillStyle = 'rgba(20,12,4,0.55)';
+  if (u.w < WORLD_W) {
+    ctx.fillRect(u.w, 0, WORLD_W - u.w, WORLD_H);
+  }
+  // Faixa horizontal embaixo (área não destravada verticalmente)
+  if (u.h < WORLD_H) {
+    ctx.fillRect(0, u.h, u.w, WORLD_H - u.h);
+  }
+  // Borda animada na linha de desbloqueio (faixa âmbar pulsante)
+  const t = performance.now() / 600;
+  const pulse = 0.5 + 0.3 * (Math.sin(t) + 1) / 2;
+  ctx.fillStyle = `rgba(255,180,80,${pulse})`;
+  if (u.w < WORLD_W) ctx.fillRect(u.w - 2, 0, 4, u.h);
+  if (u.h < WORLD_H) ctx.fillRect(0, u.h - 2, u.w, 4);
+  // Texto indicando próxima era — centralizado nas áreas bloqueadas
+  ctx.fillStyle = '#ffd44a';
+  ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const nextEra = Math.min(6, era + 1);
+  if (u.w < WORLD_W) {
+    ctx.fillText(`🔒 Desbloqueia na Era ${nextEra}`, (u.w + WORLD_W) / 2, u.h / 2);
+  }
+  if (u.h < WORLD_H && u.w === WORLD_W) {
+    ctx.fillText(`🔒 Desbloqueia na Era ${nextEra}`, WORLD_W / 2, (u.h + WORLD_H) / 2);
+  }
+}
+
 // Setinhas nos cantos pra avisar que dá pra arrastar o mapa
 function drawPanIndicators() {
+  const u = unlockedWorldSize(currentEra());
   ctx.fillStyle = 'rgba(58,31,10,0.55)';
   ctx.font = 'bold 22px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   if (state.camera.x > 4) ctx.fillText('◀', 22, H / 2);
-  if (state.camera.x < WORLD_W - W - 4) ctx.fillText('▶', W - 22, H / 2);
+  if (state.camera.x < u.w - W / state.camera.zoom - 4) ctx.fillText('▶', W - 22, H / 2);
   if (state.camera.y > 4) ctx.fillText('▲', W / 2, 22);
-  if (state.camera.y < WORLD_H - H - 4) ctx.fillText('▼', W / 2, H - 22);
+  if (state.camera.y < u.h - H / state.camera.zoom - 4) ctx.fillText('▼', W / 2, H - 22);
 }
 
 // Rio decorativo serpenteando pelo MUNDO inteiro (borda direita do mundo)

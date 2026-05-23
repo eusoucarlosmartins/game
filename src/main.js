@@ -16,7 +16,7 @@ import { draw } from './draw.js';
 import { syncUI, openRecipeModal, openBuyMineModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
 import { sellRaw, sellAllRaw, sellProduct, sellAllProduct } from './market.js';
-import { W, H, WORLD_W, WORLD_H, TOOLBAR, MINE_BACK_BTN, MINIMAP, OVERWORLD, factoryRect } from './geometry.js';
+import { W, H, WORLD_W, WORLD_H, TOOLBAR, MINE_BACK_BTN, MINIMAP, OVERWORLD, factoryRect, unlockedWorldSize } from './geometry.js';
 import { clamp } from './util.js';
 
 // ---------- Game over / vitória ----------
@@ -134,8 +134,9 @@ canvas.addEventListener('mousemove', (e) => {
     const dy = p.y - state.panStart.mouseY;
     if (state.scene === 'overworld') {
       const z = state.camera.zoom;
-      state.camera.x = clamp(state.panStart.cameraX - dx / z, 0, Math.max(0, WORLD_W - W / z));
-      state.camera.y = clamp(state.panStart.cameraY - dy / z, 0, Math.max(0, WORLD_H - H / z));
+      const u = unlockedWorldSize(currentEra());
+      state.camera.x = clamp(state.panStart.cameraX - dx / z, 0, Math.max(0, u.w - W / z));
+      state.camera.y = clamp(state.panStart.cameraY - dy / z, 0, Math.max(0, u.h - H / z));
     } else if (state.scene === 'mine') {
       // Mina só permite scroll vertical (grid mais alto que viewport)
       const mineMaxY = Math.max(0, MINE.rows * MINE.cell - (H - MINE.y));
@@ -217,8 +218,9 @@ canvas.addEventListener('touchmove', (e) => {
     const dy = p.y - state.panStart.mouseY;
     if (state.scene === 'overworld') {
       const z = state.camera.zoom;
-      state.camera.x = clamp(state.panStart.cameraX - dx / z, 0, Math.max(0, WORLD_W - W / z));
-      state.camera.y = clamp(state.panStart.cameraY - dy / z, 0, Math.max(0, WORLD_H - H / z));
+      const u = unlockedWorldSize(currentEra());
+      state.camera.x = clamp(state.panStart.cameraX - dx / z, 0, Math.max(0, u.w - W / z));
+      state.camera.y = clamp(state.panStart.cameraY - dy / z, 0, Math.max(0, u.h - H / z));
     } else if (state.scene === 'mine') {
       const mineMaxY = Math.max(0, MINE.rows * MINE.cell - (H - MINE.y));
       state.mineCamera.y = clamp(state.panStart.cameraY - dy, 0, mineMaxY);
@@ -232,8 +234,9 @@ canvas.addEventListener('touchmove', (e) => {
     const newZoom = clamp(pinchStart.zoom * (newDist / pinchStart.dist), 0.5, 2.2);
     // Mantém o centro do pinch fixo durante o zoom
     state.camera.zoom = newZoom;
-    state.camera.x = clamp(pinchStart.worldX - pinchStart.cx / newZoom, 0, Math.max(0, WORLD_W - W / newZoom));
-    state.camera.y = clamp(pinchStart.worldY - pinchStart.cy / newZoom, 0, Math.max(0, WORLD_H - H / newZoom));
+    const u2 = unlockedWorldSize(currentEra());
+    state.camera.x = clamp(pinchStart.worldX - pinchStart.cx / newZoom, 0, Math.max(0, u2.w - W / newZoom));
+    state.camera.y = clamp(pinchStart.worldY - pinchStart.cy / newZoom, 0, Math.max(0, u2.h - H / newZoom));
   }
 }, { passive: false });
 canvas.addEventListener('touchend', (e) => {
@@ -262,8 +265,9 @@ canvas.addEventListener('wheel', (e) => {
   const worldX = state.camera.x + p.x / oldZoom;
   const worldY = state.camera.y + p.y / oldZoom;
   state.camera.zoom = newZoom;
-  state.camera.x = clamp(worldX - p.x / newZoom, 0, Math.max(0, WORLD_W - W / newZoom));
-  state.camera.y = clamp(worldY - p.y / newZoom, 0, Math.max(0, WORLD_H - H / newZoom));
+  const u = unlockedWorldSize(currentEra());
+  state.camera.x = clamp(worldX - p.x / newZoom, 0, Math.max(0, u.w - W / newZoom));
+  state.camera.y = clamp(worldY - p.y / newZoom, 0, Math.max(0, u.h - H / newZoom));
 }, { passive: false });
 function hitTest(x, y, r) {
   return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
@@ -302,8 +306,9 @@ function handleCanvasClick(sc) {
       const scaleY = WORLD_H / MINIMAP.h;
       const worldX = (sc.x - MINIMAP.x) * scaleX;
       const worldY = (sc.y - MINIMAP.y) * scaleY;
-      state.camera.x = clamp(worldX - W / 2, 0, WORLD_W - W);
-      state.camera.y = clamp(worldY - H / 2, 0, WORLD_H - H);
+      const u = unlockedWorldSize(currentEra());
+      state.camera.x = clamp(worldX - W / 2, 0, Math.max(0, u.w - W));
+      state.camera.y = clamp(worldY - H / 2, 0, Math.max(0, u.h - H));
       play('click');
       return;
     }
