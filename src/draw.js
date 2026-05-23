@@ -887,57 +887,300 @@ function drawOverworldBg() {
   const grd = ctx.createLinearGradient(0, 0, 0, H);
   grd.addColorStop(0, '#d4b478');
   grd.addColorStop(0.5, '#c9a76a');
-  grd.addColorStop(1, '#b89058');
+  grd.addColorStop(1, '#a87f48');
   ctx.fillStyle = grd;
   ctx.fillRect(0, 0, W, H);
-  // Textura sutil (pontilhado)
-  ctx.fillStyle = 'rgba(80,50,20,0.08)';
-  for (let i = 0; i < 240; i++) {
+  // Textura sutil (pontilhado denso)
+  ctx.fillStyle = 'rgba(80,50,20,0.07)';
+  for (let i = 0; i < 480; i++) {
     const x = (i * 137) % W;
     const y = (i * 89) % H;
     ctx.fillRect(x, y, 2, 2);
   }
-  // Linha de horizonte com montanhas longe
-  ctx.fillStyle = '#9a7a4a';
+  // Camada de montanhas mais distante (mais clara, ao fundo)
+  ctx.fillStyle = '#a88a5a';
   ctx.beginPath();
-  ctx.moveTo(0, 180);
-  ctx.lineTo(130, 80); ctx.lineTo(230, 170);
-  ctx.lineTo(340, 60); ctx.lineTo(480, 160);
-  ctx.lineTo(620, 90); ctx.lineTo(770, 170);
-  ctx.lineTo(900, 70); ctx.lineTo(1080, 160);
-  ctx.lineTo(1280, 90); ctx.lineTo(1280, 0);
+  ctx.moveTo(0, 150);
+  ctx.lineTo(80, 70); ctx.lineTo(170, 140);
+  ctx.lineTo(260, 50); ctx.lineTo(380, 130);
+  ctx.lineTo(500, 60); ctx.lineTo(640, 130);
+  ctx.lineTo(780, 50); ctx.lineTo(920, 140);
+  ctx.lineTo(1060, 60); ctx.lineTo(1200, 130);
+  ctx.lineTo(1280, 80); ctx.lineTo(1280, 0);
   ctx.lineTo(0, 0);
   ctx.closePath();
   ctx.fill();
-  // Sombras das montanhas
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
-  ctx.fillRect(0, 170, W, 14);
-  // Algumas árvores espalhadas (clusters verdes)
-  const trees = [
-    [60, 240], [110, 270], [160, 260],
-    [320, 250], [350, 230], [380, 250],
-    [620, 260], [660, 250], [700, 230],
-    [840, 250], [880, 230],
-    [80, 660], [140, 680], [200, 670],
-    [580, 660], [640, 670], [700, 660],
-    [990, 600], [1100, 620], [1200, 640],
+  // Camada de montanhas mais perto (mais escura, à frente)
+  ctx.fillStyle = '#8a6a3e';
+  ctx.beginPath();
+  ctx.moveTo(0, 190);
+  ctx.lineTo(130, 90); ctx.lineTo(230, 180);
+  ctx.lineTo(340, 70); ctx.lineTo(480, 170);
+  ctx.lineTo(620, 100); ctx.lineTo(770, 180);
+  ctx.lineTo(900, 80); ctx.lineTo(1080, 170);
+  ctx.lineTo(1280, 100); ctx.lineTo(1280, 0);
+  ctx.lineTo(0, 0);
+  ctx.closePath();
+  ctx.fill();
+  // Sombra na base das montanhas (transição pro chão)
+  ctx.fillStyle = 'rgba(0,0,0,0.14)';
+  ctx.fillRect(0, 180, W, 12);
+  // Penhascos avermelhados em primeiro plano (rodapé do canvas)
+  drawForegroundCliffs();
+  // Vegetação + decorações espalhadas (deterministic scatter)
+  drawNatureScatter();
+}
+
+// ---- Penhascos/rochas no rodapé do canvas (efeito far-west) ----
+function drawForegroundCliffs() {
+  // Faixa de areia mais escura no chão (linha do horizonte do solo)
+  ctx.fillStyle = 'rgba(120,80,40,0.25)';
+  ctx.fillRect(0, H - 60, W, 60);
+  // Penhascos vermelho-tijolo, vários tamanhos (avoid the bottom-left 4ª mina e a estrada)
+  const cliffs = [
+    { x: 210, y: H - 70, w: 80, h: 50 },
+    { x: 310, y: H - 90, w: 110, h: 70 },
+    { x: 470, y: H - 60, w: 70, h: 40 },
+    { x: 720, y: H - 80, w: 90, h: 60 },
+    { x: 1130, y: H - 70, w: 95, h: 50 },
   ];
-  for (const [tx, ty] of trees) {
-    drawTree(tx, ty);
+  for (const c of cliffs) drawCliff(c.x, c.y, c.w, c.h);
+}
+
+function drawCliff(x, y, w, h) {
+  // Sombra projetada
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(x + w / 2, y + h + 4, w / 2 + 6, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Massa rochosa principal (terracota)
+  ctx.fillStyle = '#b86848';
+  ctx.beginPath();
+  ctx.moveTo(x, y + h);
+  ctx.lineTo(x + w * 0.15, y + h * 0.45);
+  ctx.lineTo(x + w * 0.35, y + h * 0.1);
+  ctx.lineTo(x + w * 0.55, y + h * 0.35);
+  ctx.lineTo(x + w * 0.75, y);
+  ctx.lineTo(x + w * 0.95, y + h * 0.4);
+  ctx.lineTo(x + w, y + h);
+  ctx.closePath();
+  ctx.fill();
+  // Faixa horizontal mais clara (camada geológica)
+  ctx.fillStyle = 'rgba(232,180,140,0.35)';
+  ctx.fillRect(x + 2, y + h * 0.55, w - 4, 3);
+  ctx.fillRect(x + 6, y + h * 0.75, w - 12, 2);
+  // Sombras laterais (volume)
+  ctx.fillStyle = 'rgba(60,30,15,0.22)';
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.55, y + h * 0.35);
+  ctx.lineTo(x + w, y + h);
+  ctx.lineTo(x + w * 0.65, y + h);
+  ctx.closePath();
+  ctx.fill();
+  // Pedrinhas na base
+  ctx.fillStyle = '#8a4828';
+  for (let i = 0; i < 4; i++) {
+    const rx = x + 8 + i * (w - 16) / 4;
+    ctx.beginPath();
+    ctx.arc(rx, y + h - 2, 3 + (i % 2), 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
-function drawTree(x, y) {
+// ---- Scatter determinístico de árvores, cactos e pedras ----
+// Usa um LCG simples pra sempre gerar a mesma cena (estável entre frames)
+function lcg(seed) {
+  let s = seed;
+  return () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+
+function inAnyRect(x, y, rects) {
+  for (const r of rects) {
+    if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) return true;
+  }
+  return false;
+}
+
+function getDecorAvoidRects() {
+  return [
+    // Áreas das minas (4 slots)
+    ...OVERWORLD.mineEntrances.map(r => ({ x: r.x - 14, y: r.y - 14, w: r.w + 28, h: r.h + 60 })),
+    // Fábricas (3 slots) + painel de receita acima
+    ...[0, 1, 2].map(i => {
+      const fr = factoryRect(i);
+      return { x: fr.x - 8, y: fr.y - 58, w: fr.w + 16, h: fr.h + 70 };
+    }),
+    // Mercado e Pesquisa nodes
+    { x: OVERWORLD.mercadoNode.x - 10, y: OVERWORLD.mercadoNode.y - 10, w: OVERWORLD.mercadoNode.w + 20, h: OVERWORLD.mercadoNode.h + 30 },
+    { x: OVERWORLD.pesquisaNode.x - 10, y: OVERWORLD.pesquisaNode.y - 10, w: OVERWORLD.pesquisaNode.w + 20, h: OVERWORLD.pesquisaNode.h + 30 },
+    // Cidade
+    { x: CITY.x - 10, y: 50, w: CITY.w + 20, h: H },
+    // Painel de projeto ativo (canto superior esquerdo overworld)
+    { x: 14, y: 50, w: 290, h: 130 },
+    // Vilarejos decorativos
+    { x: 460, y: 250, w: 60, h: 50 },
+    { x: 660, y: 225, w: 60, h: 50 },
+    { x: 540, y: 640, w: 60, h: 50 },
+    // Estrada da carruagem
+    { x: ROAD.x1 - 4, y: ROAD.y - 14, w: ROAD.x2 - ROAD.x1 + 8, h: 28 },
+  ];
+}
+
+function drawNatureScatter() {
+  const avoid = getDecorAvoidRects();
+  const rng = lcg(8675309);
+  // Árvores (várias sizes pra dar profundidade)
+  let placed = 0;
+  for (let tries = 0; tries < 220 && placed < 55; tries++) {
+    const x = rng() * (W - 40) + 20;
+    const y = 210 + rng() * (H - 240);
+    if (inAnyRect(x, y, avoid)) continue;
+    const size = 0.55 + rng() * 0.7;
+    drawTree(x, y, size);
+    placed++;
+  }
+  // Cactos (só na metade direita, mais "deserto")
+  placed = 0;
+  for (let tries = 0; tries < 80 && placed < 8; tries++) {
+    const x = 450 + rng() * (W - 500);
+    const y = 320 + rng() * (H - 360);
+    if (inAnyRect(x, y, avoid)) continue;
+    drawCactus(x, y);
+    placed++;
+  }
+  // Pedras pequenas espalhadas (dá textura)
+  placed = 0;
+  for (let tries = 0; tries < 150 && placed < 18; tries++) {
+    const x = rng() * (W - 30) + 15;
+    const y = 210 + rng() * (H - 250);
+    if (inAnyRect(x, y, avoid)) continue;
+    drawSmallRock(x, y, 0.7 + rng() * 0.8);
+    placed++;
+  }
+  // 2 ranchos decorativos (não interativos)
+  drawRanch(310, 320, 'RANCHO');
+  drawRanch(720, 600, 'FAZENDA');
+}
+
+function drawTree(x, y, size = 1) {
+  const r = 14 * size;
+  // sombra
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + r * 0.6, r * 0.9, r * 0.25, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // tronco
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(x - 2 * size, y + r * 0.4, 4 * size, 9 * size);
+  // copa grande (verde médio)
   ctx.fillStyle = '#4a6a3a';
   ctx.beginPath();
-  ctx.arc(x, y, 14, 0, Math.PI * 2);
+  ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.fill();
+  // copa secundária (verde escuro pra dar volume)
   ctx.fillStyle = '#3a5a2a';
   ctx.beginPath();
-  ctx.arc(x + 4, y - 4, 10, 0, Math.PI * 2);
+  ctx.arc(x + r * 0.3, y - r * 0.3, r * 0.7, 0, Math.PI * 2);
   ctx.fill();
+  // highlight (verde claro)
+  ctx.fillStyle = 'rgba(140,170,90,0.45)';
+  ctx.beginPath();
+  ctx.arc(x - r * 0.35, y - r * 0.35, r * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawCactus(x, y) {
+  // sombra
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 12, 8, 2.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // tronco principal
+  ctx.fillStyle = '#4f6a3a';
+  ctx.fillRect(x - 3, y - 18, 6, 30);
+  // topo arredondado
+  ctx.beginPath();
+  ctx.arc(x, y - 18, 3, Math.PI, Math.PI * 2);
+  ctx.fill();
+  // braço esquerdo
+  ctx.fillRect(x - 9, y - 5, 6, 4);
+  ctx.fillRect(x - 9, y - 14, 4, 9);
+  ctx.beginPath();
+  ctx.arc(x - 7, y - 14, 2, Math.PI, Math.PI * 2);
+  ctx.fill();
+  // braço direito (mais curto)
+  ctx.fillRect(x + 3, y - 10, 5, 3);
+  ctx.fillRect(x + 6, y - 16, 3, 6);
+  ctx.beginPath();
+  ctx.arc(x + 7.5, y - 16, 1.5, Math.PI, Math.PI * 2);
+  ctx.fill();
+  // detalhe (linhas verticais — espinhos sutis)
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x - 1, y - 16); ctx.lineTo(x - 1, y + 10);
+  ctx.moveTo(x + 1, y - 16); ctx.lineTo(x + 1, y + 10);
+  ctx.stroke();
+}
+
+function drawSmallRock(x, y, size = 1) {
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 3 * size, 6 * size, 1.6 * size, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#8a6a48';
+  ctx.beginPath();
+  ctx.ellipse(x, y, 5 * size, 3.5 * size, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,235,200,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(x - 1.5 * size, y - 0.5 * size, 1.5 * size, 1 * size, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawRanch(x, y, name) {
+  // sombra
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(x - 18, y + 18, 50, 4);
+  // celeiro (parede vermelha)
+  ctx.fillStyle = '#a8442a';
+  ctx.fillRect(x - 16, y - 14, 32, 32);
+  // telhado escuro
+  ctx.fillStyle = '#3a1f0a';
+  ctx.beginPath();
+  ctx.moveTo(x - 20, y - 14);
+  ctx.lineTo(x, y - 26);
+  ctx.lineTo(x + 20, y - 14);
+  ctx.closePath();
+  ctx.fill();
+  // X branco característico do celeiro
+  ctx.strokeStyle = '#f1e3c2';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x - 10, y - 8); ctx.lineTo(x + 10, y + 12);
+  ctx.moveTo(x + 10, y - 8); ctx.lineTo(x - 10, y + 12);
+  ctx.stroke();
+  // porta
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x - 4, y + 8, 8, 10);
+  // cerca à direita
   ctx.fillStyle = '#5a3416';
-  ctx.fillRect(x - 2, y + 8, 4, 8);
+  for (let i = 0; i < 4; i++) {
+    ctx.fillRect(x + 20 + i * 6, y + 6, 2, 12);
+  }
+  ctx.fillRect(x + 20, y + 9, 22, 1.5);
+  // placa com o nome
+  ctx.font = 'bold 9px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const tw = ctx.measureText(name).width + 8;
+  ctx.fillStyle = 'rgba(241,227,194,0.85)';
+  ctx.fillRect(x - tw / 2, y + 22, tw, 12);
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillText(name, x, y + 23);
 }
 
 function drawMineEntrances() {
@@ -1070,14 +1313,27 @@ function drawMineEntrance(e, mine, idx) {
 }
 
 function drawDottedRoute(x1, y1, x2, y2) {
-  ctx.strokeStyle = 'rgba(58,31,10,0.55)';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([4, 6]);
+  // Linha sutil de base (caminho mais claro pra dar continuidade)
+  ctx.strokeStyle = 'rgba(58,31,10,0.18)';
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
   ctx.stroke();
-  ctx.setLineDash([]);
+  // Pontilhado mais denso e marcado por cima
+  const dx = x2 - x1, dy = y2 - y1;
+  const dist = Math.hypot(dx, dy);
+  const step = 9;
+  const n = Math.floor(dist / step);
+  ctx.fillStyle = 'rgba(58,31,10,0.75)';
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const px = x1 + dx * t;
+    const py = y1 + dy * t;
+    ctx.beginPath();
+    ctx.arc(px, py, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function drawOverworld() {

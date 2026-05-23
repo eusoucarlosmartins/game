@@ -6,31 +6,32 @@ export const W = 1280;
 export const H = 720;
 
 // ---------- Overworld (mapa) ----------
+// Layout estilo mapa: minas pequenas espalhadas pelos 4 cantos,
+// cidade + fábricas + mercado/pesquisa concentrados no meio.
 export const OVERWORLD = {
-  // Entradas de minas (até 4 slots empilhados à esquerda)
-  // Slots vazios mostram "+ NOVA MINA" e abrem modal de compra.
+  // Minas nos 4 cantos (menores que antes pra dar mais ar ao mapa)
   mineEntrances: [
-    { x: 20, y: 130, w: 170, h: 150 }, // Mina Central
-    { x: 20, y: 295, w: 170, h: 150 }, // Mina do Vale
-    { x: 20, y: 460, w: 170, h: 150 }, // 3ª (Mina do Mar)
-    { x: 20, y: 620, w: 170, h: 95  }, // 4ª (Mina da Serra)
+    { x: 30, y: 130, w: 110, h: 100 },   // M1 superior-esquerda
+    { x: 1140, y: 130, w: 110, h: 100 }, // M2 superior-direita
+    { x: 30, y: 510, w: 110, h: 100 },   // M3 inferior-esquerda
+    { x: 1140, y: 510, w: 110, h: 100 }, // M4 inferior-direita
   ],
   // Cluster de fábricas no centro
-  factoryArea:  { x: 380, y: 280, w: 380, h: 180, gap: 12, slots: 3 },
-  // Cidade à direita
-  city:         { x: 880, y: 200, w: 340, h: 420 },
-  // Estrada por onde a carruagem vai/volta (entre fábricas e cidade)
-  road:         { y: 490, x1: 770, x2: 880 },
-  // Linhas pontilhadas decorativas das minas até as fábricas (uma por slot)
+  factoryArea:  { x: 280, y: 340, w: 460, h: 180, gap: 12, slots: 3 },
+  // Cidade central-direita (mais perto do meio que antes)
+  city:         { x: 800, y: 180, w: 320, h: 340 },
+  // Estrada curta entre fábricas e cidade
+  road:         { y: 480, x1: 740, x2: 800 },
+  // Linhas pontilhadas das minas até as fábricas mais próximas
   dottedMineToFactory: [
-    { x1: 200, y1: 220, x2: 380, y2: 340 },
-    { x1: 200, y1: 380, x2: 380, y2: 380 },
-    { x1: 200, y1: 540, x2: 380, y2: 420 },
-    { x1: 200, y1: 660, x2: 380, y2: 450 },
+    { x1: 140, y1: 180, x2: 290, y2: 360 },  // M1 → F1
+    { x1: 1140, y1: 180, x2: 730, y2: 360 }, // M2 → F3
+    { x1: 140, y1: 560, x2: 290, y2: 520 },  // M3 → F1
+    { x1: 1140, y1: 560, x2: 730, y2: 520 }, // M4 → F3
   ],
-  // Nodos clicáveis (atalhos visíveis no mapa pra abas do sidebar)
-  mercadoNode:  { x: 300, y: 540, w: 90,  h: 64 },
-  pesquisaNode: { x: 820, y: 540, w: 90,  h: 64 },
+  // Nodos clicáveis nas laterais (entre os pares de minas)
+  mercadoNode:  { x: 170, y: 400, w: 90,  h: 64 },
+  pesquisaNode: { x: 1080, y: 400, w: 90,  h: 64 },
 };
 
 // Aliases pra manter compatibilidade com módulos existentes (wagon, draw)
