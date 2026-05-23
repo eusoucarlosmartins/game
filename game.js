@@ -173,6 +173,53 @@
   const RES_BY_ID = Object.fromEntries(RESEARCH.map(r => [r.id, r]));
   const RES_CATS = [...new Set(RESEARCH.map(r => r.cat))];
 
+  // ---------- ERAS DE PROGRESSÃO ----------
+  // Cada era libera novos depósitos/receitas. Contratos rotacionam dentro do pool da era.
+  // `deposits` e `recipes` são DELTAS — somam-se ao acumulado das eras anteriores.
+  // `contracts` é o pool atual (substitui o anterior — cidades modernas pedem coisas modernas).
+  const ERAS_RAW = [
+    { id: 1, name: 'Colônia Mineradora', desc: 'Pioneiros do oeste catarinense — apenas o essencial.',
+      deposits:  ['coal','iron_ore','stone','clay'],
+      recipes:   ['iron_ingot','brick'],
+      contracts: ['iron_ingot'],
+      nextAt: 3 },
+    { id: 2, name: 'Vila Industrial', desc: 'Serrarias e vidrarias surgem. O Aço Base se torna possível.',
+      deposits:  ['sand','wood'],
+      recipes:   ['wood_plank','glass','steel'],
+      contracts: ['iron_ingot','brick','wood_plank','steel'],
+      nextAt: 8 },
+    { id: 3, name: 'Cidade Próspera', desc: 'Latão, pólvora e os primeiros componentes finos.',
+      deposits:  ['copper_ore','zinc_ore','lead','sulfur','saltpeter'],
+      recipes:   ['copper_ingot','brass','gunpowder','nails','copper_cable'],
+      contracts: ['steel','wood_plank','nails','gunpowder','copper_cable','brass'],
+      nextAt: 15 },
+    { id: 4, name: 'Era Industrial', desc: 'Petróleo, telégrafos e ferrovias. Os primeiros acabados.',
+      deposits:  ['oil'],
+      recipes:   ['kerosene','steel_beam','bronze_gear','telegraph','rails','lantern','mining_tools'],
+      contracts: ['telegraph','rails','lantern','mining_tools','gunpowder','nails'],
+      nextAt: 25 },
+    { id: 5, name: 'Era do Aço', desc: 'Motores a vapor, carruagens robustas e armamento.',
+      deposits:  ['silver_ore','gold_ore'],
+      recipes:   ['silver_ingot','gold_ingot','steam_engine','cargo_wagon','bullets','rifle'],
+      contracts: ['steam_engine','cargo_wagon','bullets','rifle','telegraph','rails','lantern'],
+      nextAt: 40 },
+    { id: 6, name: 'Era do Luxo', desc: 'Joalheria, dinamite e a segurança dos cofres.',
+      deposits:  ['diamond','ruby'],
+      recipes:   ['sulfuric_acid','dynamite','jewel','pocket_watch','bank_safe'],
+      contracts: ['pocket_watch','bank_safe','rifle','steam_engine','cargo_wagon'],
+      nextAt: null },
+  ];
+  // Pré-calcula listas cumulativas de depósitos/receitas
+  const ERAS = ERAS_RAW.map((e, i) => {
+    const upTo = ERAS_RAW.slice(0, i + 1);
+    return {
+      ...e,
+      deposits: [...new Set(upTo.flatMap(x => x.deposits))],
+      recipes:  [...new Set(upTo.flatMap(x => x.recipes))],
+    };
+  });
+  const ROMAN = ['I','II','III','IV','V','VI'];
+
   // ---------- CONFIG ----------
   const NUM_DEPOSITS = 7;
   const CFG = {
@@ -213,7 +260,7 @@
     'money','approval','day','dayTimer','speed','over',
     'deposits','factories','warehouse','products',
     'contract','currentCity','nextContractIn','contractsCompleted',
-    'equipment','research','rp','log',
+    'equipment','research','rp','eraReached','log',
   ];
 
   let autosaveTimer = 0;
@@ -310,6 +357,7 @@
     equipment: {},
     research: {},
     rp: 0,
+    eraReached: 1,
     log: [],
   };
 
@@ -342,6 +390,34 @@
       }
     }
     return total;
+  }
+
+  // Era atual com base em contratos cumpridos
+  function currentEra() {
+    let era = 1;
+    for (let i = 0; i < ERAS.length - 1; i++) {
+      if (state.contractsCompleted >= ERAS[i].nextAt) era = ERAS[i + 1].id;
+    }
+    return era;
+  }
+  function eraData(id) { return ERAS[id - 1]; }
+  function isDepositUnlocked(depId) { return eraData(currentEra()).deposits.includes(depId); }
+  function isRecipeUnlocked(recId)  { return eraData(currentEra()).recipes.includes(recId); }
+
+  function checkEraProgression() {
+    const era = currentEra();
+    if (era > state.eraReached) {
+      state.eraReached = era;
+      const e = eraData(era);
+      log(`⚜ ERA ${ROMAN[era - 1]}: ${e.name}!`, 'good');
+      log(`   ${e.desc}`, 'good');
+      // listar novos depósitos e receitas
+      const prev = eraData(era - 1);
+      const newDeps = e.deposits.filter(x => !prev.deposits.includes(x));
+      const newRecs = e.recipes.filter(x => !prev.recipes.includes(x));
+      if (newDeps.length) log(`   Depósitos liberados: ${newDeps.map(d => R[d].name).join(', ')}.`, 'good');
+      if (newRecs.length) log(`   Receitas liberadas: ${newRecs.map(d => R[d].name).join(', ')}.`, 'good');
+    }
   }
 
   function transportTier() {
@@ -452,18 +528,23 @@
 
   // ---------- CONTRATOS ----------
   function pickContractProduct() {
-    // Quanto mais contratos cumpridos, mais variedade
-    const tier = Math.min(state.contractsCompleted, CFG.contractPool.length - 1);
-    const max = Math.max(3, Math.min(CFG.contractPool.length, 3 + Math.floor(tier / 2)));
-    return CFG.contractPool[irand(0, max - 1)];
+    const era = eraData(currentEra());
+    const pool = era.contracts;
+    return pool[irand(0, pool.length - 1)];
   }
 
   function generateContract() {
     const productId = pickContractProduct();
-    const price = R[productId].price;
-    // Itens mais caros: contratos com menor quantidade e mais tempo
-    const need = clamp(Math.round(rand(8, 18) * 100 / price), 2, 16);
-    const deadline = rand(CFG.cityDeadlineMin, CFG.cityDeadlineMax) + price * 0.18;
+    const product = R[productId];
+    const price = product.price;
+    // Quantidade dimensionada pelo tier (itens complexos = menos unidades pedidas)
+    let need;
+    if (product.tier === 2) need = irand(4, 9);
+    else if (product.tier === 3) need = irand(3, 6);
+    else need = irand(2, 5); // tier 4
+    // Eras iniciais: contratos menores para não sobrecarregar o jogador novo
+    if (currentEra() === 1) need = irand(3, 5);
+    const deadline = rand(CFG.cityDeadlineMin, CFG.cityDeadlineMax) + price * 0.15;
     let city = CFG.cities[irand(0, CFG.cities.length - 1)];
     if (state.contract && city === state.contract.city) {
       city = CFG.cities[(CFG.cities.indexOf(city) + 1) % CFG.cities.length];
@@ -487,6 +568,7 @@
       log(`${state.contract.city}: ${p.name} entregue! +${fmtMoney(reward)}, +${rpGain} PP e +${CFG.contractApprovalGain} aprovação.`, 'good');
       state.contract = null;
       state.nextContractIn = rand(5, 9);
+      checkEraProgression();
     }
   }
 
@@ -1518,6 +1600,7 @@
     $('factory-count').textContent = state.factories.length;
     $('deposit-count').textContent = state.deposits.filter(d => d.resource).length;
 
+    renderEraBanner();
     renderContract();
     renderStockLists();
     renderDeposits();
@@ -1525,6 +1608,25 @@
     renderEquipment();
     renderResearch();
     renderLog();
+  }
+
+  function renderEraBanner() {
+    const el = $('era-banner');
+    if (!el) return;
+    const eraId = currentEra();
+    const era = eraData(eraId);
+    const next = ERAS[eraId]; // próxima (índice eraId pois ERAS é 0-based)
+    if (next) {
+      const pct = Math.min(100, (state.contractsCompleted / era.nextAt) * 100);
+      el.innerHTML = `Era ${ROMAN[eraId - 1]} — ${era.name}
+        <small>${era.desc}</small>
+        <small>Próxima era: ${state.contractsCompleted}/${era.nextAt} contratos</small>
+        <div class="progress"><div class="progress-fill" style="width:${pct}%"></div></div>`;
+    } else {
+      el.innerHTML = `Era ${ROMAN[eraId - 1]} — ${era.name}
+        <small>${era.desc}</small>
+        <small>Era final atingida.</small>`;
+    }
   }
 
   // ---------- MODAIS ----------
@@ -1537,12 +1639,16 @@
     opts.innerHTML = DEPOSIT_TYPES.map(t => {
       const usedAlready = used.has(t.id);
       const tooExpensive = state.money < t.cost;
-      const disabled = usedAlready || tooExpensive;
+      const locked = !isDepositUnlocked(t.id);
+      const disabled = usedAlready || tooExpensive || locked;
+      // descobre em qual era é liberado
+      let unlockEra = ERAS.find(e => e.deposits.includes(t.id));
+      const lockMsg = locked && unlockEra ? ` — Era ${ROMAN[unlockEra.id - 1]} necessária` : '';
       return `
-        <button class="grid-option" ${disabled ? 'disabled' : ''} data-action="confirm-open" data-slot="${slotIndex}" data-res="${t.id}">
-          <div class="grid-option-title"><span class="dot" style="background:${R[t.id].color}"></span>${R[t.id].name}</div>
+        <button class="grid-option" ${disabled ? 'disabled' : ''} data-action="confirm-open" data-slot="${slotIndex}" data-res="${t.id}" title="${locked ? 'Bloqueado nesta era' : ''}">
+          <div class="grid-option-title"><span class="dot" style="background:${R[t.id].color}"></span>${R[t.id].name}${locked ? ' 🔒' : ''}</div>
           <div class="grid-option-detail">Taxa: ${t.rate.toFixed(2)}/s · Vende a ${fmtMoney(R[t.id].price)}/un</div>
-          <div class="grid-option-cost">${t.cost === 0 ? 'Grátis' : fmtMoney(t.cost)}${usedAlready ? ' — já aberto' : ''}</div>
+          <div class="grid-option-cost">${t.cost === 0 ? 'Grátis' : fmtMoney(t.cost)}${usedAlready ? ' — já aberto' : ''}${lockMsg}</div>
         </button>
       `;
     }).join('');
@@ -1556,12 +1662,15 @@
       html += `<div class="research-section" style="grid-column:1/-1">— Nível ${tier} (${tier === 2 ? 'processados' : tier === 3 ? 'componentes' : 'acabados — peças de contrato'}) —</div>`;
       for (const r of RECIPES_BY_TIER[tier]) {
         const product = R[r.id];
+        const locked = !isRecipeUnlocked(r.id);
         const ingredients = Object.entries(r.in).map(([k, v]) => `${v}× ${R[k].name}`).join(' + ');
+        let unlockEra = ERAS.find(e => e.recipes.includes(r.id));
+        const lockMsg = locked && unlockEra ? `Era ${ROMAN[unlockEra.id - 1]} necessária` : '';
         html += `
-          <button class="grid-option" data-action="confirm-recipe" data-fact="${factoryIndex}" data-recipe="${r.id}">
-            <div class="grid-option-title"><span class="dot" style="background:${product.color}"></span>${product.name}</div>
+          <button class="grid-option" data-action="confirm-recipe" data-fact="${factoryIndex}" data-recipe="${r.id}" ${locked ? 'disabled' : ''}>
+            <div class="grid-option-title"><span class="dot" style="background:${product.color}"></span>${product.name}${locked ? ' 🔒' : ''}</div>
             <div class="grid-option-detail">${ingredients}</div>
-            <div class="grid-option-cost">${r.time.toFixed(1)}s · vende a ${fmtMoney(product.price)}</div>
+            <div class="grid-option-cost">${r.time.toFixed(1)}s · vende a ${fmtMoney(product.price)}${lockMsg ? ' — ' + lockMsg : ''}</div>
           </button>
         `;
       }
@@ -1664,11 +1773,14 @@
   // INÍCIO
   const loaded = loadGame();
   if (loaded) {
-    log(`Partida carregada (dia ${state.day}, ${state.contractsCompleted} contratos cumpridos).`, 'good');
+    // Sincroniza eraReached com contratos cumpridos (caso save antigo não tenha)
+    state.eraReached = Math.max(state.eraReached || 1, currentEra());
+    log(`Partida carregada (dia ${state.day}, ${state.contractsCompleted} contratos, Era ${ROMAN[state.eraReached - 1]}).`, 'good');
     updateSaveStatus();
   } else {
     log('Nomeado governador de Santa Catarina. Apenas a Tapuia pode salvar o estado.');
-    log('Comece extraindo Carvão + Minério de Ferro → produza Lingote de Ferro → expanda para Aço Base.');
+    log(`Era I — Colônia Mineradora. Recursos limitados: comece pelo essencial.`);
+    log('Extraia Carvão + Minério de Ferro → produza Lingotes de Ferro → cumpra os contratos para liberar a próxima era.');
   }
   requestAnimationFrame((t) => { lastT = t; frame(t); });
 })();
