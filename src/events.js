@@ -35,25 +35,27 @@ export const EVENT_TYPES = [
     duration: 0, // efeito instantâneo
     kind: 'good',
     onStart() {
-      if (!state.mine.grid) return;
-      // Revela 25 tiles ao redor de tiles já revelados
-      const candidates = [];
-      for (let r = 0; r < MINE.rows; r++) {
-        for (let c = 0; c < MINE.cols; c++) {
-          if (state.mine.grid[r][c].revealed) continue;
-          for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
-            const nr = r + dr, nc = c + dc;
-            if (nr < 0 || nr >= MINE.rows || nc < 0 || nc >= MINE.cols) continue;
-            if (state.mine.grid[nr][nc].revealed) { candidates.push([r, c]); break; }
+      // Revela 25 tiles em CADA mina ativa (ao redor de tiles já revelados)
+      const mines = state.mines || [];
+      for (const mine of mines) {
+        if (!mine.grid) continue;
+        const candidates = [];
+        for (let r = 0; r < MINE.rows; r++) {
+          for (let c = 0; c < MINE.cols; c++) {
+            if (mine.grid[r][c].revealed) continue;
+            for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+              const nr = r + dr, nc = c + dc;
+              if (nr < 0 || nr >= MINE.rows || nc < 0 || nc >= MINE.cols) continue;
+              if (mine.grid[nr][nc].revealed) { candidates.push([r, c]); break; }
+            }
           }
         }
-      }
-      // embaralha e revela primeiros 25
-      candidates.sort(() => Math.random() - 0.5);
-      const n = Math.min(25, candidates.length);
-      for (let i = 0; i < n; i++) {
-        const [r, c] = candidates[i];
-        state.mine.grid[r][c].revealed = true;
+        candidates.sort(() => Math.random() - 0.5);
+        const n = Math.min(25, candidates.length);
+        for (let i = 0; i < n; i++) {
+          const [r, c] = candidates[i];
+          mine.grid[r][c].revealed = true;
+        }
       }
     },
     onTick() { },

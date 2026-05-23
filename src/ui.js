@@ -1,4 +1,3 @@
-// @ts-nocheck
 // ui.js — renderização da sidebar e modais (receita)
 import { state } from './state.js';
 import { R, RECIPE_BY_ID, RECIPES_BY_TIER, EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY_ID, RES_CATS, ERAS, ROMAN, CFG, TOOLS, WORKER_COST, MINE_CATALOG } from './data.js';
@@ -73,14 +72,15 @@ function renderMinePanel() {
   const hireBtn = $('hire-worker-btn');
   if (hireBtn) hireBtn.disabled = state.money < WORKER_COST;
 
-  const tool = TOOLS[state.mine.tool] || TOOLS.pick;
+  const tool = TOOLS[state.tool] || TOOLS.pick;
   const info = $('tool-info');
   if (info) info.innerHTML = `<strong>${tool.name}</strong> — ${tool.desc}`;
 
   // Sincroniza estado visual dos botões de ferramenta (HTML)
   document.querySelectorAll('.tool-btn').forEach((btn) => {
-    if (btn.dataset.tool === state.mine.tool) btn.classList.add('active');
-    else btn.classList.remove('active');
+    const el = /** @type {HTMLElement} */ (btn);
+    if (el.dataset.tool === state.tool) el.classList.add('active');
+    else el.classList.remove('active');
   });
 
   // Veios descobertos no mapa (revelados, ainda não cavados)

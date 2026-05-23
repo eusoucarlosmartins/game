@@ -1,4 +1,3 @@
-// @ts-nocheck
 // draw.js — renderização do canvas (mina em grid + superfície compacta)
 import { state } from './state.js';
 import { R, RECIPE_BY_ID, CFG, MINE, TOOLS, SILO_DEFAULT_CAP } from './data.js';
@@ -12,8 +11,8 @@ import {
   OVERWORLD, TOOLBAR, MINE_BACK_BTN, factoryRect,
 } from './geometry.js';
 
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game'));
+const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
 
 // ---------- Cena MINA: faixa de céu sobre a superfície + chão ----------
 function drawMineSky() {

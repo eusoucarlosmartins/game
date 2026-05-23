@@ -15,7 +15,7 @@
     "isolatedModules": true,
     "forceConsistentCasingInFileNames": true,
     "useDefineForClassFields": true,
-    "types": ["vitest/globals", "node"]
+    "types": ["vitest/globals", "node", "vite/client"]
   },
   "include": ["src/**/*", "tests/**/*", "vite.config.js"],
   "exclude": ["node_modules", "dist"]

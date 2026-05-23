@@ -1,4 +1,3 @@
-// @ts-nocheck
 // main.js — entry: loop, eventos, init
 import { state, log } from './state.js';
 import { $ } from './util.js';
@@ -75,7 +74,12 @@ function frame(now) {
 }
 
 // ---------- Canvas: mouse + click handler (tools + grid) ----------
-const canvas = document.getElementById('game');
+const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game'));
+/**
+ * Converte coords da página → coords do canvas (1280x720 logical).
+ * @param {MouseEvent} e
+ * @returns {{x: number, y: number}}
+ */
 function canvasCoords(e) {
   const rect = canvas.getBoundingClientRect();
   return {
@@ -96,8 +100,9 @@ function hitTest(x, y, r) {
   return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 }
 
+/** @param {string} name */
 function switchTab(name) {
-  const btn = document.querySelector(`.tab[data-tab="${name}"]`);
+  const btn = /** @type {HTMLElement|null} */ (document.querySelector(`.tab[data-tab="${name}"]`));
   if (btn) btn.click();
   // Em mobile, abre o drawer pra ver a aba imediatamente
   const sb = document.querySelector('.sidebar');
@@ -221,7 +226,7 @@ canvas.addEventListener('click', (e) => {
 // ---------- Atalhos de teclado ----------
 document.addEventListener('keydown', (e) => {
   // Ignora se estiver digitando em input/textarea ou se modal aberto
-  const tag = e.target.tagName;
+  const tag = /** @type {HTMLElement|null} */ (e.target)?.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA') return;
   if (document.querySelector('.modal:not(.hidden)')) return;
   switch (e.key) {
@@ -244,26 +249,31 @@ function updateMuteBtn() {
 }
 
 // ---------- Event handlers (DOM) ----------
-document.querySelectorAll('.speed-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    state.speed = parseFloat(btn.dataset.speed);
-    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+document.querySelectorAll('.speed-btn').forEach((btn) => {
+  const el = /** @type {HTMLElement} */ (btn);
+  el.addEventListener('click', () => {
+    state.speed = parseFloat(el.dataset.speed || '1');
+    document.querySelectorAll('.speed-btn').forEach((b) => b.classList.remove('active'));
+    el.classList.add('active');
   });
 });
 
-document.querySelectorAll('.tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const t = btn.dataset.tab;
-    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.querySelector(`.tab-panel[data-panel="${t}"]`).classList.add('active');
+document.querySelectorAll('.tab').forEach((btn) => {
+  const el = /** @type {HTMLElement} */ (btn);
+  el.addEventListener('click', () => {
+    const t = el.dataset.tab;
+    document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
+    const panel = document.querySelector(`.tab-panel[data-panel="${t}"]`);
+    if (panel) panel.classList.add('active');
   });
 });
 
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-action]');
+  const target = /** @type {HTMLElement|null} */ (e.target);
+  if (!target) return;
+  const t = /** @type {HTMLElement|null} */ (target.closest('[data-action]'));
   if (!t) return;
   const a = t.dataset.action;
   switch (a) {
@@ -318,8 +328,9 @@ $('upgrades-btn').addEventListener('click', openUpgradesModal);
 $('hire-worker-btn').addEventListener('click', tryHireWorker);
 $('mute-btn').addEventListener('click', () => { toggleMute(); updateMuteBtn(); play('click'); });
 
-document.querySelectorAll('[data-close]').forEach(b => {
-  b.addEventListener('click', () => closeModal(b.dataset.close));
+document.querySelectorAll('[data-close]').forEach((b) => {
+  const el = /** @type {HTMLElement} */ (b);
+  el.addEventListener('click', () => closeModal(el.dataset.close || ''));
 });
 document.querySelectorAll('.modal').forEach(m => {
   m.addEventListener('click', (e) => { if (e.target === m) m.classList.add('hidden'); });
