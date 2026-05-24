@@ -64,7 +64,7 @@
       <div class="save-controls">
         <button id="install-btn" class="icon-btn" title="Instalar como app" style="display:none">📲</button>
         <button id="mute-btn" class="icon-btn" title="Mudo (M)">🔊</button>
-        <button id="upgrades-btn" class="icon-btn highlight" title="Upgrades (U)">⚙</button>
+        <button id="upgrades-btn" class="icon-btn highlight" title="Upgrades (U)">⚙<span class="btn-dot" id="upgrades-dot" hidden></span></button>
         <button id="slots-btn" class="icon-btn" title="Slots de save (saves automáticos a cada 15s)">📂</button>
         <button id="newgame-btn" class="icon-btn danger" title="Novo jogo">↻</button>
         <span class="save-status" id="save-status">—</span>
@@ -76,13 +76,13 @@
 
       <aside class="sidebar">
         <nav class="tabs" id="tabs">
-          <button data-tab="contract" class="tab active" title="Contrato atual e estoque"><span class="tab-icon">📜</span><span class="tab-label">Contrato</span></button>
-          <button data-tab="mine" class="tab" title="Mineradores e silos"><span class="tab-icon">⛏</span><span class="tab-label">Mina</span></button>
-          <button data-tab="factory" class="tab" title="Fábricas e receitas"><span class="tab-icon">🏭</span><span class="tab-label">Fábricas</span></button>
-          <button data-tab="market" class="tab" title="Vender excedente"><span class="tab-icon">💰</span><span class="tab-label">Mercado</span></button>
-          <button data-tab="projects" class="tab" title="Projetos de obra"><span class="tab-icon">🏗</span><span class="tab-label">Projetos</span></button>
-          <button data-tab="stats" class="tab" title="Estatísticas e conquistas"><span class="tab-icon">📊</span><span class="tab-label">Stats</span></button>
-          <button data-tab="log" class="tab" title="Registro de eventos"><span class="tab-icon">📖</span><span class="tab-label">Registro</span></button>
+          <button data-tab="contract" class="tab active" title="Contrato atual e estoque"><span class="tab-icon">📜</span><span class="tab-label">Contrato</span><span class="tab-badge" id="badge-contract"></span></button>
+          <button data-tab="mine" class="tab" title="Mineradores e silos"><span class="tab-icon">⛏</span><span class="tab-label">Mina</span><span class="tab-badge" id="badge-mine"></span></button>
+          <button data-tab="factory" class="tab" title="Fábricas e receitas"><span class="tab-icon">🏭</span><span class="tab-label">Fábricas</span><span class="tab-badge" id="badge-factory"></span></button>
+          <button data-tab="market" class="tab" title="Vender excedente"><span class="tab-icon">💰</span><span class="tab-label">Mercado</span><span class="tab-badge" id="badge-market"></span></button>
+          <button data-tab="projects" class="tab" title="Projetos de obra"><span class="tab-icon">🏗</span><span class="tab-label">Projetos</span><span class="tab-badge" id="badge-projects"></span></button>
+          <button data-tab="stats" class="tab" title="Estatísticas e conquistas"><span class="tab-icon">📊</span><span class="tab-label">Stats</span><span class="tab-badge" id="badge-stats"></span></button>
+          <button data-tab="log" class="tab" title="Registro de eventos"><span class="tab-icon">📖</span><span class="tab-label">Registro</span><span class="tab-badge" id="badge-log"></span></button>
         </nav>
 
         <section class="tab-panel active" data-panel="contract">

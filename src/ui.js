@@ -1,6 +1,6 @@
 // ui.js — renderização da sidebar e modais (receita)
 import { state } from './state.js';
-import { R, RECIPE_BY_ID, RECIPES_BY_TIER, EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY_ID, RES_CATS, ERAS, ROMAN, CFG, TOOLS, WORKER_COST, MINE_CATALOG } from './data.js';
+import { R, RECIPE_BY_ID, RECIPES_BY_TIER, EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY_ID, RES_CATS, ERAS, ROMAN, CFG, TOOLS, WORKER_COST, MINE_CATALOG, MINE, SILO_DEFAULT_CAP } from './data.js';
 import { isMineOwned } from './mine.js';
 import { $, fmtMoney } from './util.js';
 import { currentEra, eraData, isRecipeUnlocked } from './progression.js';
@@ -12,6 +12,7 @@ import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } fr
 import { statusWagons } from './wagon.js';
 import { listAchievements } from './achievements.js';
 import { currentSeason, currentYear, dayInSeason } from './seasons.js';
+import { activeMine } from './mine.js';
 
 function renderContract() {
   const box = $('contract-box');
@@ -449,6 +450,103 @@ let lastUpgRender = 0;
 let lastButtonsRender = 0;
 export function registerUpgradesRefresh(fn) { upgradesRefreshFn = fn; }
 
+// Computa badges contextuais (contagem de "coisas pra fazer") por tab
+function updateTabBadges() {
+  const setBadge = (id, value, level = '') => {
+    const el = $(`badge-${id}`);
+    if (!el) return;
+    if (value && value !== '0') {
+      el.textContent = String(value);
+      el.className = `tab-badge show ${level}`;
+    } else {
+      el.className = 'tab-badge';
+    }
+  };
+  // Contrato: produtos prontos pra entregar (qualquer produto, mas destaca o do contrato)
+  const k = state.contract;
+  let readyForContract = 0;
+  if (k) readyForContract = Math.floor(state.products[k.product] || 0);
+  // Urgência: contrato com pouco tempo
+  const urgent = k && (k.deadline - k.elapsed) < 20;
+  if (urgent) setBadge('contract', '!', 'warn');
+  else setBadge('contract', readyForContract > 0 ? readyForContract : 0);
+  // Mina: veios revelados sem worker (oportunidade) + mineradores livres
+  const m = activeMine();
+  let availableSpots = 0;
+  if (m && m.grid) {
+    for (let r = 0; r < MINE.rows; r++) {
+      for (let c = 0; c < MINE.cols; c++) {
+        const t = m.grid[r][c];
+        if (t && t.revealed && t.type === 'ore' && !t.worker) availableSpots++;
+      }
+    }
+  }
+  const freeWorkers = (state.workersTotal || 0) - workersActive();
+  setBadge('mine', freeWorkers > 0 && availableSpots > 0 ? Math.min(freeWorkers, availableSpots) : 0, 'info');
+  // Fábricas: idles (sem brewing E sem produtos completos) — pode trocar receita
+  const idle = (state.factories || []).filter(f => {
+    if (f.brewing > 0) return false;
+    const recipe = RECIPE_BY_ID[f.recipeId];
+    if (!recipe) return true;
+    // Falta ingrediente? idle
+    for (const [ing, need] of Object.entries(recipe.in)) {
+      if (R[ing].free) continue;
+      const have = ingredientHave(ing);
+      if (have < need) return true;
+    }
+    return false;
+  }).length;
+  setBadge('factory', idle, 'warn');
+  // Mercado: silos muito cheios (>=80%) - empurrar venda
+  let nearFull = 0;
+  for (const k2 in state.warehouse) {
+    if (R[k2] && R[k2].free) continue;
+    const stock = state.warehouse[k2] || 0;
+    const cap = (state.silos[k2] && state.silos[k2].cap) || SILO_DEFAULT_CAP;
+    if (stock / cap >= 0.8) nearFull++;
+  }
+  setBadge('market', nearFull, 'warn');
+  // Projetos: quantos podem ser iniciados (sem ativo, era ok, recursos ok)
+  if (!state.projects.active) {
+    const startable = availableProjects().filter(p => {
+      if (!canActivateProject(p.id)) return false;
+      for (const [res, need] of Object.entries(p.requirements)) {
+        const have = R[res] && R[res].kind === 'raw' ? (state.warehouse[res] || 0) : (state.products[res] || 0);
+        if (have < need) return false;
+      }
+      return true;
+    }).length;
+    setBadge('projects', startable);
+  } else {
+    setBadge('projects', 0);
+  }
+  // Stats: novas conquistas recentes (últimos 60s)
+  const now = Date.now();
+  const recent = listAchievements().filter(a => a.unlocked && (now - (a.timestamp || 0)) < 60000).length;
+  setBadge('stats', recent, 'info');
+  // Registro: sempre 0 (apenas remover badge)
+  setBadge('log', 0);
+
+  // Dot no botão Upgrades: pode comprar algo novo
+  const upgDot = $('upgrades-dot');
+  if (upgDot) {
+    let canBuy = false;
+    for (const e of EQUIPMENT) {
+      if (state.equipment[e.id]) continue;
+      if (e.req && !state.equipment[e.req]) continue;
+      if (state.money >= e.cost) { canBuy = true; break; }
+    }
+    if (!canBuy) {
+      for (const r of RESEARCH) {
+        if (state.research[r.id]) continue;
+        if (r.req && !state.research[r.req]) continue;
+        if ((state.rp || 0) >= r.cost) { canBuy = true; break; }
+      }
+    }
+    upgDot.hidden = !canBuy;
+  }
+}
+
 export function syncUI() {
   $('stat-money').textContent = fmtMoney(state.money);
   $('stat-day').textContent = state.day;
@@ -493,6 +591,7 @@ export function syncUI() {
   }
   renderStats();
   renderLog();
+  updateTabBadges();
 
   const upgModal = $('modal-upgrades');
   if (upgModal && !upgModal.classList.contains('hidden') && upgradesRefreshFn) {
