@@ -105,14 +105,21 @@
 
         <section class="tab-panel" data-panel="mine">
           <div class="panel">
-            <h3>Mineradores</h3>
+            <h3>Mineradores Contratados</h3>
             <div class="worker-stats">
-              <div>Contratados: <strong id="workers-total">2</strong></div>
+              <div>Total: <strong id="workers-total">2</strong></div>
               <div>Disponíveis: <strong id="workers-available">2</strong></div>
               <div>Em ação: <strong id="workers-active">0</strong></div>
+              <div>Folha: <strong id="workers-salary">$50/d</strong></div>
             </div>
-            <button id="hire-worker-btn" class="big-btn">Contratar Minerador ($80)</button>
-            <p class="hint">Selecione "Minerador" na barra direita do canvas e clique num veio descoberto para alocar.</p>
+            <ul id="workers-list" class="workers-list"></ul>
+          </div>
+          <div class="panel">
+            <h3>Mercado de Trabalho</h3>
+            <p class="hint">Candidatos chegam todo dia novo. Pague mais por skill maior.</p>
+            <div id="candidates-list" class="candidates-list"></div>
+            <button id="hire-worker-btn" class="big-btn">Contratar Aleatório ($60)</button>
+            <p class="hint">Selecione "Minerador" na toolbar da mina e clique num veio pra alocar.</p>
           </div>
           <div class="panel">
             <h3>Ferramenta Atual</h3>

@@ -14,6 +14,7 @@ import { play, toggleMute, unlockOnFirstGesture } from './audio.js';
 import { updateParticles } from './particles.js';
 import { updateAchievementPopups } from './achievements.js';
 import { updateAmbience } from './ambience.js';
+import { ensureWorkers } from './workers.js';
 import { draw } from './draw.js';
 import { syncUI, openRecipeModal, openBuyMineModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
@@ -507,6 +508,10 @@ document.addEventListener('click', (e) => {
     case 'project-start':  activateProject(t.dataset.id); break;
     case 'project-cancel': cancelProject(); break;
     case 'tool-select':    setTool(t.dataset.tool); play('click'); break;
+    case 'hire-cand': {
+      import('./workers.js').then(m => m.hireCandidate(parseInt(t.dataset.id || '0', 10)));
+      break;
+    }
     case 'confirm-buy-mine': {
       buyMine(t.dataset.id);
       closeModal('modal-buy-mine');
@@ -653,6 +658,7 @@ if (loaded) {
   state.eraReached = Math.max(state.eraReached || 1, currentEra());
   // Garante array de minas válido após carregar (migração já feita em save.js)
   if (!state.mines || state.mines.length === 0) initMines();
+  ensureWorkers(); // saves antigos só tinham workersTotal — cria array agora
   // Saves antigos sem campo tutorial: marca como dismissed (não atrapalha)
   if (!state.tutorial) state.tutorial = { step: 0, dismissed: true, autoDismissIn: 0 };
   log(`Partida carregada (dia ${state.day}, ${state.contractsCompleted} contratos, Era ${ROMAN[state.eraReached - 1]}).`, 'good');
@@ -678,6 +684,7 @@ if (loaded) {
     }
   } catch { /* ignore */ }
   initMines();
+  ensureWorkers();
   log('Bem-vindo, governador. Esta é a vista do mapa de Santa Catarina.');
   const diffLabel = state.difficulty === 'easy' ? '🌿 Fácil'
     : state.difficulty === 'hard' ? '🔥 Difícil' : '⚖ Normal';

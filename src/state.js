@@ -13,7 +13,8 @@ export const state = {
   mines: [],            // populado por initMines() no boot
   activeMineIdx: 0,     // qual mina o jogador está vendo no momento
   tool: 'pick',         // ferramenta selecionada (global)
-  workersTotal: 2,      // pool global de mineradores
+  workersTotal: 2,      // pool global (mantido pra compat com saves antigos)
+  workers: [],          // array de mineradores: { id, name, skill, fatigue, salary, tile? }
   tilesDug: 0,          // contador global
 
   factories: [

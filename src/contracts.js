@@ -174,6 +174,8 @@ export function updateDay(dt) {
       state.money += state.passiveIncome;
       state.totalEarnings = (state.totalEarnings || 0) + state.passiveIncome;
     }
+    // Salários diários dos workers
+    import('./workers.js').then(m => m.payDailySalaries());
     if (state.day % 7 === 0) {
       const tax = Math.floor(state.approval * 5);
       state.money += tax;

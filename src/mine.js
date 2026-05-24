@@ -10,6 +10,7 @@ import {
   checkMineAchievements, checkMineCountAchievements,
   checkExhaustionAchievement, checkRegenerationAchievement, checkTntAchievement,
 } from './achievements.js';
+import { ensureWorkers, takeIdleWorker, getWorker, makeWorker } from './workers.js';
 
 export function isResourceUnlocked(resource) {
   return eraData(currentEra()).deposits.includes(resource);
@@ -338,23 +339,26 @@ export function tryPlaceWorker(r, c) {
   if (!t || !t.revealed) return;
   if (t.type !== 'ore') { log('Só pode alocar minerador em veio descoberto.', 'bad'); return; }
   if (t.worker) {
+    // Retirar: encontra o worker pelo id armazenado no tile
+    const w = getWorker(t.worker);
     t.worker = false;
-    log('Minerador retirado.');
+    log(`Minerador retirado${w ? ` (${w.name})` : ''}.`);
     return;
   }
   if (!isResourceUnlocked(t.resource)) {
     log(`Era atual não permite extrair ${R[t.resource].name}. Avance de era primeiro.`, 'bad');
     return;
   }
-  // Veio precisa estar conectado ao elevador via túneis — cave um caminho até lá!
   if (!mine._connectivity) mine._connectivity = computeConnectivity(mine.grid);
   if (!isOreReachable(mine, r, c)) {
     log('Cave um túnel a partir do elevador até este veio antes de alocar o minerador.', 'bad');
     return;
   }
-  if (workersAvailable() <= 0) { log('Sem mineradores disponíveis. Contrate mais.', 'bad'); return; }
-  t.worker = true;
-  log(`[${mine.name}] Minerador alocado em ${R[t.resource].name}.`);
+  ensureWorkers();
+  const free = takeIdleWorker();
+  if (!free) { log('Sem mineradores disponíveis. Contrate mais.', 'bad'); return; }
+  t.worker = free.id;
+  log(`[${mine.name}] ${free.name} (skill ${free.skill}×) alocado em ${R[t.resource].name}.`);
   play('click');
   if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 1) {
     state.tutorial.step = 2;
@@ -363,7 +367,8 @@ export function tryPlaceWorker(r, c) {
 
 // Itera TODAS as minas (workers de minas inativas também produzem)
 export function workersAvailable() {
-  return state.workersTotal - workersActive();
+  ensureWorkers();
+  return state.workers.length - workersActive();
 }
 export function workersActive() {
   let n = 0;
@@ -378,11 +383,16 @@ export function workersActive() {
   return n;
 }
 
+// Contratação rápida: gera worker aleatório com custo fixo (vs. seleção)
 export function tryHireWorker() {
   if (state.money < WORKER_COST) return;
   state.money -= WORKER_COST;
-  state.workersTotal++;
-  log(`Minerador contratado. Total: ${state.workersTotal}.`);
+  ensureWorkers();
+  // Worker contratado random tem skill mediana (0.7-1.1)
+  const w = makeWorker(0.7, 1.1);
+  state.workers.push(w);
+  state.workersTotal = state.workers.length;
+  log(`Contratado: ${w.name} (skill ${w.skill}×) por ${fmtMoney(WORKER_COST)}.`, 'good');
   play('coin');
 }
 
@@ -441,17 +451,24 @@ export function updateMine(dt) {
 function updateSingleMine(mine, dt, rate) {
   // Recomputa conectividade a cada tick (BFS rápido, 30×50 = 1500 cells)
   mine._connectivity = computeConnectivity(mine.grid);
-  // Produção dos workers (só conta se ainda conectado ao elevador)
+  // Produção dos workers (modulada por skill e fatigue individuais)
   for (let r = 0; r < MINE.rows; r++) {
     for (let c = 0; c < MINE.cols; c++) {
       const t = mine.grid[r][c];
       if (!t.worker) continue;
       if (t.type !== 'ore') { t.worker = false; continue; }
       if (t.amount <= 0) continue;
-      if (!isOreReachable(mine, r, c)) continue; // perdeu conexão? não produz
-      const take = Math.min(rate * dt, t.amount);
+      if (!isOreReachable(mine, r, c)) continue;
+      const w = typeof t.worker === 'number' ? getWorker(t.worker) : null;
+      const skill = w ? w.skill : 1;
+      const fatigue = w ? (w.fatigue || 0) : 0;
+      // Fatigue reduz produção até 50%. Skill multiplica diretamente.
+      const effRate = rate * skill * (1 - fatigue * 0.5);
+      const take = Math.min(effRate * dt, t.amount);
       const added = tryAddToSilo(t.resource, take);
       t.amount -= added;
+      // Fatigue acumula proporcional ao trabalho (chega em 1 após ~3 min cavando)
+      if (w) w.fatigue = Math.min(1, (w.fatigue || 0) + dt * 0.006);
       if (t.amount <= 0.05) {
         mine.grid[r][c] = airTile(true);
         state.tilesDug++;

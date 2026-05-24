@@ -64,15 +64,73 @@ function renderStockLists() {
 }
 
 function renderMinePanel() {
-  const total = state.workersTotal;
+  // Garante que tenha workers iniciais (se save antigo ou novo jogo)
+  if (!Array.isArray(state.workers) || state.workers.length === 0) {
+    // Lazy import + ensure
+    import('./workers.js').then(m => m.ensureWorkers());
+  }
+  const workersArr = state.workers || [];
+  const total = workersArr.length;
   const active = workersActive();
   const avail = total - active;
   const tWorkers = $('workers-total');     if (tWorkers) tWorkers.textContent = total;
   const tAvail   = $('workers-available'); if (tAvail)   tAvail.textContent   = avail;
   const tAct     = $('workers-active');    if (tAct)     tAct.textContent     = active;
+  const totalSalary = workersArr.reduce((s, w) => s + (w.salary || 0), 0);
+  const tSal = $('workers-salary');
+  if (tSal) tSal.textContent = fmtMoney(totalSalary) + '/d';
 
   const hireBtn = $('hire-worker-btn');
   if (hireBtn) hireBtn.disabled = state.money < WORKER_COST;
+
+  // Lista de workers contratados
+  const wList = $('workers-list');
+  if (wList) {
+    if (workersArr.length === 0) {
+      wList.innerHTML = '<li><em>Nenhum minerador. Contrate alguém.</em></li>';
+    } else {
+      // Marca quem tá alocado pelo ID
+      const allocated = new Set();
+      for (const m of (state.mines || [])) {
+        if (!m.grid) continue;
+        for (const row of m.grid) for (const t of row) if (typeof t.worker === 'number') allocated.add(t.worker);
+      }
+      wList.innerHTML = workersArr.map(w => {
+        const isWorking = allocated.has(w.id);
+        const fatPct = Math.round((w.fatigue || 0) * 100);
+        const fatCls = fatPct > 70 ? 'high' : fatPct > 40 ? 'mid' : 'low';
+        return `<li class="worker-item ${isWorking ? 'working' : 'idle'}">
+          <div class="worker-row">
+            <span class="worker-name">${w.name}</span>
+            <span class="worker-status">${isWorking ? '⛏ cavando' : '💤 ocioso'}</span>
+          </div>
+          <div class="worker-row worker-meta">
+            <span>skill <strong>${w.skill}×</strong></span>
+            <span>sal. ${fmtMoney(w.salary)}/d</span>
+            <span class="worker-fatigue ${fatCls}">cansaço ${fatPct}%</span>
+          </div>
+        </li>`;
+      }).join('');
+    }
+  }
+
+  // Candidatos
+  const cList = $('candidates-list');
+  if (cList) {
+    // Lazy import — getCandidates é regerado por dia
+    import('./workers.js').then(m => {
+      const cands = m.getCandidates();
+      cList.innerHTML = cands.map(c => `
+        <div class="candidate-card">
+          <div class="cand-name">${c.name}</div>
+          <div class="cand-meta">skill <strong>${c.skill}×</strong> · sal. ${fmtMoney(c.salary)}/d</div>
+          <button class="mini-btn" data-action="hire-cand" data-id="${c.id}" ${state.money < c.hireCost ? 'disabled' : ''}>
+            Contratar ${fmtMoney(c.hireCost)}
+          </button>
+        </div>
+      `).join('');
+    });
+  }
 
   const tool = TOOLS[state.tool] || TOOLS.pick;
   const info = $('tool-info');
