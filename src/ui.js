@@ -83,6 +83,12 @@ function renderMinePanel() {
   const hireBtn = $('hire-worker-btn');
   if (hireBtn) hireBtn.disabled = state.money < WORKER_COST;
 
+  // Listas com botões (workers + candidates) — throttle pra não recriar
+  // os botões a cada frame (cancelaria mousedown→mouseup do click)
+  const nowMine = performance.now();
+  if (nowMine - lastMineListsRender <= 500) return;
+  lastMineListsRender = nowMine;
+
   // Lista de workers contratados
   const wList = $('workers-list');
   if (wList) {
@@ -562,6 +568,7 @@ function renderEraBanner() {
 let upgradesRefreshFn = null;
 let lastUpgRender = 0;
 let lastButtonsRender = 0;
+let lastMineListsRender = 0;
 export function registerUpgradesRefresh(fn) { upgradesRefreshFn = fn; }
 
 // Computa nível de atenção (0-1) pra cada elemento clicável do canvas.
