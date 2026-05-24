@@ -10,7 +10,7 @@ import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
 import { updateEvents } from './events.js';
 import { updateProjects, activateProject, cancelProject } from './projects.js';
-import { play, toggleMute, unlockOnFirstGesture } from './audio.js';
+import { play, toggleMute, unlockOnFirstGesture, startMusic, toggleMusic, isMusicEnabled, syncMusicPreference } from './audio.js';
 import { updateParticles } from './particles.js';
 import { updateAchievementPopups } from './achievements.js';
 import { updateAmbience } from './ambience.js';
@@ -459,6 +459,13 @@ function updateMuteBtn() {
     btn.textContent = state.muted ? '🔇' : '🔊';
     btn.title = state.muted ? 'Som desligado (M)' : 'Som ligado (M)';
   }
+  const mBtn = $('music-btn');
+  if (mBtn) {
+    const on = isMusicEnabled();
+    mBtn.textContent = on ? '🎵' : '🎶';
+    mBtn.style.opacity = on ? '1' : '0.45';
+    mBtn.title = on ? 'Música ambiente ON — clique pra desligar' : 'Música ambiente OFF — clique pra ligar';
+  }
 }
 
 // ---------- Event handlers (DOM) ----------
@@ -544,6 +551,7 @@ $('buy-factory-btn').addEventListener('click', buyFactory);
 $('upgrades-btn').addEventListener('click', openUpgradesModal);
 $('hire-worker-btn').addEventListener('click', tryHireWorker);
 $('mute-btn').addEventListener('click', () => { toggleMute(); updateMuteBtn(); play('click'); });
+$('music-btn').addEventListener('click', () => { toggleMusic(); updateMuteBtn(); play('click'); });
 
 document.querySelectorAll('[data-close]').forEach((b) => {
   const el = /** @type {HTMLElement} */ (b);
@@ -693,7 +701,9 @@ if (loaded) {
   log('Recursos esgotam com o tempo — pode explorar várias minas em paralelo.');
 }
 unlockOnFirstGesture();
+syncMusicPreference();
 updateMuteBtn();
+startMusic();
 
 // ---------- PWA: service worker + install prompt ----------
 if ('serviceWorker' in navigator && import.meta.env?.PROD) {

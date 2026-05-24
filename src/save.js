@@ -48,7 +48,7 @@ const PERSIST_KEYS = [
   'equipment','research','rp','eraReached','log',
   'projects','permContractBonus','passiveIncome','approvalFloor',
   'wagonSpeedBonus','wagonCapacityBonus','marketBonus','rpBonus','factorySpeedBonus','approvalPerContractBonus',
-  'muted','scene','tutorial','difficulty',
+  'muted','musicEnabled','scene','tutorial','difficulty',
   'totalEarnings','oreMined','cityGrowth','tntUses','achievements','history','gameMode',
 ];
 

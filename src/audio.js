@@ -126,3 +126,82 @@ export function toggleMute() {
   state.muted = !state.muted;
   return state.muted;
 }
+
+// ===== Música ambiente procedural por era =====
+// Sparse, suave. Notas espalhadas no tempo formando um colchão sonoro.
+// Cada era adiciona instrumentos/notas pra dar sensação de evolução.
+// MUSIC_PATTERNS[era] = { tempo (s entre notas), vol, notes (Hz array),
+// bass (Hz harmônico opcional), type (waveform) }
+const MUSIC_PATTERNS = {
+  1: { tempo: 7, vol: 0.025, notes: [220, 247, 220, 196], type: 'triangle' },
+  2: { tempo: 6, vol: 0.028, notes: [220, 277, 247, 220, 196, 220], type: 'triangle', bass: 110 },
+  3: { tempo: 5.5, vol: 0.03, notes: [220, 277, 330, 277, 247, 220, 196], type: 'triangle', bass: 110 },
+  4: { tempo: 5, vol: 0.032, notes: [196, 247, 294, 392, 294, 247, 196, 247], type: 'sine', bass: 98 },
+  5: { tempo: 4.5, vol: 0.035, notes: [196, 247, 294, 392, 494, 392, 294, 247], type: 'sine', bass: 98 },
+  6: { tempo: 4, vol: 0.038, notes: [196, 247, 294, 392, 494, 587, 494, 392, 294], type: 'sine', bass: 98 },
+};
+
+let musicTimer = null;
+let noteIdx = 0;
+let currentMusicEra = 0;
+let musicEnabled = true;
+
+function tickMusic() {
+  if (state.muted || !musicEnabled || state.over || state.speed === 0) {
+    scheduleNextNote(2);
+    return;
+  }
+  const era = state.eraReached || 1;
+  const pattern = MUSIC_PATTERNS[era] || MUSIC_PATTERNS[1];
+  if (era !== currentMusicEra) {
+    noteIdx = 0;
+    currentMusicEra = era;
+  }
+  const c = getCtx();
+  if (c) {
+    if (c.state === 'suspended') c.resume().catch(() => {});
+    try {
+      const freq = pattern.notes[noteIdx % pattern.notes.length];
+      tone(c, { freq, dur: 1.8, vol: pattern.vol, type: pattern.type });
+      // Bass harmônico de fundo (alguns patterns)
+      if (pattern.bass && noteIdx % 2 === 0) {
+        tone(c, { freq: pattern.bass, dur: 2.5, vol: pattern.vol * 0.6, type: 'sine' });
+      }
+    } catch { /* ignore */ }
+  }
+  noteIdx++;
+  // Tempo varia ±20% pra não ficar mecânico
+  const variance = 0.8 + Math.random() * 0.4;
+  scheduleNextNote(pattern.tempo * variance);
+}
+
+function scheduleNextNote(seconds = 5) {
+  if (musicTimer) clearTimeout(musicTimer);
+  musicTimer = setTimeout(tickMusic, seconds * 1000);
+}
+
+export function startMusic() {
+  if (musicTimer) return;
+  // Espera 3s antes da primeira nota pra não tocar logo no carregamento
+  scheduleNextNote(3);
+}
+
+export function stopMusic() {
+  if (musicTimer) clearTimeout(musicTimer);
+  musicTimer = null;
+}
+
+export function toggleMusic() {
+  musicEnabled = !musicEnabled;
+  state.musicEnabled = musicEnabled;
+  if (musicEnabled) startMusic(); else stopMusic();
+  return musicEnabled;
+}
+
+export function isMusicEnabled() {
+  return musicEnabled && !state.muted;
+}
+
+export function syncMusicPreference() {
+  if (typeof state.musicEnabled === 'boolean') musicEnabled = state.musicEnabled;
+}

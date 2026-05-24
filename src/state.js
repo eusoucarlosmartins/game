@@ -69,6 +69,7 @@ export const state = {
 
   // Preferências
   muted: false,
+  musicEnabled: true,       // música ambiente procedural ligada/desligada
   difficulty: 'normal',     // 'easy' | 'normal' | 'hard' — afeta multiplicadores
   gameMode: 'normal',       // 'normal' | 'sandbox' | 'hardcore'
 
