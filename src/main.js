@@ -24,15 +24,23 @@ import { clamp } from './util.js';
 // ---------- Game over / vitória ----------
 function checkEnd() {
   if (state.over) return;
-  if (state.approval <= 0) {
+  // Sandbox nunca tem game over (modo "sem pressão")
+  const sandbox = state.gameMode === 'sandbox';
+  if (state.approval <= 0 && !sandbox) {
     state.over = true;
     $('end-title').textContent = 'A população te destituiu';
     $('end-text').textContent = 'A aprovação caiu a zero. O governo central revogou seu mandato.';
     $('game-over').classList.remove('hidden');
+    // Hardcore: deleta o save ao perder (sem retomar)
+    if (state.gameMode === 'hardcore') {
+      try { deleteSave(); } catch { /* ignore */ }
+      $('end-text').textContent += ' Modo Hardcore: a partida foi apagada permanentemente.';
+    }
   } else if (state.approval >= CFG.approvalMax && state.day >= 21 && state.contractsCompleted >= 10) {
     state.over = true;
     $('end-title').textContent = 'Vitória política!';
-    $('end-text').textContent = `Aprovação máxima após ${state.day} dias e ${state.contractsCompleted} contratos cumpridos. Santa Catarina prospera sob a Tapuia.`;
+    const modeLbl = sandbox ? ' (sandbox)' : state.gameMode === 'hardcore' ? ' [HARDCORE]' : '';
+    $('end-text').textContent = `Aprovação máxima após ${state.day} dias e ${state.contractsCompleted} contratos cumpridos${modeLbl}. Santa Catarina prospera sob a Tapuia.`;
     $('game-over').classList.remove('hidden');
   }
 }
@@ -626,10 +634,11 @@ document.querySelectorAll('[data-newgame-diff]').forEach(btn => {
   const el = /** @type {HTMLElement} */ (btn);
   el.addEventListener('click', () => {
     const diff = el.dataset.newgameDiff;
+    const mode = el.dataset.newgameMode || 'normal';
     deleteSave();
-    // Persiste o difficulty escolhido pro próximo load
     try {
       localStorage.setItem('tapuia_next_difficulty', diff || 'normal');
+      localStorage.setItem('tapuia_next_mode', mode);
     } catch { /* ignore */ }
     location.reload();
   });
@@ -649,15 +658,23 @@ if (loaded) {
   log(`Partida carregada (dia ${state.day}, ${state.contractsCompleted} contratos, Era ${ROMAN[state.eraReached - 1]}).`, 'good');
   updateSaveStatus();
 } else {
-  // Aplica difficulty escolhido no modal de Novo Jogo (se houver)
+  // Aplica dificuldade + modo escolhidos no modal de Novo Jogo (se houver)
   try {
     const nextDiff = localStorage.getItem('tapuia_next_difficulty');
+    const nextMode = localStorage.getItem('tapuia_next_mode') || 'normal';
     if (nextDiff) {
       state.difficulty = nextDiff;
-      // Dinheiro inicial varia: easy 2x, normal 1x, hard 0.5x
       const mul = nextDiff === 'easy' ? 2 : nextDiff === 'hard' ? 0.5 : 1;
       state.money = Math.floor(CFG.startMoney * mul);
       localStorage.removeItem('tapuia_next_difficulty');
+    }
+    state.gameMode = nextMode;
+    localStorage.removeItem('tapuia_next_mode');
+    // Sandbox: bônus iniciais generosos
+    if (nextMode === 'sandbox') {
+      state.money = 99999;
+      state.workersTotal = 8;
+      state.rp = 500;
     }
   } catch { /* ignore */ }
   initMines();

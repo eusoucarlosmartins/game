@@ -175,6 +175,11 @@
             <ul id="stats-summary" class="stats-list"></ul>
           </div>
           <div class="panel">
+            <h3>Evolução ao Longo dos Dias</h3>
+            <div id="stats-charts" class="stats-charts"></div>
+            <p class="hint">Histórico dos últimos 60 dias (1 ponto por dia).</p>
+          </div>
+          <div class="panel">
             <h3>Minério Total Extraído</h3>
             <ul id="stats-ores" class="stockpile compact"></ul>
             <p class="hint">Quantidade acumulada por recurso desde o início da partida.</p>
@@ -280,22 +285,36 @@
     <div class="modal-card wide">
       <button class="modal-close" data-close="modal-newgame">×</button>
       <h2>Começar Novo Jogo</h2>
-      <p class="modal-sub">Apaga a partida atual e começa de novo. Escolha o nível de dificuldade:</p>
+      <p class="modal-sub">Apaga a partida atual e começa de novo.</p>
+      <h3 class="diff-section-title">Dificuldade</h3>
       <div class="difficulty-options">
-        <button class="diff-option" data-newgame-diff="easy">
+        <button class="diff-option" data-newgame-diff="easy" data-newgame-mode="normal">
           <div class="diff-emoji">🌿</div>
           <div class="diff-name">Fácil</div>
           <div class="diff-desc">2× dinheiro inicial · +30% mineração e contratos · perdas de aprovação reduzidas</div>
         </button>
-        <button class="diff-option recommended" data-newgame-diff="normal">
+        <button class="diff-option recommended" data-newgame-diff="normal" data-newgame-mode="normal">
           <div class="diff-emoji">⚖</div>
           <div class="diff-name">Normal <span class="diff-tag">recomendado</span></div>
           <div class="diff-desc">Balanceamento padrão. Como o jogo foi projetado.</div>
         </button>
-        <button class="diff-option" data-newgame-diff="hard">
+        <button class="diff-option" data-newgame-diff="hard" data-newgame-mode="normal">
           <div class="diff-emoji">🔥</div>
           <div class="diff-name">Difícil</div>
           <div class="diff-desc">½ dinheiro inicial · -20% mineração e contratos · aprovação cai mais rápido</div>
+        </button>
+      </div>
+      <h3 class="diff-section-title">Modos Especiais</h3>
+      <div class="difficulty-options">
+        <button class="diff-option special-sandbox" data-newgame-diff="easy" data-newgame-mode="sandbox">
+          <div class="diff-emoji">🏖</div>
+          <div class="diff-name">Sandbox</div>
+          <div class="diff-desc">$99.999 inicial, 8 mineradores, sem game over. Pra experimentar tudo sem pressão.</div>
+        </button>
+        <button class="diff-option special-hardcore" data-newgame-diff="hard" data-newgame-mode="hardcore">
+          <div class="diff-emoji">💀</div>
+          <div class="diff-name">Hardcore</div>
+          <div class="diff-desc">Dificuldade alta + save é APAGADO ao perder a partida. Sem segunda chance.</div>
         </button>
       </div>
     </div>

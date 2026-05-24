@@ -63,10 +63,12 @@ export const state = {
   cityGrowth: 0,           // pontos de crescimento da cidade (sobe a cada contrato cumprido)
   tntUses: 0,              // contador pra conquista de TNT
   achievements: {},        // id -> timestamp quando desbloqueado
+  history: [],             // [{ day, money, rp, approval, contracts }] — sample diário pra gráficos
 
   // Preferências
   muted: false,
   difficulty: 'normal',     // 'easy' | 'normal' | 'hard' — afeta multiplicadores
+  gameMode: 'normal',       // 'normal' | 'sandbox' | 'hardcore'
 
   // Cena atual do canvas: 'overworld' (mapa) ou 'mine' (interior da mina)
   scene: 'overworld',

@@ -97,6 +97,16 @@ export function updateDay(dt) {
     const prevDay = state.day;
     state.day++;
     state.rp += Math.round(2 * (1 + (state.rpBonus || 0)));
+    // Sample do histórico pra gráficos (cap em 60 entradas)
+    if (!state.history) state.history = [];
+    state.history.push({
+      day: state.day,
+      money: Math.round(state.money),
+      rp: state.rp,
+      approval: Math.round(state.approval),
+      contracts: state.contractsCompleted,
+    });
+    if (state.history.length > 60) state.history.shift();
     // Detecta transição de estação pra notificar
     import('./seasons.js').then(m => {
       const prevSeasonIdx = Math.floor(((prevDay - 1) % 20) / 5);

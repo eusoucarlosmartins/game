@@ -351,7 +351,57 @@ function renderResearch() {
   cont.innerHTML = html;
 }
 
+// SVG sparkline simples — desenha polyline + label de início/fim
+function sparklineSvg(values, label, color, formatVal = (v) => String(v)) {
+  const w = 300, h = 70, pad = 24;
+  if (!values || values.length < 2) {
+    return `<div class="chart-empty">${label}: <em>aguardando dados (avance pelo menos 2 dias).</em></div>`;
+  }
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const stepX = (w - pad * 2) / (values.length - 1);
+  const points = values.map((v, i) => {
+    const x = pad + i * stepX;
+    const y = pad + (h - pad * 2) * (1 - (v - min) / range);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const lastY = pad + (h - pad * 2) * (1 - (values[values.length - 1] - min) / range);
+  const lastX = pad + (values.length - 1) * stepX;
+  return `<div class="chart-row">
+    <div class="chart-label">${label}</div>
+    <svg viewBox="0 0 ${w} ${h}" class="chart-svg" preserveAspectRatio="none">
+      <line x1="${pad}" y1="${h - pad}" x2="${w - pad}" y2="${h - pad}" stroke="rgba(58,31,10,0.25)" stroke-dasharray="2 3"/>
+      <polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="3" fill="${color}"/>
+      <text x="${pad}" y="${pad - 4}" font-size="9" fill="rgba(58,31,10,0.6)">${formatVal(max)}</text>
+      <text x="${pad}" y="${h - pad + 11}" font-size="9" fill="rgba(58,31,10,0.6)">${formatVal(min)}</text>
+      <text x="${w - pad - 30}" y="${pad - 4}" font-size="10" font-weight="bold" fill="${color}">${formatVal(values[values.length - 1])}</text>
+    </svg>
+  </div>`;
+}
+
+function renderHistoryCharts() {
+  const cont = $('stats-charts');
+  if (!cont) return;
+  const hist = state.history || [];
+  if (hist.length < 2) {
+    cont.innerHTML = '<div class="chart-empty">Aguardando histórico — avance pelo menos 2 dias.</div>';
+    return;
+  }
+  const money = hist.map(h => h.money);
+  const rp = hist.map(h => h.rp);
+  const approval = hist.map(h => h.approval);
+  const contracts = hist.map(h => h.contracts);
+  cont.innerHTML =
+    sparklineSvg(money, '💰 Dinheiro', '#5a9fc8', v => fmtMoney(v)) +
+    sparklineSvg(approval, '⚖ Aprovação', '#a82e1c', v => v + '%') +
+    sparklineSvg(rp, '🔬 PP', '#a868c8', v => v) +
+    sparklineSvg(contracts, '📜 Contratos cumpridos', '#4d7c3a', v => v);
+}
+
 function renderStats() {
+  renderHistoryCharts();
   const summary = $('stats-summary');
   if (summary) {
     const totalTilesDug = state.tilesDug || 0;
@@ -618,10 +668,19 @@ export function syncUI() {
   const diffEl = $('difficulty-badge');
   if (diffEl) {
     const d = state.difficulty || 'normal';
+    const mode = state.gameMode || 'normal';
     const map = { easy: '🌿', normal: '⚖', hard: '🔥' };
     const lbl = { easy: 'Fácil', normal: 'Normal', hard: 'Difícil' };
-    diffEl.textContent = `${map[d]} ${lbl[d]}`;
-    diffEl.title = `Dificuldade: ${lbl[d]} (escolhida ao iniciar novo jogo)`;
+    if (mode === 'sandbox') {
+      diffEl.textContent = '🏖 Sandbox';
+      diffEl.title = 'Modo Sandbox: sem game over, dinheiro extra inicial';
+    } else if (mode === 'hardcore') {
+      diffEl.textContent = '💀 Hardcore';
+      diffEl.title = 'Modo Hardcore: save apagado se aprovação chegar a 0';
+    } else {
+      diffEl.textContent = `${map[d]} ${lbl[d]}`;
+      diffEl.title = `Dificuldade: ${lbl[d]} (escolhida ao iniciar novo jogo)`;
+    }
   }
   const factEl  = $('factory-count');    if (factEl)   factEl.textContent   = state.factories.length;
   const wkEl    = $('footer-workers');   if (wkEl)     wkEl.textContent     = `${workersActive()}/${state.workersTotal}`;

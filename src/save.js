@@ -49,7 +49,7 @@ const PERSIST_KEYS = [
   'projects','permContractBonus','passiveIncome','approvalFloor',
   'wagonSpeedBonus','wagonCapacityBonus','marketBonus','rpBonus','factorySpeedBonus','approvalPerContractBonus',
   'muted','scene','tutorial','difficulty',
-  'totalEarnings','oreMined','cityGrowth','tntUses','achievements',
+  'totalEarnings','oreMined','cityGrowth','tntUses','achievements','history','gameMode',
 ];
 
 let lastSaveTime = 0;
