@@ -59,10 +59,13 @@ export const GROUND_Y = 580; // linha de chão visual em overworld (mountains ac
 
 // Slots 0-2: cluster central original (próximo da estrada da carruagem).
 // Slots 3+: espalhados pelos quadrantes expandidos do mundo, viram landmarks
-// distantes (similar à referência onde fábricas pontilham o mapa todo).
+// distantes — fábricas pontilham todo o mapa, cada uma com sua rota.
 const EXTRA_FACTORY_POSITIONS = [
-  { x: 1500, y: 470, w: 145, h: 180 }, // F4: leste (perto de Itajaí)
-  { x: 1700, y: 1000, w: 145, h: 180 }, // F5: sudeste (perto de Criciúma)
+  { x: 1450, y: 460, w: 130, h: 170 },  // F4: leste (perto de Itajaí)
+  { x: 1900, y: 470, w: 130, h: 170 },  // F5: leste extremo (perto de Bombinhas)
+  { x: 1660, y: 990, w: 130, h: 170 },  // F6: sudeste (perto de Criciúma)
+  { x: 700,  y: 1020, w: 130, h: 170 }, // F7: sul (perto de São José)
+  { x: 380,  y: 1100, w: 130, h: 170 }, // F8: sul-sudoeste (perto de Garopaba)
 ];
 export function factoryRect(i) {
   if (i < FACTORY_AREA.slots) {

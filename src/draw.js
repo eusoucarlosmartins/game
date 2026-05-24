@@ -122,50 +122,7 @@ function drawSilo(x, baseY, w, resourceId) {
 // ---------- Fábricas compactas ----------
 function drawFactories() {
   for (let i = 0; i < state.factories.length; i++) {
-    const f = state.factories[i];
-    const rect = factoryRect(i);
-    // base de madeira
-    ctx.fillStyle = '#7a4b25';
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-    ctx.fillStyle = '#5a3416';
-    ctx.fillRect(rect.x, rect.y, rect.w, 6);
-    // janelas
-    ctx.fillStyle = '#f1e3c2';
-    const winsPerRow = Math.max(2, Math.floor((rect.w - 20) / 26));
-    for (let j = 0; j < winsPerRow; j++) {
-      ctx.fillRect(rect.x + 10 + j * 26, rect.y + 22, 16, 14);
-    }
-    // chaminé com fumaça
-    ctx.fillStyle = '#3a1f0a';
-    ctx.fillRect(rect.x + rect.w - 22, rect.y - 36, 10, 36);
-    const t = performance.now() / 500;
-    if (f.brewing > 0) {
-      for (let k = 0; k < 3; k++) {
-        const yOff = (t * 12 + k * 8) % 28;
-        ctx.fillStyle = `rgba(80,60,40,${0.4 - k * 0.1})`;
-        ctx.beginPath();
-        ctx.arc(rect.x + rect.w - 17, rect.y - 40 - yOff, 4 + k, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    // placa com nome do produto
-    const recipeName = R[f.recipeId]?.name || '—';
-    ctx.fillStyle = '#c69042';
-    ctx.fillRect(rect.x + 4, rect.y + rect.h - 22, rect.w - 8, 16);
-    ctx.fillStyle = '#1a0e06';
-    ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(recipeName.length > 14 ? recipeName.slice(0, 13) + '…' : recipeName, rect.x + rect.w / 2, rect.y + rect.h - 14);
-    // barra de progresso
-    const recipe = RECIPE_BY_ID[f.recipeId];
-    if (recipe && f.brewing > 0) {
-      const pct = 1 - f.brewing / recipe.time;
-      ctx.fillStyle = '#1a0e06';
-      ctx.fillRect(rect.x + 4, rect.y - 8, rect.w - 8, 4);
-      ctx.fillStyle = '#c69042';
-      ctx.fillRect(rect.x + 4, rect.y - 8, (rect.w - 8) * pct, 4);
-    }
+    drawSingleFactory(i, state.factories[i]);
   }
   for (let i = state.factories.length; i < CFG.factorySlotsMax; i++) {
     const rect = factoryRect(i);
@@ -180,6 +137,188 @@ function drawFactories() {
     ctx.textBaseline = 'middle';
     ctx.fillText('SLOT', rect.x + rect.w / 2, rect.y + rect.h / 2 - 6);
     ctx.fillText(fmtMoney(CFG.factoryCosts[i]), rect.x + rect.w / 2, rect.y + rect.h / 2 + 10);
+  }
+}
+
+// Fábrica estilo industrial 1900: tijolo vermelho, telhado de 2 águas,
+// janelas em grade com vidro azulado, chaminé grossa com tijolos, porta
+// grande de carga, faixa decorativa com o produto.
+function drawSingleFactory(idx, f) {
+  const rect = factoryRect(idx);
+  const x = rect.x, y = rect.y, w = rect.w, h = rect.h;
+  const product = R[f.recipeId];
+  const productColor = product?.color || '#c69042';
+  const recipe = RECIPE_BY_ID[f.recipeId];
+
+  // Sombra no chão
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(x - 4, y + h - 2, w + 8, 4);
+
+  // === Telhado de duas águas (acima do prédio) ===
+  const roofH = 22;
+  ctx.fillStyle = '#5a2a1a'; // telhado escuro
+  ctx.beginPath();
+  ctx.moveTo(x - 6, y);
+  ctx.lineTo(x + w / 2, y - roofH);
+  ctx.lineTo(x + w + 6, y);
+  ctx.closePath();
+  ctx.fill();
+  // Telhas (linhas horizontais sobre o telhado)
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 5; i++) {
+    const ry = y - (roofH / 5) * i;
+    const inset = (roofH / 5) * i * (w / 2 + 6) / roofH;
+    ctx.beginPath();
+    ctx.moveTo(x - 6 + inset, ry);
+    ctx.lineTo(x + w + 6 - inset, ry);
+    ctx.stroke();
+  }
+
+  // === Parede de tijolos ===
+  ctx.fillStyle = '#8a3a1a';
+  ctx.fillRect(x, y, w, h);
+  // Textura de tijolos (linhas horizontais + verticais escalonadas)
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  for (let row = 0; row < Math.floor(h / 7); row++) {
+    const ry = y + row * 7;
+    ctx.fillRect(x, ry, w, 1);
+    const offset = row % 2 === 0 ? 0 : 14;
+    for (let bx = offset; bx < w; bx += 28) {
+      ctx.fillRect(x + bx, ry, 1, 7);
+    }
+  }
+  // Faixa lateral (vigas estruturais nas pontas)
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x, y, 4, h);
+  ctx.fillRect(x + w - 4, y, 4, h);
+  // Faixa decorativa no topo (cornija)
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x - 2, y, w + 4, 6);
+  ctx.fillStyle = '#c69042';
+  ctx.fillRect(x - 2, y + 6, w + 4, 2);
+
+  // === Janelas industriais ===
+  // 2 fileiras de janelas em grade
+  const winW = 12, winH = 16, winGap = 8;
+  const winRowY = [y + 18, y + 42];
+  const winsPerRow = Math.max(2, Math.floor((w - 24) / (winW + winGap)));
+  const winStartX = x + (w - (winsPerRow * winW + (winsPerRow - 1) * winGap)) / 2;
+  for (let row = 0; row < winRowY.length; row++) {
+    if (winRowY[row] + winH > y + h - 32) break; // não desenha sob a porta
+    for (let j = 0; j < winsPerRow; j++) {
+      const wx = winStartX + j * (winW + winGap);
+      const wy = winRowY[row];
+      // moldura escura
+      ctx.fillStyle = '#1a0e06';
+      ctx.fillRect(wx - 1, wy - 1, winW + 2, winH + 2);
+      // vidro com tom levemente brilhante quando ativa
+      const glowing = f.brewing > 0;
+      ctx.fillStyle = glowing ? '#ffe8a4' : '#a8c8d8';
+      ctx.fillRect(wx, wy, winW, winH);
+      // cruz da janela (estrutura de vidro)
+      ctx.strokeStyle = '#1a0e06';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(wx + winW / 2, wy); ctx.lineTo(wx + winW / 2, wy + winH);
+      ctx.moveTo(wx, wy + winH / 2); ctx.lineTo(wx + winW, wy + winH / 2);
+      ctx.stroke();
+    }
+  }
+
+  // === Porta de carga (centro inferior) ===
+  const doorW = 26, doorH = 30;
+  const doorX = x + w / 2 - doorW / 2;
+  const doorY = y + h - doorH - 22;
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(doorX - 2, doorY - 2, doorW + 4, doorH + 4);
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(doorX, doorY, doorW, doorH);
+  // tábuas verticais
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(doorX + (doorW / 4) * i, doorY);
+    ctx.lineTo(doorX + (doorW / 4) * i, doorY + doorH);
+    ctx.stroke();
+  }
+  // ferragens (cantos)
+  ctx.fillStyle = '#444';
+  ctx.fillRect(doorX + 2, doorY + 2, 3, 3);
+  ctx.fillRect(doorX + doorW - 5, doorY + 2, 3, 3);
+  ctx.fillRect(doorX + 2, doorY + doorH - 5, 3, 3);
+  ctx.fillRect(doorX + doorW - 5, doorY + doorH - 5, 3, 3);
+
+  // === Chaminé grossa de tijolos ===
+  const chimX = x + w - 28;
+  const chimW = 14;
+  const chimH = 52;
+  const chimTop = y - chimH - 4;
+  // base alargada
+  ctx.fillStyle = '#5a2a1a';
+  ctx.fillRect(chimX - 2, chimTop + chimH - 8, chimW + 4, 8);
+  // corpo de tijolo
+  ctx.fillStyle = '#8a3a1a';
+  ctx.fillRect(chimX, chimTop, chimW, chimH);
+  // textura de tijolo
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  for (let i = 0; i < Math.floor(chimH / 5); i++) {
+    ctx.fillRect(chimX, chimTop + i * 5, chimW, 1);
+  }
+  for (let i = 0; i < Math.floor(chimH / 5); i++) {
+    if (i % 2 === 0) ctx.fillRect(chimX + chimW / 2, chimTop + i * 5, 1, 5);
+    else ctx.fillRect(chimX, chimTop + i * 5, 1, 5);
+  }
+  // bordo escuro no topo da chaminé
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(chimX - 2, chimTop, chimW + 4, 4);
+
+  // Fumaça animada quando brewing
+  if (f.brewing > 0) {
+    const t = performance.now() / 350;
+    for (let k = 0; k < 4; k++) {
+      const yOff = (t * 14 + k * 12) % 50;
+      const drift = Math.sin((t + k) * 2) * 4;
+      ctx.fillStyle = `rgba(90,75,55,${0.55 - k * 0.12})`;
+      ctx.beginPath();
+      ctx.arc(chimX + chimW / 2 + drift, chimTop - 4 - yOff, 5 + k * 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // === Faixa de identificação (rótulo da empresa) ===
+  // Cor da empresa = cor do produto (visual identity)
+  const labelY = y + h - 18;
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillRect(x + 4, labelY - 1, w - 8, 14);
+  ctx.fillStyle = productColor;
+  ctx.fillRect(x + 6, labelY + 1, w - 12, 10);
+  // nome do produto centralizado
+  const recipeName = product?.name || '—';
+  ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = '#1a0e06';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(
+    recipeName.length > 16 ? recipeName.slice(0, 15) + '…' : recipeName,
+    x + w / 2, labelY + 6,
+  );
+
+  // === Barra de progresso da batelada (em cima) ===
+  if (recipe && f.brewing > 0) {
+    const pct = 1 - f.brewing / recipe.time;
+    ctx.fillStyle = '#1a0e06';
+    ctx.fillRect(x + 4, y - 6, w - 8, 5);
+    // Barra com cor do produto
+    ctx.fillStyle = productColor;
+    ctx.fillRect(x + 5, y - 5, (w - 10) * pct, 3);
+    // borda dourada quando perto de completar
+    if (pct > 0.85) {
+      ctx.strokeStyle = '#ffd44a';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 4, y - 6, w - 8, 5);
+    }
   }
 }
 
