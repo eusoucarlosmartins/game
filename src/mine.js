@@ -107,16 +107,23 @@ function oreTile(resource, amount, revealed) {
   return { type: 'ore', resource, amount, revealed: !!revealed, worker: false };
 }
 
+// Recursos "essenciais" usados em quase toda receita ao longo das eras —
+// coal entra em todo smelt, iron_ore alimenta toda a cadeia do aço, wood
+// vira tábua + componentes. Recebem boost adicional pra nunca faltarem.
+const ESSENTIAL_DEPOSITS = {
+  coal:     { veinCount: 20, minDepth: 1, veinSize: 6 },
+  iron_ore: { veinCount: 16, minDepth: 1, veinSize: 6 },
+  wood:     { veinCount: 12, minDepth: 2, veinSize: 5 },
+};
+
 function placeOreVeins(grid, oreBias) {
   for (const dep of DEPOSIT_TYPES) {
     const cost = dep.cost;
     let veinCount, minDepth, veinSize;
-    // Camadas geológicas: minérios baratos no topo, raros nas profundezas.
-    // Coal+iron (cost=0) são os essenciais de Era 1 (única contrato é iron_ingot),
-    // então recebem MUITO mais veios. Outros baixos (stone/sand/clay/wood) ainda
-    // aparecem mas mais espaçados.
-    if (cost === 0)            { veinCount = 16; minDepth = 1;  veinSize = 6; }
-    else if (cost < 200)       { veinCount = 7;  minDepth = 2;  veinSize = 5; }
+    // Essenciais (coal/iron/wood) têm contagem fixa generosa.
+    if (ESSENTIAL_DEPOSITS[dep.id]) {
+      ({ veinCount, minDepth, veinSize } = ESSENTIAL_DEPOSITS[dep.id]);
+    } else if (cost < 200)     { veinCount = 7;  minDepth = 2;  veinSize = 5; }
     else if (cost < 500)       { veinCount = 6;  minDepth = 10; veinSize = 5; }
     else if (cost < 1000)      { veinCount = 5;  minDepth = 20; veinSize = 4; }
     else                       { veinCount = 4;  minDepth = 32; veinSize = 4; }
@@ -126,7 +133,7 @@ function placeOreVeins(grid, oreBias) {
       if (oreBias.includes(dep.id)) {
         veinCount = Math.floor(veinCount * 2);
         minDepth = Math.max(1, minDepth - 2);
-      } else if (cost > 0) {
+      } else if (cost > 0 && !ESSENTIAL_DEPOSITS[dep.id]) {
         veinCount = Math.max(1, Math.floor(veinCount * 0.45));
       }
     }
