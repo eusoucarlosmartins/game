@@ -307,21 +307,28 @@ canvas.addEventListener('touchend', (e) => {
   }
 }, { passive: false });
 
-// Scroll wheel = zoom (só no overworld). Zoom em volta do cursor (estilo Google Maps).
+// Scroll wheel: overworld = zoom; mina = scroll vertical do grid.
 canvas.addEventListener('wheel', (e) => {
-  if (state.scene !== 'overworld') return;
-  e.preventDefault();
-  const p = canvasCoords(e);
-  const oldZoom = state.camera.zoom;
-  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-  const newZoom = clamp(oldZoom * factor, 0.5, 2.2);
-  // Mantém o ponto sob o cursor fixo durante o zoom
-  const worldX = state.camera.x + p.x / oldZoom;
-  const worldY = state.camera.y + p.y / oldZoom;
-  state.camera.zoom = newZoom;
-  const u = unlockedWorldSize(currentEra());
-  state.camera.x = clamp(worldX - p.x / newZoom, 0, Math.max(0, u.w - W / newZoom));
-  state.camera.y = clamp(worldY - p.y / newZoom, 0, Math.max(0, u.h - H / newZoom));
+  if (state.scene === 'overworld') {
+    e.preventDefault();
+    const p = canvasCoords(e);
+    const oldZoom = state.camera.zoom;
+    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    const newZoom = clamp(oldZoom * factor, 0.5, 2.2);
+    // Mantém o ponto sob o cursor fixo durante o zoom
+    const worldX = state.camera.x + p.x / oldZoom;
+    const worldY = state.camera.y + p.y / oldZoom;
+    state.camera.zoom = newZoom;
+    const u = unlockedWorldSize(currentEra());
+    state.camera.x = clamp(worldX - p.x / newZoom, 0, Math.max(0, u.w - W / newZoom));
+    state.camera.y = clamp(worldY - p.y / newZoom, 0, Math.max(0, u.h - H / newZoom));
+  } else if (state.scene === 'mine') {
+    e.preventDefault();
+    // Wheel scroll na mina = pan vertical do grid (mais intuitivo que drag)
+    const mineMaxY = Math.max(0, MINE.rows * MINE.cell - (H - MINE.y));
+    const step = e.deltaY > 0 ? 80 : -80;
+    state.mineCamera.y = clamp(state.mineCamera.y + step, 0, mineMaxY);
+  }
 }, { passive: false });
 function hitTest(x, y, r) {
   return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
@@ -729,6 +736,9 @@ document.querySelectorAll('[data-newgame-diff]').forEach(btn => {
   el.addEventListener('click', () => {
     const diff = el.dataset.newgameDiff;
     const mode = el.dataset.newgameMode || 'normal';
+    // Marca que estamos iniciando novo jogo PRA o beforeunload não re-salvar
+    // o estado antigo por cima (location.reload dispara beforeunload).
+    state.over = true;
     deleteSave();
     try {
       localStorage.setItem('tapuia_next_difficulty', diff || 'normal');
