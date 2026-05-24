@@ -804,6 +804,10 @@ html, body {
   background: linear-gradient(to bottom, #d8a8a8, #a87878);
   border-color: #6a4040;
 }
+.diff-option.special-daily {
+  background: linear-gradient(to bottom, #d8c8a4, #a89878);
+  border-color: #6a5430;
+}
 
 /* MODAL DIFICULDADE */
 .difficulty-options {

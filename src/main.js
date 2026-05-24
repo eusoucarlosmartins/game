@@ -15,6 +15,7 @@ import { updateParticles } from './particles.js';
 import { updateAchievementPopups } from './achievements.js';
 import { updateAmbience } from './ambience.js';
 import { ensureWorkers } from './workers.js';
+import { checkDailyChallenge } from './daily.js';
 import { draw } from './draw.js';
 import { syncUI, openRecipeModal, openBuyMineModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
@@ -58,6 +59,7 @@ function tick(dt) {
   updateParticles(dt);
   updateAchievementPopups(dt);
   updateAmbience(dt);
+  checkDailyChallenge();
   // Auto-dismiss do último passo do tutorial
   if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 2) {
     state.tutorial.autoDismissIn = (state.tutorial.autoDismissIn ?? 12) - dt;
@@ -689,6 +691,10 @@ if (loaded) {
       state.money = 99999;
       state.workersTotal = 8;
       state.rp = 500;
+    }
+    // Daily challenge: setup específico
+    if (nextMode === 'daily') {
+      import('./daily.js').then(m => m.setupDailyChallenge());
     }
   } catch { /* ignore */ }
   initMines();

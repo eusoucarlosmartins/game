@@ -749,6 +749,10 @@ export function syncUI() {
     } else if (mode === 'hardcore') {
       diffEl.textContent = '💀 Hardcore';
       diffEl.title = 'Modo Hardcore: save apagado se aprovação chegar a 0';
+    } else if (mode === 'daily') {
+      const dc = state.dailyChallenge;
+      diffEl.textContent = dc ? `📅 ${dc.name}` : '📅 Desafio do Dia';
+      diffEl.title = dc ? dc.desc : 'Desafio diário';
     } else {
       diffEl.textContent = `${map[d]} ${lbl[d]}`;
       diffEl.title = `Dificuldade: ${lbl[d]} (escolhida ao iniciar novo jogo)`;

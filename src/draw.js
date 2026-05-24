@@ -14,6 +14,7 @@ import { drawParticles } from './particles.js';
 import { topPopup } from './achievements.js';
 import { drawAmbience } from './ambience.js';
 import { mineNeedsAttention, cityCanDeliver, marketNeedsAttention, researchNeedsAttention } from './ui.js';
+import { getDailyStatus } from './daily.js';
 
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game'));
 const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
@@ -3033,10 +3034,50 @@ export function draw() {
   drawEventBanner();
   drawTutorial();
   drawAchievementPopup();
+  drawDailyChallengePanel();
 }
 
 // Popup grande no topo da tela quando uma conquista é desbloqueada.
 // Anima entrada (slide-down) e saída (fade-out) automaticamente.
+// Painel pequeno no canto inferior-esquerdo mostrando progresso do daily
+function drawDailyChallengePanel() {
+  const status = getDailyStatus();
+  if (!status) return;
+  const x = 14, y = H - 80, w = 240, h = 64;
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+  let bg = '#5a4030';
+  if (status.met) bg = '#3a6a3a';
+  else if (status.failed) bg = '#6a3a3a';
+  ctx.fillStyle = bg;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = '#c69042';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x, y, w, h);
+  // Título
+  ctx.fillStyle = '#ffd44a';
+  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`📅 ${status.name}${status.met ? ' ✓' : status.failed ? ' ✗' : ''}`, x + 8, y + 6);
+  // Descrição
+  ctx.fillStyle = '#f1e3c2';
+  ctx.font = '10px "Segoe UI"';
+  ctx.fillText(status.desc, x + 8, y + 22);
+  // Barra de progresso
+  const pct = Math.min(1, status.progress / status.total);
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillRect(x + 8, y + 40, w - 16, 8);
+  ctx.fillStyle = status.met ? '#4d7c3a' : status.failed ? '#a82e1c' : '#c69042';
+  ctx.fillRect(x + 8, y + 40, (w - 16) * pct, 8);
+  // Valor
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 10px "Segoe UI"';
+  ctx.textAlign = 'right';
+  const valTxt = `${status.progress.toLocaleString('pt-BR')} / ${status.total.toLocaleString('pt-BR')}`;
+  ctx.fillText(valTxt, x + w - 8, y + 52);
+}
+
 function drawAchievementPopup() {
   const p = topPopup();
   if (!p) return;
