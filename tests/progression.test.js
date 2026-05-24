@@ -58,12 +58,13 @@ describe('isDepositUnlocked / isRecipeUnlocked', () => {
 });
 
 describe('transportTier', () => {
-  it('tier 0 sem pesquisa', () => {
-    expect(transportTier()).toBe(0);
-  });
-  it('tier 1 com r_wagon_big', () => {
-    state.research = { r_wagon_big: true };
+  it('tier mínimo igual à era atual (sem pesquisa)', () => {
+    // Sem contratos completos → era 1 → tier 1 (estradas evoluem com era)
     expect(transportTier()).toBe(1);
+  });
+  it('pesquisa sobrescreve se for maior que era', () => {
+    state.research = { r_wagon_big: true };
+    expect(transportTier()).toBe(1); // tier da pesquisa = era atual
   });
   it('toma o maior tier entre pesquisas adquiridas', () => {
     state.research = { r_wagon_big: true, r_truck: true };

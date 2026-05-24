@@ -1708,8 +1708,10 @@ function drawOverworld() {
   drawAmbience(ctx);
   drawRiver();
   drawDecorativeLandmarks();
+  // Rotas mina→fábrica também evoluem visualmente pelo transportTier
+  const tier = transportTier();
   for (const d of OVERWORLD.dottedMineToFactory) {
-    drawDottedRoute(d.x1, d.y1, d.x2, d.y2);
+    drawTieredRoute(d.x1, d.y1, d.x2, d.y2, tier);
   }
   drawMineEntrances();
   drawMercadoNode();

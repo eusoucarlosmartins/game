@@ -64,7 +64,10 @@ export function checkEraProgression() {
 
 // Tier de transporte: maior tier das pesquisas adquiridas
 export function transportTier() {
-  let t = 0;
+  // Tier mínimo escala com a era — mesmo sem pesquisar transporte, as estradas
+  // evoluem com o progresso histórico (era 1 = trilha, era 2 = cascalho, etc.)
+  let t = currentEra();
+  // Pesquisas explícitas de transporte sobrepõem se forem maiores
   for (const id in state.research) {
     if (state.research[id]) {
       const r = RES_BY_ID[id];
