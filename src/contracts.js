@@ -39,7 +39,13 @@ function makeContract() {
   else if (product.tier === 3) need = irand(3, 6);
   else need = irand(2, 5);
   if (currentEra() === 1) need = irand(3, 5);
-  const deadline = rand(CFG.cityDeadlineMin, CFG.cityDeadlineMax) + price * 0.15;
+  // Fácil: pede 35% menos (mín. 2). Difícil: pede 20% mais. Normal: igual.
+  if (state.difficulty === 'easy') need = Math.max(2, Math.round(need * 0.65));
+  else if (state.difficulty === 'hard') need = Math.ceil(need * 1.2);
+  let deadline = rand(CFG.cityDeadlineMin, CFG.cityDeadlineMax) + price * 0.15;
+  // Fácil: prazo +50%. Difícil: prazo -20%.
+  if (state.difficulty === 'easy') deadline *= 1.5;
+  else if (state.difficulty === 'hard') deadline *= 0.8;
   // Cidade diferente das que já estão ativas
   const activeCities = new Set(state.contracts.map(c => c.city));
   let city = CFG.cities[irand(0, CFG.cities.length - 1)];
@@ -95,7 +101,9 @@ function completeContract(idx) {
   state.money += reward;
   state.totalEarnings = (state.totalEarnings || 0) + reward;
   state.rp += rpGain;
-  const apGain = Math.round(CFG.contractApprovalGain * (1 + (state.approvalPerContractBonus || 0)));
+  // Fácil ganha 50% mais aprovação por contrato; difícil ganha 20% menos.
+  const apDiffMul = state.difficulty === 'easy' ? 1.5 : state.difficulty === 'hard' ? 0.8 : 1;
+  const apGain = Math.round(CFG.contractApprovalGain * apDiffMul * (1 + (state.approvalPerContractBonus || 0)));
   state.approval = clamp(state.approval + apGain, 0, CFG.approvalMax);
   state.contractsCompleted++;
   state.cityGrowth = (state.cityGrowth || 0) + 1;
