@@ -2842,12 +2842,141 @@ function drawExhaustedOverlay() {
 }
 
 // ---------- Entry ----------
+// Tooltip flutuante quando o mouse paira sobre um nodo do overworld
+// (mina, fábrica, mercado, pesquisa, cidade). Mostra título, status e dica.
+function drawNodeTooltip() {
+  if (state.isPanning) return;
+  if (state.mouseX < 0 || state.mouseY < 0) return;
+  // state.mouseX/Y em world coords no overworld — fazemos hit-test simples
+  const mx = state.mouseX, my = state.mouseY;
+  const hitRect = (r) => mx >= r.x && mx < r.x + r.w && my >= r.y && my < r.y + r.h;
+
+  let title = '', sub = '', color = '#f1e3c2', tipX = mx, tipY = my;
+  // Minas
+  for (let i = 0; i < OVERWORLD.mineEntrances.length; i++) {
+    const e = OVERWORLD.mineEntrances[i];
+    if (!hitRect(e)) continue;
+    const mine = state.mines[i];
+    if (mine) {
+      title = `⛏ ${mine.name}`;
+      sub = mine.exhausted ? 'Esgotada — clique pra regenerar' : 'Clique pra entrar e cavar túneis';
+      color = mine.exhausted ? '#a82e1c' : '#ffd44a';
+    } else {
+      title = '+ Nova Mina';
+      sub = 'Clique pra comprar uma nova mina';
+      color = '#a8d4d8';
+    }
+    drawTooltipBox(e.x + e.w / 2, e.y + e.h, title, sub, color);
+    return;
+  }
+  // Mercado
+  if (hitRect(OVERWORLD.mercadoNode)) {
+    title = '💰 Mercado Livre';
+    sub = 'Clique pra vender excedente (60-70% do preço)';
+    drawTooltipBox(OVERWORLD.mercadoNode.x + OVERWORLD.mercadoNode.w / 2,
+      OVERWORLD.mercadoNode.y + OVERWORLD.mercadoNode.h, title, sub, '#c69042');
+    return;
+  }
+  // Pesquisa
+  if (hitRect(OVERWORLD.pesquisaNode)) {
+    title = '🔬 Pesquisa & Loja';
+    sub = `${state.rp || 0} PP disponíveis · Clique pra ver upgrades`;
+    drawTooltipBox(OVERWORLD.pesquisaNode.x + OVERWORLD.pesquisaNode.w / 2,
+      OVERWORLD.pesquisaNode.y + OVERWORLD.pesquisaNode.h, title, sub, '#a868c8');
+    return;
+  }
+  // Fábricas
+  for (let i = 0; i < state.factories.length; i++) {
+    const fr = factoryRect(i);
+    if (!hitRect(fr)) continue;
+    const f = state.factories[i];
+    const product = R[f.recipeId];
+    title = `🏭 Fábrica ${i + 1}: ${product?.name || '—'}`;
+    if (f.brewing > 0) {
+      const recipe = RECIPE_BY_ID[f.recipeId];
+      const pct = recipe ? Math.round((1 - f.brewing / recipe.time) * 100) : 0;
+      sub = `Produzindo... ${pct}% · Clique pra trocar receita`;
+    } else {
+      sub = 'Idle (falta ingrediente) · Clique pra trocar receita';
+    }
+    drawTooltipBox(fr.x + fr.w / 2, fr.y + fr.h, title, sub, product?.color || '#c69042');
+    return;
+  }
+  // Slots vazios de fábrica
+  for (let i = state.factories.length; i < CFG.factorySlotsMax; i++) {
+    const fr = factoryRect(i);
+    if (!hitRect(fr)) continue;
+    title = `+ Nova Fábrica (slot ${i + 1})`;
+    sub = `Custa ${fmtMoney(CFG.factoryCosts[i])} · Clique pra construir`;
+    drawTooltipBox(fr.x + fr.w / 2, fr.y + fr.h, title, sub, '#a8d4d8');
+    return;
+  }
+  // Cidade
+  if (hitRect(CITY) || hitRect({ x: CITY.x, y: CITY.y - 100, w: CITY.w, h: 100 })) {
+    const k = state.contract;
+    title = `🏛 ${state.currentCity || 'Cidade'}`;
+    if (k) {
+      const have = Math.floor(state.products[k.product] || 0);
+      sub = `Quer ${k.need - k.delivered}× ${R[k.product]?.name || '?'} (${have} prontos no estoque)`;
+      color = have >= k.need - k.delivered ? '#4d7c3a' : '#c69042';
+    } else {
+      sub = `Aguardando próximo pedido...`;
+    }
+    drawTooltipBox(CITY.x + CITY.w / 2, CITY.y + CITY.h + 20, title, sub, color);
+    return;
+  }
+  void tipX; void tipY;
+}
+
+// Helper: desenha um tooltip flutuante elegante numa posição (em world coords)
+function drawTooltipBox(worldX, worldY, title, sub, accentColor) {
+  // Como estamos dentro de drawNodeTooltip que é chamada APÓS drawOverworld
+  // (fora do save/restore com translate), trabalha em screen coords.
+  // Mas mouseX/Y são world coords... então preciso converter:
+  const sx = (worldX - state.camera.x) * state.camera.zoom;
+  const sy = (worldY - state.camera.y) * state.camera.zoom;
+  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+  const titleW = ctx.measureText(title).width;
+  ctx.font = '11px "Segoe UI", Arial, sans-serif';
+  const subW = ctx.measureText(sub).width;
+  const ttW = Math.max(titleW, subW) + 18;
+  const ttH = 40;
+  let tx = sx - ttW / 2;
+  let ty = sy + 8;
+  // Clampa pra dentro da viewport
+  if (tx < 4) tx = 4;
+  if (tx + ttW > W - 4) tx = W - ttW - 4;
+  if (ty + ttH > H - 4) ty = sy - ttH - 12;
+  // Background
+  ctx.fillStyle = 'rgba(20,10,5,0.95)';
+  ctx.fillRect(tx - 1, ty - 1, ttW + 2, ttH + 2);
+  ctx.fillStyle = 'rgba(58,31,10,0.98)';
+  ctx.fillRect(tx, ty, ttW, ttH);
+  // Borda colorida do accent
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(tx, ty, ttW, ttH);
+  // Faixa de cor no topo
+  ctx.fillStyle = accentColor;
+  ctx.fillRect(tx, ty, ttW, 3);
+  // Texto
+  ctx.fillStyle = accentColor;
+  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(title, tx + 8, ty + 8);
+  ctx.fillStyle = '#f1e3c2';
+  ctx.font = '11px "Segoe UI", Arial, sans-serif';
+  ctx.fillText(sub, tx + 8, ty + 24);
+}
+
 export function draw() {
   if (state.scene === 'mine') {
     drawMineScene();
     drawTileTooltip();
   } else {
     drawOverworld();
+    drawNodeTooltip();
   }
   drawEventBanner();
   drawTutorial();
