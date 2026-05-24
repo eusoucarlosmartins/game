@@ -299,6 +299,7 @@ function renderFactories() {
 
 function renderEquipment() {
   const cont = $('equipment-list');
+  if (!cont) return; // tab removida em favor do modal de Upgrades
   cont.innerHTML = EQUIPMENT.map(e => {
     const owned = !!state.equipment[e.id];
     const reqMissing = e.req && !state.equipment[e.req];
@@ -322,6 +323,7 @@ function renderEquipment() {
 
 function renderResearch() {
   const cont = $('research-list');
+  if (!cont) return; // tab removida em favor do modal de Upgrades
   let html = '';
   for (const cat of RES_CATS) {
     html += `<div class="research-section">— ${cat} —</div>`;

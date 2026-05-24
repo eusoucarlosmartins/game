@@ -27,47 +27,47 @@
 
   <div id="app">
     <header class="topbar">
-      <div class="brand">
-        <span class="brand-title">TAPUIA</span>
-        <span class="brand-sub">Companhia de Mineração &amp; Indústria — Gov. de Santa Catarina</span>
-      </div>
-      <div class="stats">
-        <div class="stat">
-          <span class="stat-label">Tesouro</span>
-          <span class="stat-value" id="stat-money">$0</span>
+      <div class="topbar-left">
+        <div class="brand">
+          <span class="brand-title">TAPUIA</span>
+          <span class="brand-sub">Mineração &amp; Indústria — SC</span>
         </div>
-        <div class="stat">
-          <span class="stat-label">Dia</span>
-          <span class="stat-value" id="stat-day">1</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Pesquisa</span>
-          <span class="stat-value" id="stat-rp" title="Pontos de Pesquisa">0 PP</span>
-        </div>
-        <div class="stat approval">
-          <span class="stat-label">Aprovação</span>
-          <div class="approval-bar">
-            <div class="approval-fill" id="approval-fill"></div>
-            <span class="approval-text" id="approval-text">50%</span>
-          </div>
-        </div>
-      </div>
-      <div class="speed-controls">
-        <button data-speed="0" class="speed-btn" title="Pausar">II</button>
-        <button data-speed="1" class="speed-btn active" title="Normal">1x</button>
-        <button data-speed="2" class="speed-btn" title="Rápido">2x</button>
-        <button data-speed="4" class="speed-btn" title="Muito rápido">4x</button>
-      </div>
-      <div class="save-controls">
-        <button id="install-btn" class="save-btn upgrade" title="Instalar como app" style="display:none">📲 Instalar</button>
-        <button id="mute-btn" class="save-btn" title="Mudo (tecla M)">🔊</button>
-        <button id="upgrades-btn" class="save-btn upgrade" title="Tela de Upgrades (tecla U)">⚙ Upgrades</button>
-        <button id="save-btn" class="save-btn" title="Salvar agora">💾 Salvar</button>
-        <button id="slots-btn" class="save-btn" title="Gerenciar slots de save">📂 Slots</button>
-        <button id="newgame-btn" class="save-btn danger" title="Apaga a partida atual">↻ Novo Jogo</button>
-        <span class="save-status" id="save-status">—</span>
         <span class="difficulty-badge" id="difficulty-badge" title="Modo de dificuldade">⚖</span>
         <span class="season-badge" id="season-badge" title="Estação do ano (afeta produção e mercado)">☀</span>
+      </div>
+      <div class="stats">
+        <div class="stat" title="Tesouro">
+          <span class="stat-icon">💰</span>
+          <span class="stat-value" id="stat-money">$0</span>
+        </div>
+        <div class="stat" title="Dia atual">
+          <span class="stat-icon">📅</span>
+          <span class="stat-value" id="stat-day">1</span>
+        </div>
+        <div class="stat" title="Pontos de Pesquisa">
+          <span class="stat-icon">🔬</span>
+          <span class="stat-value" id="stat-rp">0</span>
+        </div>
+        <div class="stat approval" title="Aprovação popular">
+          <span class="approval-bar">
+            <span class="approval-fill" id="approval-fill"></span>
+            <span class="approval-text" id="approval-text">50%</span>
+          </span>
+        </div>
+      </div>
+      <div class="speed-controls" title="Velocidade do jogo">
+        <button data-speed="0" class="speed-btn" title="Pausar (Espaço)">II</button>
+        <button data-speed="1" class="speed-btn active" title="Velocidade normal">1×</button>
+        <button data-speed="2" class="speed-btn" title="Rápido">2×</button>
+        <button data-speed="4" class="speed-btn" title="Muito rápido">4×</button>
+      </div>
+      <div class="save-controls">
+        <button id="install-btn" class="icon-btn" title="Instalar como app" style="display:none">📲</button>
+        <button id="mute-btn" class="icon-btn" title="Mudo (M)">🔊</button>
+        <button id="upgrades-btn" class="icon-btn highlight" title="Upgrades (U)">⚙</button>
+        <button id="slots-btn" class="icon-btn" title="Slots de save (saves automáticos a cada 15s)">📂</button>
+        <button id="newgame-btn" class="icon-btn danger" title="Novo jogo">↻</button>
+        <span class="save-status" id="save-status">—</span>
       </div>
     </header>
 
@@ -76,15 +76,13 @@
 
       <aside class="sidebar">
         <nav class="tabs" id="tabs">
-          <button data-tab="contract" class="tab active">Contrato</button>
-          <button data-tab="mine" class="tab">Mina</button>
-          <button data-tab="factory" class="tab">Fábricas</button>
-          <button data-tab="market" class="tab">Mercado</button>
-          <button data-tab="projects" class="tab">Projetos</button>
-          <button data-tab="shop" class="tab">Loja</button>
-          <button data-tab="research" class="tab">Pesquisa</button>
-          <button data-tab="stats" class="tab">Stats</button>
-          <button data-tab="log" class="tab">Registro</button>
+          <button data-tab="contract" class="tab active" title="Contrato atual e estoque"><span class="tab-icon">📜</span><span class="tab-label">Contrato</span></button>
+          <button data-tab="mine" class="tab" title="Mineradores e silos"><span class="tab-icon">⛏</span><span class="tab-label">Mina</span></button>
+          <button data-tab="factory" class="tab" title="Fábricas e receitas"><span class="tab-icon">🏭</span><span class="tab-label">Fábricas</span></button>
+          <button data-tab="market" class="tab" title="Vender excedente"><span class="tab-icon">💰</span><span class="tab-label">Mercado</span></button>
+          <button data-tab="projects" class="tab" title="Projetos de obra"><span class="tab-icon">🏗</span><span class="tab-label">Projetos</span></button>
+          <button data-tab="stats" class="tab" title="Estatísticas e conquistas"><span class="tab-icon">📊</span><span class="tab-label">Stats</span></button>
+          <button data-tab="log" class="tab" title="Registro de eventos"><span class="tab-icon">📖</span><span class="tab-label">Registro</span></button>
         </nav>
 
         <section class="tab-panel active" data-panel="contract">
@@ -168,22 +166,6 @@
           <div class="panel">
             <h3>Concluídos</h3>
             <ul id="project-completed" class="stockpile compact"></ul>
-          </div>
-        </section>
-
-        <section class="tab-panel" data-panel="shop">
-          <div class="panel">
-            <h3>Loja de Equipamentos</h3>
-            <div id="equipment-list" class="equipment"></div>
-            <p class="hint">Cada melhoria é permanente e afeta toda a operação.</p>
-          </div>
-        </section>
-
-        <section class="tab-panel" data-panel="research">
-          <div class="panel">
-            <h3>Árvore de Pesquisa</h3>
-            <p class="hint">Você ganha PP a cada dia (+2) e por contrato cumprido (+5 base + bônus). Pesquisas são permanentes.</p>
-            <div id="research-list" class="equipment"></div>
           </div>
         </section>
 

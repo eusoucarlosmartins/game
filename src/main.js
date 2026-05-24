@@ -544,10 +544,7 @@ $('restart-btn').addEventListener('click', () => {
   deleteSave();
   location.reload();
 });
-$('save-btn').addEventListener('click', () => {
-  if (saveGame()) log('Partida salva.', 'good');
-  else log('Falha ao salvar partida.', 'bad');
-});
+// (botão "Salvar" removido em favor do autosave de 15s + ações no modal de slots)
 
 // === Slots de save ===
 function renderSlotsModal() {
@@ -578,9 +575,10 @@ function renderSlotsModal() {
       </div>
       ${inside}
       <div class="slot-actions">
-        ${info ? `<button class="mini-btn" data-slot-action="load" data-slot="${slot}">📂 Carregar</button>` : ''}
+        ${isActive ? `<button class="mini-btn" data-slot-action="saveNow" data-slot="${slot}">💾 Salvar agora</button>` : ''}
+        ${info && !isActive ? `<button class="mini-btn" data-slot-action="load" data-slot="${slot}">📂 Carregar</button>` : ''}
         ${!isActive ? `<button class="mini-btn" data-slot-action="setActive" data-slot="${slot}">★ Ativar</button>` : ''}
-        ${info ? `<button class="mini-btn danger" data-slot-action="delete" data-slot="${slot}">🗑 Apagar</button>` : `<button class="mini-btn" data-slot-action="setActive" data-slot="${slot}">★ Usar este slot</button>`}
+        ${info ? `<button class="mini-btn danger" data-slot-action="delete" data-slot="${slot}">🗑 Apagar</button>` : (!isActive ? `<button class="mini-btn" data-slot-action="setActive" data-slot="${slot}">★ Usar este slot</button>` : '')}
       </div>
     </div>`;
   }).join('');
@@ -597,7 +595,14 @@ document.addEventListener('click', (e) => {
   if (!btn) return;
   const action = /** @type {HTMLElement} */ (btn).dataset.slotAction;
   const slot = parseInt(/** @type {HTMLElement} */ (btn).dataset.slot || '1', 10);
-  if (action === 'load') {
+  if (action === 'saveNow') {
+    if (saveGame()) {
+      log('Partida salva.', 'good');
+      renderSlotsModal();
+    } else {
+      log('Falha ao salvar.', 'bad');
+    }
+  } else if (action === 'load') {
     if (!state.over) saveGame(); // salva o atual antes
     setActiveSlot(slot);
     location.reload();
