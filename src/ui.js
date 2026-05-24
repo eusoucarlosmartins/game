@@ -450,6 +450,59 @@ let lastUpgRender = 0;
 let lastButtonsRender = 0;
 export function registerUpgradesRefresh(fn) { upgradesRefreshFn = fn; }
 
+// Computa nível de atenção (0-1) pra cada elemento clicável do canvas.
+// Usado em draw.js pra pulsar os nodos quando há ação relevante disponível.
+// Exportado pra ser importado pelo draw.js.
+export function mineNeedsAttention() {
+  const free = (state.workersTotal || 0) - workersActive();
+  if (free <= 0) return 0;
+  const m = activeMine();
+  if (!m || !m.grid) return 0;
+  for (let r = 0; r < MINE.rows; r++) {
+    for (let c = 0; c < MINE.cols; c++) {
+      const t = m.grid[r][c];
+      if (t && t.revealed && t.type === 'ore' && !t.worker) return 1;
+    }
+  }
+  return 0;
+}
+
+export function cityCanDeliver() {
+  const k = state.contract;
+  if (!k) return 0;
+  const have = state.products[k.product] || 0;
+  const need = k.need - k.delivered;
+  if (have >= need) return 1;
+  if (have > 0) return 0.5; // tem algo pra entregar parcialmente
+  return 0;
+}
+
+export function marketNeedsAttention() {
+  let nearFull = 0;
+  for (const k in state.warehouse) {
+    if (R[k] && R[k].free) continue;
+    const stock = state.warehouse[k] || 0;
+    const cap = (state.silos[k] && state.silos[k].cap) || SILO_DEFAULT_CAP;
+    if (stock / cap >= 0.85) { nearFull++; if (nearFull >= 2) return 1; }
+  }
+  return nearFull > 0 ? 0.5 : 0;
+}
+
+export function researchNeedsAttention() {
+  // Tem pesquisa ou equipamento disponível pra comprar
+  for (const e of EQUIPMENT) {
+    if (state.equipment[e.id]) continue;
+    if (e.req && !state.equipment[e.req]) continue;
+    if (state.money >= e.cost) return 1;
+  }
+  for (const r of RESEARCH) {
+    if (state.research[r.id]) continue;
+    if (r.req && !state.research[r.req]) continue;
+    if ((state.rp || 0) >= r.cost) return 1;
+  }
+  return 0;
+}
+
 // Computa badges contextuais (contagem de "coisas pra fazer") por tab
 function updateTabBadges() {
   const setBadge = (id, value, level = '') => {

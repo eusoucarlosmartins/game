@@ -13,6 +13,7 @@ import {
 import { drawParticles } from './particles.js';
 import { topPopup } from './achievements.js';
 import { drawAmbience } from './ambience.js';
+import { mineNeedsAttention, cityCanDeliver, marketNeedsAttention, researchNeedsAttention } from './ui.js';
 
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game'));
 const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
@@ -212,6 +213,38 @@ function drawCity() {
   drawCityGrowthBuildings(cx0, w);
 
   drawCitySign(cx0 + w / 2, CITY.y);
+  drawCityDeliverableBadge();
+}
+
+// Badge flutuante "✓ X entregar!" sobre a cidade quando há produto suficiente
+// pra atender o contrato. Pulsa em verde pra chamar atenção.
+function drawCityDeliverableBadge() {
+  const k = state.contract;
+  if (!k) return;
+  const have = Math.floor(state.products[k.product] || 0);
+  if (have <= 0) return;
+  const need = k.need - k.delivered;
+  const enough = have >= need;
+  const cx = CITY.x + CITY.w / 2;
+  const cy = CITY.y + CITY.h + 6;
+  const t = performance.now() / 600;
+  const pulse = 0.7 + 0.3 * (Math.sin(t * 1.5) + 1) / 2;
+  const color = enough ? '77,160,77' : '218,165,32';
+  const icon = enough ? '✓' : '↑';
+  const label = enough ? `${icon} Entregar ${need}!` : `${icon} ${have} pronto`;
+  ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
+  const w = ctx.measureText(label).width + 18;
+  // moldura escura
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillRect(cx - w / 2 - 2, cy - 13, w + 4, 26);
+  // fundo pulsante
+  ctx.fillStyle = `rgba(${color},${0.8 + 0.2 * pulse})`;
+  ctx.fillRect(cx - w / 2, cy - 11, w, 22);
+  // texto
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, cx, cy);
 }
 
 // Adiciona prédios pequenos extras flanqueando a cidade conforme cityGrowth sobe.
@@ -1664,11 +1697,24 @@ function drawMineEntrance(e, mine, idx) {
   let pulse = (Math.sin(t) + 1) / 2 * (exhausted ? 0.2 : 0.6);
   if (hovering) pulse = 1;
   if (isActive) pulse = Math.max(pulse, 0.8);
-  const color = exhausted ? '120,120,120' : (isActive ? '255,180,80' : '255,220,80');
+  // Atenção contextual: se essa mina é a ativa E precisa de ação, pulsa forte dourado
+  const attention = isActive ? mineNeedsAttention() : 0;
+  const color = exhausted ? '120,120,120'
+    : attention > 0 ? '255,212,74'
+    : isActive ? '255,180,80'
+    : '255,220,80';
+  if (attention > 0) pulse = 0.6 + 0.4 * (Math.sin(t * 1.5) + 1) / 2;
   ctx.strokeStyle = `rgba(${color},${0.25 + 0.55 * pulse})`;
-  ctx.lineWidth = 2.5;
+  ctx.lineWidth = attention > 0 ? 3.5 : 2.5;
   ctx.strokeRect(signCx - sw / 2, signCy - 12, sw, 24);
-  // Aplica leve dim na entrada inteira se esgotada
+  // Ícone de aviso se há ação disponível
+  if (attention > 0) {
+    ctx.fillStyle = `rgba(255,212,74,${0.7 + 0.3 * pulse})`;
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('!', signCx + sw / 2 + 14, signCy);
+  }
   if (exhausted) {
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.fillRect(e.x - 14, e.y - 6, e.w + 28, e.h + 18);
@@ -2000,7 +2046,7 @@ function drawMercadoNode() {
   ctx.stroke();
   // placa "MERCADO"
   drawNodeLabel(x, y + h, w, 'MERCADO', 'overworld');
-  drawNodeHoverHighlight(n);
+  drawNodeHoverHighlight(n, marketNeedsAttention());
 }
 
 // Nodo da Pesquisa — clicável (abre Upgrades)
@@ -2041,7 +2087,7 @@ function drawPesquisaNode() {
   ctx.fillText('★', x + w - 12, y + 14);
   // placa "PESQUISA"
   drawNodeLabel(x, y + h, w, 'PESQUISA', 'overworld');
-  drawNodeHoverHighlight(n);
+  drawNodeHoverHighlight(n, researchNeedsAttention());
 }
 
 function drawNodeLabel(x, y, w, text, scene) {
@@ -2057,16 +2103,27 @@ function drawNodeLabel(x, y, w, text, scene) {
   void scene;
 }
 
-function drawNodeHoverHighlight(n) {
+function drawNodeHoverHighlight(n, attention = 0) {
   const hovering =
     state.mouseX >= n.x && state.mouseX < n.x + n.w &&
     state.mouseY >= n.y && state.mouseY < n.y + n.h + 22;
   const t = performance.now() / 700;
-  const pulse = hovering ? 1 : (Math.sin(t) + 1) / 2 * 0.6;
+  let pulse = hovering ? 1 : (Math.sin(t) + 1) / 2 * 0.6;
+  // Atenção: pulsa mais forte com cor mais quente
+  if (attention > 0) pulse = Math.max(pulse, 0.6 + 0.4 * (Math.sin(t * 1.5) + 1) / 2);
   if (pulse > 0.1) {
-    ctx.strokeStyle = `rgba(255,220,80,${0.25 + 0.55 * pulse})`;
-    ctx.lineWidth = 2;
+    const color = attention > 0 ? '255,180,80' : '255,220,80';
+    ctx.strokeStyle = `rgba(${color},${0.25 + 0.55 * pulse})`;
+    ctx.lineWidth = attention > 0 ? 3 : 2;
     ctx.strokeRect(n.x - 4, n.y - 4, n.w + 8, n.h + 30);
+    if (attention > 0) {
+      // ícone "!" flutuante acima
+      ctx.fillStyle = `rgba(255,212,74,${0.7 + 0.3 * pulse})`;
+      ctx.font = 'bold 16px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('!', n.x + n.w / 2, n.y - 14);
+    }
   }
 }
 
