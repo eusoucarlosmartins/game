@@ -2266,33 +2266,76 @@ function drawNodeHoverHighlight(n, attention = 0) {
   }
 }
 
-// ---------- Tutorial inicial (auto-avança baseado em ações) ----------
+// ---------- Tutorial progressivo (avança conforme o jogador age) ----------
+// Cada step tem:
+// - scene: em qual cena aparece
+// - msg: texto explicativo
+// - check(state): retorna true quando o jogador já fez a ação → avança auto
+// - autoDismiss?: se true, fecha sozinho em 6s após o check
 const TUTORIAL_STEPS = [
-  { scene: 'overworld', msg: '👋 Clique na ENTRADA DA MINA à esquerda para começar a cavar.' },
-  { scene: 'mine', msg: '⛏ Selecione a ferramenta MINERADOR (👤 ou tecla 4) e clique num veio descoberto (Fe ou C).' },
-  { scene: 'mine', msg: '✅ Boa! Minério já flui para os silos. Volte ao mapa para acompanhar contratos e fábricas.' },
+  {
+    scene: 'overworld',
+    msg: '👋 Bem-vindo! Clique numa MINA (cavernas marrons à esquerda/direita) pra começar a cavar.',
+    check: (s) => s.scene === 'mine',
+  },
+  {
+    scene: 'mine',
+    msg: '⛏ Selecione MINERADOR (👤 ou tecla 4) e clique num veio descoberto (CVO/FRO).',
+    check: (s) => {
+      for (const m of (s.mines || [])) {
+        if (!m.grid) continue;
+        for (const row of m.grid) for (const t of row) if (t.worker) return true;
+      }
+      return false;
+    },
+  },
+  {
+    scene: 'mine',
+    msg: '✅ Minerador alocado! Volte ao MAPA (← botão no topo) pra ver as fábricas e a cidade.',
+    check: (s) => s.scene === 'overworld',
+  },
+  {
+    scene: 'overworld',
+    msg: '🏭 Clique numa FÁBRICA pra trocar a receita. Carruagens automaticamente levam o produto pra cidade.',
+    check: (s) => (s.contractsCompleted || 0) >= 1,
+  },
+  {
+    scene: 'overworld',
+    msg: '📜 Cumpra contratos pra ganhar dinheiro, PP e avançar de era. Cada era nova libera mais recursos/receitas.',
+    autoDismiss: true,
+  },
 ];
 
 function drawTutorial() {
   if (!state.tutorial || state.tutorial.dismissed) return;
+  // Avança step quando o check do step atual passa
   const step = state.tutorial.step ?? 0;
   const t = TUTORIAL_STEPS[step];
-  if (!t || t.scene !== state.scene) return;
+  if (!t) { state.tutorial.dismissed = true; return; }
+  if (t.check && t.check(state)) {
+    state.tutorial.step = step + 1;
+    state.tutorial.autoDismissIn = 6;
+    return;
+  }
+  if (t.scene !== state.scene) return;
   const w = 560;
   const h = 56;
   const tx = (W - w) / 2;
-  const ty = state.scene === 'overworld' ? 200 : 90;
+  const ty = state.scene === 'overworld' ? 180 : 90;
   drawScrollPanel(tx, ty, w, h);
   ctx.fillStyle = '#3a1f0a';
   ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(t.msg, tx + w / 2, ty + h / 2 - 4);
-  if (step === 2) {
+  // Indicador de progresso (X/N) + skip
+  const stepsTotal = TUTORIAL_STEPS.length;
+  ctx.fillStyle = '#5a3416';
+  ctx.font = '10px "Segoe UI"';
+  ctx.fillText(`Passo ${step + 1}/${stepsTotal} · clique fora pra pular`, tx + w / 2, ty + h - 8);
+  if (t.autoDismiss) {
     const left = Math.max(0, state.tutorial.autoDismissIn ?? 0);
-    ctx.fillStyle = '#5a3416';
-    ctx.font = '10px "Segoe UI"';
-    ctx.fillText(`Fecha sozinho em ${Math.ceil(left)}s`, tx + w / 2, ty + h - 8);
+    if (left <= 0) state.tutorial.dismissed = true;
   }
 }
 
