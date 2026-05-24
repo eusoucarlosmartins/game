@@ -97,8 +97,26 @@ const SOUNDS = {
   },
 };
 
+// Padrão de vibração por tipo de som (em ms). Só roda em devices com suporte
+// (navigator.vibrate existe em Android; iOS nunca expôs, mas a chamada é
+// no-op então tá ok).
+const VIBE_PATTERN = {
+  click: 10,
+  pickaxe: 15,
+  coin: [20, 30, 20],
+  boom: [40, 30, 40, 30, 40],
+  success: [30, 50, 30, 50, 60],
+  chime: [20, 100, 20],
+  fail: [80, 60, 80],
+  era_up: [60, 80, 60, 80, 80, 80, 100],
+};
+
 export function play(type) {
   if (state.muted) return;
+  // Vibração tátil sincronizada (mesmo se áudio falhar)
+  try {
+    if (navigator.vibrate && VIBE_PATTERN[type]) navigator.vibrate(VIBE_PATTERN[type]);
+  } catch { /* ignore */ }
   const c = getCtx();
   if (!c) return;
   if (c.state === 'suspended') {

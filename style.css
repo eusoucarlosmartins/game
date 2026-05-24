@@ -1,41 +1,177 @@
 /* ============================================================
    MOBILE / RESPONSIVO
-   - Portrait: mostra aviso de girar
-   - Landscape <= 900px: sidebar vira drawer, topbar/footer compactos
+   - Portrait: layout vertical (canvas em cima, painel embaixo, nav fixo)
+   - Landscape <= 900px: sidebar como drawer
+   - Tela MUITO pequena: aviso pra rotacionar
    ============================================================ */
 
 #portrait-warning { display: none; }
 #sidebar-toggle   { display: none; }
 #sidebar-backdrop { display: none; }
 
-@media (orientation: portrait) {
-  #portrait-warning {
+/* === PORTRAIT MOBILE: layout vertical funcional === */
+@media (orientation: portrait) and (max-width: 800px) {
+  body { font-size: 12px; overflow: hidden; }
+
+  body #app {
+    display: grid;
+    grid-template-rows: auto 38vh 1fr;
+    height: 100vh;
+    height: 100dvh; /* iOS Safari address bar */
+    padding-bottom: 60px; /* espaço pra bottom nav fixa */
+  }
+
+  /* Topbar compacta em 1 linha */
+  body .topbar {
+    grid-template-columns: auto 1fr auto;
+    padding: 5px 8px;
+    gap: 4px;
+  }
+  body .topbar-left { gap: 3px; min-width: 0; }
+  body .brand { display: none; }
+  body .difficulty-badge, body .season-badge {
+    font-size: 9px;
+    padding: 2px 4px;
+    letter-spacing: 0;
+  }
+  body .stats { gap: 3px; flex-wrap: wrap; justify-content: flex-start; }
+  body .stat {
+    min-width: auto;
+    padding: 3px 6px;
+    gap: 3px;
+  }
+  body .stat-icon { font-size: 11px; }
+  body .stat-value { font-size: 12px; text-shadow: none; }
+  body .stat.approval { min-width: 80px; }
+  body .approval-bar { width: 70px; height: 12px; }
+  body .approval-text { font-size: 9px; }
+  body .speed-controls { padding: 1px; }
+  body .speed-btn { padding: 3px 6px; font-size: 10px; min-width: 24px; min-height: 24px; }
+  body .save-controls { gap: 3px; }
+  body .icon-btn {
+    font-size: 14px;
+    padding: 5px 8px;
+    min-width: 32px;
+    min-height: 32px;
+  }
+  body .save-status { display: none; }
+
+  /* Área do canvas (top) — 38vh, com canvas centralizado */
+  body .play-area {
+    grid-template-columns: 1fr;
+    padding: 4px;
+    background: radial-gradient(ellipse at center, #3a1f0a 0%, #1a0e06 100%);
+    overflow: hidden;
+  }
+  body #game {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+    object-fit: contain;
+    border-width: 2px;
+    margin: 0 auto;
+  }
+
+  /* Sidebar vira painel deslizante por baixo, com tabs no rodapé como bottom nav */
+  body .sidebar {
+    position: static;
+    width: 100%;
+    transform: none;
+    background: var(--paper);
+    box-shadow: none;
+    padding: 8px 8px 0 8px;
     display: flex;
-    position: fixed;
-    inset: 0;
-    background: #2c1c10;
-    color: #c69042;
-    z-index: 9999;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-family: Georgia, "Times New Roman", serif;
-    text-align: center;
-    padding: 24px;
+    overflow: hidden;
+    grid-row: 3;
   }
-  #portrait-warning .icon {
-    font-size: 86px;
-    margin-bottom: 24px;
-    animation: rotateHint 2s ease-in-out infinite;
+  body .sidebar .tab-panel {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-bottom: 8px;
   }
-  #portrait-warning .msg { font-size: 22px; font-weight: bold; letter-spacing: 1px; }
-  #portrait-warning .sub { font-size: 13px; opacity: 0.7; margin-top: 14px; font-style: italic; }
-  body > #app, body > .modal { display: none !important; }
+  body .tabs {
+    /* tabs viram bottom nav fixa na base da tela */
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: linear-gradient(to bottom, var(--wood) 0%, var(--wood-dark) 100%);
+    padding: 4px 4px 6px 4px;
+    border-top: 2px solid var(--brass-dark);
+    margin: 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.4);
+  }
+  body .tab {
+    background: rgba(20, 10, 5, 0.4);
+    border: 1px solid rgba(198, 144, 66, 0.3);
+    border-radius: 4px;
+    color: var(--paper);
+    padding: 6px 2px 4px 2px;
+    min-width: 0;
+    min-height: 44px; /* Apple HIG touch target */
+    gap: 1px;
+  }
+  body .tab .tab-icon { font-size: 18px; }
+  body .tab .tab-label { font-size: 8px; color: var(--paper); }
+  body .tab.active {
+    background: var(--brass);
+    color: var(--ink);
+    box-shadow: 0 0 0 1px var(--paper) inset;
+  }
+  body .tab.active .tab-icon { filter: none; }
+  body .tab.active .tab-label { color: var(--ink); }
+  body .tab-badge {
+    min-width: 16px;
+    height: 16px;
+    line-height: 16px;
+    font-size: 9px;
+    padding: 0 3px;
+    top: -3px;
+    right: -3px;
+  }
+
+  /* Bottombar (footer com Mineradores/Carruagem) escondido em portrait
+     (info já tá nas tabs/dashboard) */
+  body .bottombar { display: none; }
+
+  /* Modais ocupam quase a tela toda em portrait */
+  body .modal-card,
+  body .modal-card.wide,
+  body .upgrades-card {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 92vh;
+    padding: 12px !important;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  body .modal { padding: 4px; align-items: flex-start; }
+  body .upgrades-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Botões dentro de painéis: touch targets maiores */
+  body .mini-btn {
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  body .big-btn {
+    min-height: 48px;
+    font-size: 14px;
+  }
 }
-@keyframes rotateHint {
-  0%, 100% { transform: rotate(-10deg); }
-  50%      { transform: rotate(80deg); }
-}
+
+/* (aviso "gire o celular" removido — portrait agora é layout funcional) */
 
 @media (max-width: 900px) and (orientation: landscape) {
   body { font-size: 12px; }
@@ -81,11 +217,17 @@
   /* Botões ícone-only no extremo direito */
   body .save-controls { gap: 2px; }
   body .icon-btn {
-    font-size: 13px;
-    padding: 3px 6px;
+    font-size: 14px;
+    padding: 6px 9px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+  body .speed-btn {
+    min-width: 28px;
+    min-height: 28px;
   }
   body .save-status { display: none; }
-  body #install-btn { padding: 3px 5px; }
+  body #install-btn { padding: 6px 8px; }
 
   /* Play area: canvas centralizado com fundo escuro decorativo no letterbox */
   body .play-area {
@@ -187,11 +329,12 @@
   }
   body .tab {
     min-width: 0;
-    padding: 4px 0 3px 0;
+    min-height: 44px; /* Apple HIG touch target mínimo */
+    padding: 5px 0 4px 0;
     letter-spacing: 0;
   }
-  body .tab .tab-icon { font-size: 16px; }
-  body .tab .tab-label { font-size: 8px; letter-spacing: 0; }
+  body .tab .tab-icon { font-size: 18px; }
+  body .tab .tab-label { font-size: 9px; letter-spacing: 0; }
   body .tab-badge {
     min-width: 14px;
     height: 14px;
