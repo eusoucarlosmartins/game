@@ -7,7 +7,7 @@
   "scope": "./",
   "display": "fullscreen",
   "display_override": ["fullscreen", "standalone", "minimal-ui"],
-  "orientation": "any",
+  "orientation": "landscape",
   "background_color": "#2c1c10",
   "theme_color": "#5a3416",
   "categories": ["games", "strategy", "simulation"],

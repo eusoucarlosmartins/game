@@ -1,173 +1,40 @@
 /* ============================================================
    MOBILE / RESPONSIVO
-   - Portrait: layout vertical (canvas em cima, painel embaixo, nav fixo)
-   - Landscape <= 900px: sidebar como drawer
-   - Tela MUITO pequena: aviso pra rotacionar
+   - Portrait: mostra aviso de girar (jogo é landscape-only por enquanto)
+   - Landscape <= 900px: sidebar vira drawer, topbar/footer compactos
    ============================================================ */
 
 #portrait-warning { display: none; }
 #sidebar-toggle   { display: none; }
 #sidebar-backdrop { display: none; }
 
-/* === PORTRAIT MOBILE: rotaciona toda a tela 90° pra simular landscape.
-   Mantém canvas 16:9 sem distorção. Usuário pode jogar com o celular
-   em pé (telinha aparece deitada) ou rotacionar fisicamente. === */
-@media (orientation: portrait) and (max-width: 800px) {
-  html, body {
-    overflow: hidden;
-    height: 100%;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-  }
-  body {
-    /* Dimensões trocadas: viewport vertical 414×896 vira "landscape" 896×414 */
-    width: 100vh;
-    height: 100vw;
-    /* Rotaciona 90° em sentido horário ao redor do canto sup-esq, depois
-       desloca pra direita pra ficar visível na viewport */
-    transform-origin: 0 0;
-    transform: rotate(90deg) translateY(-100%);
-    position: absolute;
-    top: 0;
-    left: 0;
-    /* Após rotação, o conteúdo precisa do safe-area inset rotacionado.
-       env() valores: portrait top/right/bottom/left → landscape virtual
-       right/bottom/left/top (sentido horário) */
-  }
-  /* Dentro do body rotacionado, aplica o layout LANDSCAPE (mesmas regras
-     da media query landscape de antes) — sidebar drawer, topbar compacta */
-  body > #app {
-    display: grid !important;
-    grid-template-rows: auto 1fr auto !important;
-    grid-template-columns: 1fr !important;
-    height: 100%;
-    width: 100%;
-  }
-  /* Reaproveita as regras compactas (topbar, stats, etc) do landscape */
-  body .topbar {
-    grid-template-columns: auto 1fr auto auto !important;
-    grid-template-rows: auto !important;
-    padding: 4px 8px;
-    gap: 6px;
-  }
-  body .topbar-left { gap: 4px; grid-row: 1 !important; flex-wrap: nowrap !important; justify-self: start; }
-  body .topbar-left .brand { display: none; }
-  body .stats { gap: 4px; justify-content: flex-start; grid-row: 1 !important; justify-self: center; }
-  body .speed-controls { grid-row: 1 !important; grid-column: auto !important; justify-self: end; padding: 1px; }
-  body .save-controls { grid-row: 1 !important; grid-column: auto !important; justify-self: end; gap: 4px; }
-  body .save-status { display: none; }
-
-  /* Play area: layout landscape com canvas + drawer */
-  body .play-area {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    grid-template-rows: 1fr !important;
-    padding: 4px;
-    gap: 0;
-    position: relative;
-    background: radial-gradient(ellipse at center, #3a1f0a 0%, #1a0e06 100%);
-  }
-  body #game {
-    /* Canvas em 16:9 preservando aspect */
-    aspect-ratio: 16 / 9 !important;
-    width: 100% !important;
-    height: auto !important;
-    max-height: 100%;
-    margin: 0 auto;
-    display: block;
-    border: none;
-    box-shadow:
-      inset 0 0 30px rgba(0,0,0,0.5),
-      0 4px 16px rgba(0,0,0,0.6),
-      0 0 0 1px rgba(198, 144, 66, 0.3);
-    position: static;
-    inset: auto;
-  }
-
-  /* Sidebar como drawer da direita (em landscape virtual) */
-  body .sidebar {
-    position: fixed;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 60vh; /* 60% do width landscape virtual */
-    max-width: 380px;
-    background: #d8c498;
-    transform: translateX(105%);
-    transition: transform 0.22s ease;
-    z-index: 50;
-    box-shadow: -4px 0 14px rgba(0,0,0,0.5);
-    padding: 10px;
-    overflow: hidden;
+@media (orientation: portrait) {
+  #portrait-warning {
     display: flex;
-    flex-direction: column;
-  }
-  body .sidebar.open { transform: translateX(0); }
-  body .sidebar .tab-panel {
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    touch-action: pan-y;
-    flex: 1;
-    min-height: 0;
-  }
-  body .tabs {
-    display: grid !important;
-    grid-template-columns: repeat(7, 1fr) !important;
-    gap: 2px;
-    margin-bottom: 6px;
-    position: static !important;
-  }
-
-  /* Botão flutuante "☰" pra abrir drawer */
-  body #sidebar-toggle {
-    display: flex;
-    position: fixed;
-    right: 10px;
-    top: 50px;
-    z-index: 51;
-    background: linear-gradient(to bottom, #c9b07c, #a88b56);
-    color: #1a0e06;
-    border: 2px solid #5a3416;
-    border-radius: 50%;
-    width: 48px;
-    height: 48px;
-    font-size: 22px;
-    line-height: 1;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
-    font-weight: bold;
-    padding: 0;
-  }
-  body #sidebar-backdrop {
-    display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0);
-    z-index: 49;
-    transition: background 0.22s ease;
-    pointer-events: none;
+    background: #2c1c10;
+    color: #c69042;
+    z-index: 9999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: Georgia, "Times New Roman", serif;
+    text-align: center;
+    padding: 24px;
   }
-  body #sidebar-backdrop.show {
-    background: rgba(0,0,0,0.45);
-    pointer-events: auto;
+  #portrait-warning .icon {
+    font-size: 86px;
+    margin-bottom: 24px;
+    animation: rotateHint 2s ease-in-out infinite;
   }
-  body .bottombar { display: none; }
-
-  /* Indica que a tela tá rotacionada (útil em debug + UX) */
-  body::before {
-    content: '↻ Tela rotacionada — gire o celular pra deitar';
-    position: fixed;
-    top: 0;
-    right: 8px;
-    z-index: 999;
-    color: rgba(255,212,74,0.6);
-    font-size: 9px;
-    pointer-events: none;
-    font-family: sans-serif;
-  }
+  #portrait-warning .msg { font-size: 22px; font-weight: bold; letter-spacing: 1px; }
+  #portrait-warning .sub { font-size: 13px; opacity: 0.7; margin-top: 14px; font-style: italic; }
+  body > #app, body > .modal { display: none !important; }
+}
+@keyframes rotateHint {
+  0%, 100% { transform: rotate(-10deg); }
+  50%      { transform: rotate(80deg); }
 }
 
 /* (aviso "gire o celular" removido — portrait agora é layout funcional) */

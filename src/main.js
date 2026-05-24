@@ -110,30 +110,8 @@ const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game')
  * @param {MouseEvent} e
  * @returns {{x: number, y: number}}
  */
-/**
- * Detecta se a tela está rotacionada via CSS (portrait mobile rotacionado pra
- * simular landscape). Quando true, coords de mouse/touch precisam de transform.
- */
-function isScreenRotated() {
-  const mq = window.matchMedia('(orientation: portrait) and (max-width: 800px)');
-  return mq.matches;
-}
-
 function canvasCoords(e) {
   const rect = canvas.getBoundingClientRect();
-  if (isScreenRotated()) {
-    // Body rotacionado 90° CW: screen X corresponde ao canvas Y, screen Y ao
-    // canvas X (invertido). rect já é a bounding box rotacionada no screen space.
-    // Posição local relativa ao canvas no espaço unrotated:
-    const localY = e.clientX - rect.left;    // sx → canvas Y dir
-    const localX = rect.bottom - e.clientY;  // sy → canvas X (invertido pois rotate é CW)
-    // rect.width é a "altura" original (canvas displayed height antes da rotação)
-    // rect.height é a "largura" original
-    return {
-      x: localX * (canvas.width / rect.height),
-      y: localY * (canvas.height / rect.width),
-    };
-  }
   return {
     x: (e.clientX - rect.left) * (canvas.width / rect.width),
     y: (e.clientY - rect.top) * (canvas.height / rect.height),
@@ -211,14 +189,6 @@ canvas.addEventListener('mouseenter', () => {
 // ===== Touch (mobile): 1 dedo = pan + click; 2 dedos = pinch zoom =====
 function touchCoords(t) {
   const rect = canvas.getBoundingClientRect();
-  if (isScreenRotated()) {
-    const localY = t.clientX - rect.left;
-    const localX = rect.bottom - t.clientY;
-    return {
-      x: localX * (canvas.width / rect.height),
-      y: localY * (canvas.height / rect.width),
-    };
-  }
   return {
     x: (t.clientX - rect.left) * (canvas.width / rect.width),
     y: (t.clientY - rect.top) * (canvas.height / rect.height),
