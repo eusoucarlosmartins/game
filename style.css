@@ -40,23 +40,52 @@
 @media (max-width: 900px) and (orientation: landscape) {
   body { font-size: 12px; }
 
-  /* Topbar compacto */
-  .topbar { padding: 4px 8px; flex-wrap: nowrap; gap: 8px; }
-  .brand { flex-shrink: 1; min-width: 0; }
-  .brand-title { font-size: 14px; letter-spacing: 2px; }
-  .brand-sub { display: none; }
-  .stats { gap: 10px; }
-  .stat { min-width: 50px; }
-  .stat-label { font-size: 8px; letter-spacing: 1px; }
-  .stat-value { font-size: 13px; text-shadow: none; }
-  .approval { min-width: 100px; }
-  .approval-bar { width: 100px; height: 14px; }
-  .approval-text { font-size: 10px; }
-  .speed-controls { gap: 2px; }
-  .speed-btn { padding: 3px 6px; font-size: 10px; }
-  .save-controls { gap: 3px; margin-left: 4px; }
-  .save-btn { padding: 3px 5px; font-size: 10px; }
-  .save-status { display: none; }
+  /* === Topbar mobile: 4 zonas bem compactas em uma linha === */
+  /* Especificidade aumentada com body. pra sobrescrever regras globais
+     que vêm depois nesta folha de estilo. */
+  body .topbar {
+    padding: 4px 8px;
+    gap: 6px;
+    grid-template-columns: auto 1fr auto auto;
+  }
+  body .topbar-left { gap: 4px; }
+  body .brand { display: none; } /* sem espaço pra TAPUIA no mobile */
+  body .difficulty-badge,
+  body .season-badge {
+    font-size: 9px;
+    padding: 2px 5px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Stats mais densos e menores */
+  body .stats { gap: 4px; justify-content: flex-start; }
+  body .stat {
+    min-width: auto;
+    padding: 3px 6px;
+    gap: 3px;
+  }
+  body .stat-icon { font-size: 11px; }
+  body .stat-value { font-size: 12px; text-shadow: none; }
+  body .stat.approval { min-width: 100px; padding: 3px 5px; }
+  body .approval-bar { width: 90px; height: 12px; }
+  body .approval-text { font-size: 9px; }
+
+  /* Speed pill ultra-compacta */
+  body .speed-controls { padding: 1px; }
+  body .speed-btn {
+    padding: 2px 5px;
+    font-size: 10px;
+    min-width: 22px;
+  }
+
+  /* Botões ícone-only no extremo direito */
+  body .save-controls { gap: 2px; }
+  body .icon-btn {
+    font-size: 13px;
+    padding: 3px 6px;
+  }
+  body .save-status { display: none; }
+  body #install-btn { padding: 3px 5px; }
 
   /* Play area: canvas full + sidebar como drawer */
   .play-area {
@@ -144,20 +173,31 @@
     pointer-events: auto;
   }
 
-  /* Tabs: scroll horizontal ao invés de grid */
-  .tabs {
-    display: flex;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    gap: 2px;
-    -webkit-overflow-scrolling: touch;
+  /* Tabs: grid de 7 colunas igualmente distribuídas */
+  body .tabs {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
   }
-  .tab {
-    flex-shrink: 0;
-    min-width: 64px;
-    font-size: 10px;
-    padding: 6px 4px;
-    letter-spacing: 0.5px;
+  body .tab {
+    min-width: 0;
+    padding: 4px 0 3px 0;
+    letter-spacing: 0;
+  }
+  body .tab .tab-icon { font-size: 16px; }
+  body .tab .tab-label { font-size: 8px; letter-spacing: 0; }
+  body .tab-badge {
+    min-width: 14px;
+    height: 14px;
+    line-height: 14px;
+    font-size: 9px;
+    padding: 0 3px;
+    top: -2px;
+    right: -2px;
+    border-width: 1px;
+  }
+  body #sidebar-toggle {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.6);
   }
 
   /* Bottombar compacto */
