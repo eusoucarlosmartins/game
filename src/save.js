@@ -44,7 +44,7 @@ const PERSIST_KEYS = [
   'money','approval','day','dayTimer','speed','over',
   'mines','activeMineIdx','tool','workersTotal','tilesDug',
   'factories','warehouse','products','silos',
-  'contract','currentCity','nextContractIn','contractsCompleted',
+  'contract','contracts','currentCity','nextContractIn','contractsCompleted',
   'equipment','research','rp','eraReached','log',
   'projects','permContractBonus','passiveIncome','approvalFloor',
   'wagonSpeedBonus','wagonCapacityBonus','marketBonus','rpBonus','factorySpeedBonus','approvalPerContractBonus',
@@ -110,6 +110,12 @@ export function loadGame(slot) {
     for (const f of (state.factories || [])) {
       if (!f.wagon) f.wagon = { pos: 0, dir: 0, product: null, load: 0, state: 'idle', timer: 0 };
     }
+    // Migração: saves antigos só tinham state.contract single. Garante contracts[] sincronizado.
+    if (!Array.isArray(state.contracts)) state.contracts = [];
+    if (state.contract && !state.contracts.includes(state.contract)) {
+      state.contracts.unshift(state.contract);
+    }
+    state.contract = state.contracts[0] || null;
     // @ts-ignore — campo legado
     if (state.wagon) delete state.wagon;
     lastSaveTime = data.savedAt || Date.now();

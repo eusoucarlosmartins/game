@@ -65,12 +65,14 @@ function updateFactoryWagon(idx, dt) {
       w.timer -= dt;
       if (w.timer <= 0) {
         const avail = state.products[w.product] || 0;
-        // Se tem contrato pro mesmo produto, prioriza não levar mais que o needed
-        let needBy = avail;
-        if (state.contract && state.contract.product === w.product) {
-          needBy = Math.max(0, state.contract.need - state.contract.delivered);
+        // Soma a demanda total nos contratos ativos que pedem este produto
+        let totalNeed = 0;
+        const contracts = state.contracts || [];
+        for (const k of contracts) {
+          if (k.product === w.product) totalNeed += Math.max(0, k.need - k.delivered);
         }
-        const take = Math.min(cap, avail, needBy > 0 ? needBy : avail);
+        const needBy = totalNeed > 0 ? totalNeed : avail;
+        const take = Math.min(cap, avail, needBy);
         if (take > 0) {
           w.load = take;
           state.products[w.product] -= take;
@@ -100,11 +102,12 @@ function updateFactoryWagon(idx, dt) {
     case 'unloading': {
       w.timer -= dt;
       if (w.timer <= 0) {
-        if (state.contract && state.contract.product === w.product) {
-          deliverProduct(w.load);
-        } else {
-          // Sem contrato ou produto não bate: devolve ao estoque (não perde)
-          state.products[w.product] = (state.products[w.product] || 0) + w.load;
+        // Tenta entregar pra qualquer contrato ativo que peça este produto
+        const delivered = deliverProduct(w.load, w.product);
+        const leftover = w.load - delivered;
+        if (leftover > 0) {
+          // Nenhum contrato pediu (ou já estavam preenchidos): devolve ao estoque
+          state.products[w.product] = (state.products[w.product] || 0) + leftover;
         }
         w.load = 0;
         w.product = null;

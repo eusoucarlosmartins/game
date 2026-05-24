@@ -16,22 +16,28 @@ import { activeMine } from './mine.js';
 
 function renderContract() {
   const box = $('contract-box');
-  if (state.contract) {
-    const k = state.contract;
-    const pPct = Math.round((k.delivered / k.need) * 100);
-    const tLeft = Math.max(0, k.deadline - k.elapsed);
-    box.className = 'contract contract-active';
-    box.innerHTML = `
-      <div class="contract-title">${k.city} pede <span style="color:${R[k.product].color}">${R[k.product].name}</span></div>
-      <div class="contract-line"><span>Entregue</span><span>${k.delivered} / ${k.need}</span></div>
-      <div class="contract-bar"><div class="contract-bar-fill" style="width:${pPct}%"></div></div>
-      <div class="contract-line"><span>Tempo restante</span><span>${tLeft.toFixed(1)}s</span></div>
-      <div class="contract-bar"><div class="contract-bar-fill contract-time-bar-fill" style="width:${(tLeft / k.deadline) * 100}%"></div></div>
-    `;
-  } else {
+  const list = state.contracts || [];
+  if (list.length === 0) {
     box.className = 'contract';
     box.innerHTML = `<div class="contract-empty">Próximo pedido em ${Math.max(0, state.nextContractIn).toFixed(1)}s…</div>`;
+    return;
   }
+  box.className = 'contract contract-active';
+  box.innerHTML = list.map((k, idx) => {
+    const pPct = Math.round((k.delivered / k.need) * 100);
+    const tLeft = Math.max(0, k.deadline - k.elapsed);
+    const urgent = tLeft < 20 ? ' contract-urgent' : '';
+    return `
+      <div class="contract-item${urgent}">
+        ${idx === 0 ? '' : '<hr class="contract-sep"/>'}
+        <div class="contract-title">${k.city} pede <span style="color:${R[k.product].color}">${R[k.product].name}</span></div>
+        <div class="contract-line"><span>Entregue</span><span>${k.delivered} / ${k.need}</span></div>
+        <div class="contract-bar"><div class="contract-bar-fill" style="width:${pPct}%"></div></div>
+        <div class="contract-line"><span>Tempo restante</span><span>${tLeft.toFixed(1)}s</span></div>
+        <div class="contract-bar"><div class="contract-bar-fill contract-time-bar-fill" style="width:${(tLeft / k.deadline) * 100}%"></div></div>
+      </div>
+    `;
+  }).join('');
 }
 
 function renderStockLists() {
@@ -518,14 +524,19 @@ export function mineNeedsAttention() {
 }
 
 export function cityCanDeliver() {
-  const k = state.contract;
-  if (!k) return 0;
-  const have = state.products[k.product] || 0;
-  const need = k.need - k.delivered;
-  if (have >= need) return 1;
-  if (have > 0) return 0.5; // tem algo pra entregar parcialmente
-  return 0;
+  // Considera todos os contratos ativos
+  const ks = state.contracts || [];
+  if (ks.length === 0) return 0;
+  let hasPartial = false;
+  for (const k of ks) {
+    const have = state.products[k.product] || 0;
+    const need = k.need - k.delivered;
+    if (have >= need) return 1;
+    if (have > 0) hasPartial = true;
+  }
+  return hasPartial ? 0.5 : 0;
 }
+
 
 export function marketNeedsAttention() {
   let nearFull = 0;
@@ -565,12 +576,15 @@ function updateTabBadges() {
       el.className = 'tab-badge';
     }
   };
-  // Contrato: produtos prontos pra entregar (qualquer produto, mas destaca o do contrato)
-  const k = state.contract;
+  // Contrato: soma produtos prontos pra TODOS contratos ativos
+  const ks = state.contracts || [];
   let readyForContract = 0;
-  if (k) readyForContract = Math.floor(state.products[k.product] || 0);
-  // Urgência: contrato com pouco tempo
-  const urgent = k && (k.deadline - k.elapsed) < 20;
+  for (const k of ks) {
+    const have = Math.floor(state.products[k.product] || 0);
+    readyForContract += Math.min(have, k.need - k.delivered);
+  }
+  // Urgência: qualquer contrato com pouco tempo
+  const urgent = ks.some(k => (k.deadline - k.elapsed) < 20);
   if (urgent) setBadge('contract', '!', 'warn');
   else setBadge('contract', readyForContract > 0 ? readyForContract : 0);
   // Mina: veios revelados sem worker (oportunidade) + mineradores livres

@@ -32,7 +32,8 @@ export const state = {
 
   // (state.wagon removido — agora cada factory tem seu próprio wagon)
 
-  contract: null,
+  contract: null,            // alias pra contracts[0] (mantido pra compat com código antigo)
+  contracts: [],             // múltiplos contratos simultâneos (1-3 dependendo da era)
   currentCity: 'Florianópolis',
   nextContractIn: 6,
   contractsCompleted: 0,

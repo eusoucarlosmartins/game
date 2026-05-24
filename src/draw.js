@@ -358,19 +358,26 @@ function drawCity() {
 // Badge flutuante "✓ X entregar!" sobre a cidade quando há produto suficiente
 // pra atender o contrato. Pulsa em verde pra chamar atenção.
 function drawCityDeliverableBadge() {
-  const k = state.contract;
-  if (!k) return;
-  const have = Math.floor(state.products[k.product] || 0);
-  if (have <= 0) return;
-  const need = k.need - k.delivered;
-  const enough = have >= need;
+  // Agrega TODOS contratos ativos: total pronto pra entregar agora
+  const ks = state.contracts || [];
+  if (ks.length === 0) return;
+  let totalReady = 0;
+  let totalNeed = 0;
+  for (const k of ks) {
+    const have = state.products[k.product] || 0;
+    const need = k.need - k.delivered;
+    totalReady += Math.min(have, need);
+    totalNeed += need;
+  }
+  if (totalReady <= 0) return;
+  const enough = totalReady >= totalNeed;
   const cx = CITY.x + CITY.w / 2;
   const cy = CITY.y + CITY.h + 6;
   const t = performance.now() / 600;
   const pulse = 0.7 + 0.3 * (Math.sin(t * 1.5) + 1) / 2;
   const color = enough ? '77,160,77' : '218,165,32';
   const icon = enough ? '✓' : '↑';
-  const label = enough ? `${icon} Entregar ${need}!` : `${icon} ${have} pronto`;
+  const label = enough ? `${icon} Entregar ${totalNeed}!` : `${icon} ${totalReady} pronto`;
   ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
   const w = ctx.measureText(label).width + 18;
   // moldura escura
@@ -2645,43 +2652,45 @@ function drawActiveProjectPanel() {
 
 // ---------- Painel de contrato acima da cidade ----------
 function drawContractPanelOverworld() {
-  if (!state.contract) return;
-  const k = state.contract;
-  const product = R[k.product];
+  const ks = state.contracts || [];
+  if (ks.length === 0) return;
   const x = CITY.x + 10;
-  const y = 56;
   const w = CITY.w - 20;
-  const h = 100;
+  const cardH = 96;
+  const gap = 6;
+  for (let i = 0; i < ks.length; i++) {
+    const y = 56 + i * (cardH + gap);
+    drawContractCard(x, y, w, cardH, ks[i]);
+  }
+}
+
+function drawContractCard(x, y, w, h, k) {
+  const product = R[k.product];
   drawScrollPanel(x, y, w, h);
-  // título
   ctx.fillStyle = '#3a1f0a';
   ctx.font = 'bold 11px "Segoe UI"';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillText(`📜 PEDIDO DE ${k.city.toUpperCase()}`, x + 8, y + 6);
-  // ícone do produto + nome + quantidade
-  drawResourceIcon(x + 8, y + 28, 28, k.product);
+  ctx.fillText(`📜 ${k.city.toUpperCase()}`, x + 8, y + 6);
+  drawResourceIcon(x + 8, y + 24, 26, k.product);
   ctx.fillStyle = '#1a0e06';
-  ctx.font = 'bold 14px "Segoe UI"';
+  ctx.font = 'bold 12px "Segoe UI"';
   ctx.textBaseline = 'top';
-  ctx.fillText(product.name, x + 42, y + 28);
+  ctx.fillText(product.name, x + 40, y + 24);
   ctx.fillStyle = '#5a3416';
-  ctx.font = 'bold 16px "Segoe UI"';
-  ctx.fillText(`${k.delivered} / ${k.need}`, x + 42, y + 46);
-  // progresso entrega
+  ctx.font = 'bold 14px "Segoe UI"';
+  ctx.fillText(`${k.delivered} / ${k.need}`, x + 40, y + 40);
   const pct = clamp(k.delivered / k.need, 0, 1);
   ctx.fillStyle = '#1a0e06';
-  ctx.fillRect(x + 8, y + 72, w - 16, 5);
+  ctx.fillRect(x + 8, y + 64, w - 16, 5);
   ctx.fillStyle = '#4d7c3a';
-  ctx.fillRect(x + 8, y + 72, (w - 16) * pct, 5);
-  // tempo restante
+  ctx.fillRect(x + 8, y + 64, (w - 16) * pct, 5);
   const tLeft = Math.max(0, k.deadline - k.elapsed);
   const tPct = clamp(1 - k.elapsed / k.deadline, 0, 1);
   ctx.fillStyle = '#1a0e06';
-  ctx.fillRect(x + 8, y + 82, w - 16, 5);
+  ctx.fillRect(x + 8, y + 74, w - 16, 5);
   ctx.fillStyle = tLeft < 20 ? '#a82e1c' : '#c69042';
-  ctx.fillRect(x + 8, y + 82, (w - 16) * tPct, 5);
-  // texto do tempo
+  ctx.fillRect(x + 8, y + 74, (w - 16) * tPct, 5);
   ctx.fillStyle = tLeft < 20 ? '#a82e1c' : '#5a3416';
   ctx.font = 'bold 11px "Segoe UI"';
   ctx.textAlign = 'right';
