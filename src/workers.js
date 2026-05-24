@@ -123,8 +123,9 @@ export function getCandidates() {
 
 function makeCandidate(skillMin, skillMax) {
   const w = makeWorker(skillMin, skillMax);
-  // Custo de contratação proporcional à skill
-  w.hireCost = Math.round(60 + w.skill * 80);
+  // Custo de contratação proporcional à skill — mais acessível pra early game.
+  // Antes: $108-172. Agora: $70-110, escalando com skill.
+  w.hireCost = Math.round(40 + w.skill * 50);
   return w;
 }
 

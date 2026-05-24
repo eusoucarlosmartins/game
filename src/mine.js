@@ -111,12 +111,15 @@ function placeOreVeins(grid, oreBias) {
   for (const dep of DEPOSIT_TYPES) {
     const cost = dep.cost;
     let veinCount, minDepth, veinSize;
-    // Camadas geológicas: minérios baratos no topo, raros nas profundezas
-    if (cost === 0)            { veinCount = 10; minDepth = 1;  veinSize = 6; }
-    else if (cost < 200)       { veinCount = 10; minDepth = 2;  veinSize = 5; }
-    else if (cost < 500)       { veinCount = 8;  minDepth = 10; veinSize = 5; }
-    else if (cost < 1000)      { veinCount = 6;  minDepth = 20; veinSize = 4; }
-    else                       { veinCount = 5;  minDepth = 32; veinSize = 4; }
+    // Camadas geológicas: minérios baratos no topo, raros nas profundezas.
+    // Coal+iron (cost=0) são os essenciais de Era 1 (única contrato é iron_ingot),
+    // então recebem MUITO mais veios. Outros baixos (stone/sand/clay/wood) ainda
+    // aparecem mas mais espaçados.
+    if (cost === 0)            { veinCount = 16; minDepth = 1;  veinSize = 6; }
+    else if (cost < 200)       { veinCount = 7;  minDepth = 2;  veinSize = 5; }
+    else if (cost < 500)       { veinCount = 6;  minDepth = 10; veinSize = 5; }
+    else if (cost < 1000)      { veinCount = 5;  minDepth = 20; veinSize = 4; }
+    else                       { veinCount = 4;  minDepth = 32; veinSize = 4; }
     // Aplica viés regional: minérios "biased" dobram e ficam mais rasos;
     // outros minérios pagos reduzem pela metade.
     if (oreBias && oreBias.length > 0) {
