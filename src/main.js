@@ -125,10 +125,32 @@ function inMinimap(sx, sy) {
   return sx >= MINIMAP.x && sx < MINIMAP.x + MINIMAP.w &&
          sy >= MINIMAP.y && sy < MINIMAP.y + MINIMAP.h;
 }
+// Toolbar de ferramentas da mina (overlay UI) — clicks aqui são botões,
+// não devem iniciar pan da câmera.
+function inToolbar(sx, sy) {
+  return sx >= TOOLBAR.x && sx < TOOLBAR.x + TOOLBAR.w &&
+         sy >= TOOLBAR.y && sy < TOOLBAR.y + 4 * TOOLBAR.slotH;
+}
+// Áreas da cena 'mine' que NÃO iniciam pan (botões/UI sobreposta no grid)
+function isMineUiHit(sx, sy) {
+  if (inToolbar(sx, sy)) return true;
+  // Botões de troca de mina no canto sup. direito (renderizados sobre o céu,
+  // mas vamos garantir mesmo se o layout mudar)
+  if (state.mines && state.mines.length >= 2) {
+    const btnW = 110, btnH = 28, startY = 56;
+    for (let i = 0; i < state.mines.length; i++) {
+      if (sx >= W - btnW - 14 && sx < W - 14 &&
+          sy >= startY + i * (btnH + 6) && sy < startY + i * (btnH + 6) + btnH) return true;
+    }
+  }
+  return false;
+}
 canvas.addEventListener('mousedown', (e) => {
   const p = canvasCoords(e);
   // No overworld, mousedown no minimap NÃO inicia pan (vira click pra teleportar)
   if (state.scene === 'overworld' && inMinimap(p.x, p.y)) return;
+  // Na mina, clicks em botões/UI (toolbar, troca de mina) NÃO iniciam pan
+  if (state.scene === 'mine' && isMineUiHit(p.x, p.y)) return;
   if (state.scene === 'overworld') {
     state.isPanning = true;
     state.panStart = { mouseX: p.x, mouseY: p.y, cameraX: state.camera.x, cameraY: state.camera.y };
@@ -170,11 +192,22 @@ canvas.addEventListener('mousemove', (e) => {
     state.mouseX = p.x;
     state.mouseY = p.y;
   }
+  // Cursor contextual: deixa claro o que é clicável vs. arrastável.
+  if (!state.isPanning) {
+    if (state.scene === 'mine') {
+      if (isMineUiHit(p.x, p.y)) canvas.style.cursor = 'pointer';
+      else if (p.y >= MINE_AREA_TOP) canvas.style.cursor = 'crosshair';
+      else canvas.style.cursor = 'default';
+    } else if (state.scene === 'overworld') {
+      canvas.style.cursor = inMinimap(p.x, p.y) ? 'pointer' : 'grab';
+    }
+  }
 });
 canvas.addEventListener('mouseup', () => {
   state.isPanning = false;
   state.panStart = null;
-  canvas.style.cursor = state.scene === 'overworld' ? 'grab' : (state.scene === 'mine' ? 'grab' : 'default');
+  // Pós-mouseup, reseta pro default — o mousemove seguinte recalibra
+  canvas.style.cursor = state.scene === 'overworld' ? 'grab' : 'default';
 });
 canvas.addEventListener('mouseleave', () => {
   state.mouseX = -1;
@@ -184,7 +217,7 @@ canvas.addEventListener('mouseleave', () => {
   canvas.style.cursor = 'default';
 });
 canvas.addEventListener('mouseenter', () => {
-  canvas.style.cursor = (state.scene === 'overworld' || state.scene === 'mine') ? 'grab' : 'default';
+  canvas.style.cursor = state.scene === 'overworld' ? 'grab' : 'default';
 });
 // ===== Touch (mobile): 1 dedo = pan + click; 2 dedos = pinch zoom =====
 function touchCoords(t) {
@@ -200,6 +233,7 @@ canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
     const p = touchCoords(e.touches[0]);
     if (state.scene === 'overworld' && inMinimap(p.x, p.y)) return;
+    if (state.scene === 'mine' && isMineUiHit(p.x, p.y)) return;
     if (state.scene === 'overworld') {
       state.isPanning = true;
       state.panStart = { mouseX: p.x, mouseY: p.y, cameraX: state.camera.x, cameraY: state.camera.y };

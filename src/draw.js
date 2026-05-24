@@ -2288,7 +2288,7 @@ const TUTORIAL_STEPS = [
   },
   {
     scene: 'mine',
-    msg: '⛏ Selecione MINERADOR (👤 ou tecla 4) e clique num veio descoberto (CVO/FRO).',
+    msg: '⛏ Clique num veio descoberto (CVO/FRO ao lado do elevador) pra alocar minerador. Pra cavar túneis novos, troque pra Picareta (tecla 1).',
     check: (s) => {
       for (const m of (s.mines || [])) {
         if (!m.grid) continue;

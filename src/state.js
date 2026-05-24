@@ -12,7 +12,8 @@ export const state = {
   // Minas — array de minas independentes (cada uma com grid próprio)
   mines: [],            // populado por initMines() no boot
   activeMineIdx: 0,     // qual mina o jogador está vendo no momento
-  tool: 'pick',         // ferramenta selecionada (global)
+  tool: 'miner',        // ferramenta selecionada (global) — default minerador
+                        // pois é a primeira ação esperada do jogador no veio
   workersTotal: 2,      // pool global (mantido pra compat com saves antigos)
   workers: [],          // array de mineradores: { id, name, skill, fatigue, salary, tile? }
   tilesDug: 0,          // contador global

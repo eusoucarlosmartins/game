@@ -242,6 +242,12 @@ export function tryDigClick(r, c) {
   if (!t || !t.revealed) return;
   if (t.type === 'air' || t.type === 'shaft') return;
   if (!hasAdjacentAir(mine.grid, r, c)) return;
+  // Atalho amigável: clicou num veio sem worker com a picareta? Redireciona
+  // pra alocar minerador (ação esperada do jogador).
+  if (t.type === 'ore' && !t.worker) {
+    tryPlaceWorker(r, c);
+    return;
+  }
   let cost = 0;
   if (t.type === 'dirt') cost = TOOLS.pick.costDirt;
   else if (t.type === 'stone') cost = TOOLS.pick.costStone;
