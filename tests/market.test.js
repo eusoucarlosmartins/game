@@ -8,6 +8,9 @@ beforeEach(() => {
   state.money = 0;
   state.warehouse = { iron_ore: 10, coal: 5, water: 0 };
   state.products = { iron_ingot: 3 };
+  // Dia 6 = outono, market mult = 1.0 (sem bônus sazonal) pra testes
+  // serem determinísticos contra MARKET_RAW_MULT/MARKET_PROD_MULT puros.
+  state.day = 6;
 });
 
 describe('sellRaw', () => {

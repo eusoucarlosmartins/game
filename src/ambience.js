@@ -2,6 +2,7 @@
 // Inicializado preguiçosamente no primeiro update; depois só atualiza posições.
 import { state } from './state.js';
 import { WORLD_W, WORLD_H } from './geometry.js';
+import { currentSeason } from './seasons.js';
 
 function initAmbience() {
   const amb = state.ambience;
@@ -21,6 +22,8 @@ function initAmbience() {
   amb.birds = [];
   amb.nextBirdIn = 4 + Math.random() * 8;
   // Vacas pastando perto dos vilarejos/fazendas — posições fixas pra estabilidade
+  // Partículas de estação (neve, folhas) — atualizadas só se a estação atual exigir
+  amb.seasonParticles = [];
   amb.cows = [
     { x: 280, y: 690, phase: Math.random() * Math.PI * 2 },
     { x: 410, y: 700, phase: Math.random() * Math.PI * 2 },
@@ -96,6 +99,34 @@ export function updateAmbience(dt) {
     amb.fishJumps[i].life -= dt;
     if (amb.fishJumps[i].life <= 0) amb.fishJumps.splice(i, 1);
   }
+  // Partículas de estação: neve no inverno, folhas no outono
+  const season = currentSeason();
+  if (season.id === 'inverno' || season.id === 'outono') {
+    // mantém ~60 partículas caindo
+    while (amb.seasonParticles.length < 60) {
+      amb.seasonParticles.push({
+        x: Math.random() * WORLD_W,
+        y: -10 + Math.random() * WORLD_H,
+        vx: season.id === 'outono' ? -20 + Math.random() * 40 : -8 + Math.random() * 16,
+        vy: 25 + Math.random() * 35,
+        size: 2 + Math.random() * 2,
+        rot: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 4,
+        kind: season.id,
+      });
+    }
+    for (const p of amb.seasonParticles) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.rot += p.rotSpeed * dt;
+      if (p.y > WORLD_H + 10) {
+        p.y = -10;
+        p.x = Math.random() * WORLD_W;
+      }
+    }
+  } else if (amb.seasonParticles.length > 0) {
+    amb.seasonParticles = []; // limpa quando muda pra verão/primavera
+  }
 }
 
 export function drawAmbience(ctx) {
@@ -145,6 +176,23 @@ export function drawAmbience(ctx) {
     // orelhinha
     ctx.fillStyle = '#2a2018';
     ctx.fillRect(cow.x + 8, cow.y + bob, 1, 1.5);
+  }
+  // Partículas de estação (neve/folhas) — desenhadas atrás dos prédios
+  for (const p of amb.seasonParticles) {
+    if (p.kind === 'inverno') {
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // outono: folha pequena (retângulo rotacionado em laranja/marrom)
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = '#c97a3a';
+      ctx.fillRect(-p.size, -p.size * 0.4, p.size * 2, p.size * 0.8);
+      ctx.restore();
+    }
   }
   // Peixes saltando — arco animado com pequeno respingo
   for (const f of amb.fishJumps) {

@@ -1,6 +1,7 @@
 // progression.js — eras, modificadores de equipamento/pesquisa, e cálculos derivados
 import { state, log } from './state.js';
 import { ERAS, ROMAN, EQ_BY_ID, RES_BY_ID, CFG, R } from './data.js';
+import { seasonMul } from './seasons.js';
 
 // Soma modificadores de equipamentos + pesquisas que afetam um effect específico
 export function eqMod(effect) {
@@ -77,8 +78,8 @@ export function transportTier() {
 export const cartCapacity   = () => Math.floor(CFG.cartCapacityBase * (1 + eqMod('cartCap')));
 export const cartSpeed      = () => CFG.cartSpeedBase * (1 + eqMod('cartSpd'));
 export const wagonCapacity  = () => Math.floor(CFG.wagonCapacityBase * (1 + eqMod('wagonCap') + (state.wagonCapacityBonus || 0)));
-export const wagonSpeed     = () => CFG.wagonSpeedBase * (1 + eqMod('wagonSpd') + (state.wagonSpeedBonus || 0) + (state.eventWagonMul || 0));
-export const mineRateMul    = () => (1 + eqMod('mineRate')) * (state.eventMineMul !== undefined ? state.eventMineMul : 1) * (state.difficulty === 'easy' ? 1.3 : state.difficulty === 'hard' ? 0.8 : 1);
-export const factSpdMul     = () => 1 + eqMod('factSpd') + (state.factorySpeedBonus || 0) + (state.eventFactoryMul || 0);
+export const wagonSpeed     = () => CFG.wagonSpeedBase * (1 + eqMod('wagonSpd') + (state.wagonSpeedBonus || 0) + (state.eventWagonMul || 0)) * seasonMul('wagon');
+export const mineRateMul    = () => (1 + eqMod('mineRate')) * (state.eventMineMul !== undefined ? state.eventMineMul : 1) * (state.difficulty === 'easy' ? 1.3 : state.difficulty === 'hard' ? 0.8 : 1) * seasonMul('mine');
+export const factSpdMul     = () => (1 + eqMod('factSpd') + (state.factorySpeedBonus || 0) + (state.eventFactoryMul || 0)) * seasonMul('factory');
 export const pileMaxMul     = () => 1 + eqMod('pileMax');
 export const pileMax        = () => Math.floor(CFG.minePileMaxBase * pileMaxMul());

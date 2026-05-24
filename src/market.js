@@ -5,6 +5,7 @@ import { fmtMoney } from './util.js';
 import { play } from './audio.js';
 import { OVERWORLD } from './geometry.js';
 import { spawnMoneyText } from './particles.js';
+import { seasonMul } from './seasons.js';
 
 export const MARKET_RAW_MULT = 0.6;   // mat. prima vende a 60% do preço
 export const MARKET_PROD_MULT = 0.7;  // produto vende a 70%
@@ -14,7 +15,7 @@ export function sellRaw(resource, amount) {
   const have = state.warehouse[resource] || 0;
   const sell = Math.min(amount, Math.floor(have));
   if (sell <= 0) return;
-  const earn = Math.max(1, Math.round(sell * R[resource].price * MARKET_RAW_MULT * (1 + (state.marketBonus || 0) + (state.eventMarketMul || 0))));
+  const earn = Math.max(1, Math.round(sell * R[resource].price * MARKET_RAW_MULT * (1 + (state.marketBonus || 0) + (state.eventMarketMul || 0)) * seasonMul('market')));
   state.warehouse[resource] -= sell;
   state.money += earn;
   state.totalEarnings = (state.totalEarnings || 0) + earn;
@@ -29,7 +30,7 @@ export function sellProduct(resource, amount) {
   const have = state.products[resource] || 0;
   const sell = Math.min(amount, Math.floor(have));
   if (sell <= 0) return;
-  const earn = Math.max(1, Math.round(sell * R[resource].price * MARKET_PROD_MULT * (1 + (state.marketBonus || 0) + (state.eventMarketMul || 0))));
+  const earn = Math.max(1, Math.round(sell * R[resource].price * MARKET_PROD_MULT * (1 + (state.marketBonus || 0) + (state.eventMarketMul || 0)) * seasonMul('market')));
   state.products[resource] -= sell;
   state.money += earn;
   state.totalEarnings = (state.totalEarnings || 0) + earn;

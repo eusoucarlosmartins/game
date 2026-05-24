@@ -94,8 +94,18 @@ export function updateDay(dt) {
   state.dayTimer += dt;
   if (state.dayTimer >= CFG.dayLengthSec) {
     state.dayTimer = 0;
+    const prevDay = state.day;
     state.day++;
     state.rp += Math.round(2 * (1 + (state.rpBonus || 0)));
+    // Detecta transição de estação pra notificar
+    import('./seasons.js').then(m => {
+      const prevSeasonIdx = Math.floor(((prevDay - 1) % 20) / 5);
+      const newSeasonIdx = Math.floor(((state.day - 1) % 20) / 5);
+      if (prevSeasonIdx !== newSeasonIdx) {
+        const s = m.SEASONS[newSeasonIdx];
+        log(`${s.emoji} ${s.name} chegou! ${s.desc}`, 'good');
+      }
+    });
     // renda passiva diária (de projetos como Banco do Estado)
     if (state.passiveIncome && state.passiveIncome > 0) {
       state.money += state.passiveIncome;

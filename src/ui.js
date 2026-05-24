@@ -11,6 +11,7 @@ import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
 import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } from './projects.js';
 import { statusWagons } from './wagon.js';
 import { listAchievements } from './achievements.js';
+import { currentSeason, currentYear, dayInSeason } from './seasons.js';
 
 function renderContract() {
   const box = $('contract-box');
@@ -454,6 +455,13 @@ export function syncUI() {
   $('approval-fill').style.width = pct + '%';
   $('approval-text').textContent = pct + '%';
   const wagonEl = $('wagon-status');     if (wagonEl)  wagonEl.textContent  = statusWagons();
+  const seasonEl = $('season-badge');
+  if (seasonEl) {
+    const s = currentSeason();
+    seasonEl.textContent = `${s.emoji} ${s.name} · Ano ${currentYear()} · Dia ${dayInSeason()}/5`;
+    seasonEl.title = `${s.name}: ${s.desc}`;
+    seasonEl.style.background = `linear-gradient(135deg, ${s.color}33, rgba(20,10,5,0.4))`;
+  }
   const diffEl = $('difficulty-badge');
   if (diffEl) {
     const d = state.difficulty || 'normal';
