@@ -1,13 +1,13 @@
 {
   "name": "Tapuia — Companhia de Mineração",
   "short_name": "Tapuia",
-  "description": "Tycoon de mineração e indústria em Santa Catarina.",
+  "description": "Tycoon de mineração, indústria e governo em Santa Catarina. Construa minas, fábricas, e cumpra contratos pra avançar de era.",
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
-  "display_override": ["fullscreen", "standalone"],
-  "orientation": "landscape",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "any",
   "background_color": "#2c1c10",
   "theme_color": "#5a3416",
   "categories": ["games", "strategy", "simulation"],
@@ -15,5 +15,16 @@
     { "src": "./icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
     { "src": "./icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" },
     { "src": "./icon-maskable.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Continuar partida",
+      "short_name": "Continuar",
+      "description": "Carrega o slot ativo",
+      "url": "./",
+      "icons": [{ "src": "./icon-192.svg", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false,
+  "edge_side_panel": { "preferred_width": 480 }
 }

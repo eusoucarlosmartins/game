@@ -246,7 +246,12 @@ canvas.addEventListener('touchmove', (e) => {
     const p1 = touchCoords(e.touches[0]);
     const p2 = touchCoords(e.touches[1]);
     const newDist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-    const newZoom = clamp(pinchStart.zoom * (newDist / pinchStart.dist), 0.5, 2.2);
+    // Suaviza a sensibilidade do pinch — em vez de multiplicar direto,
+    // exponentia a razão por 0.75 (deixa zoom mais lento/previsível em
+    // telas pequenas onde pequenos gestos viram grandes variações)
+    const rawRatio = newDist / pinchStart.dist;
+    const smoothRatio = Math.pow(rawRatio, 0.75);
+    const newZoom = clamp(pinchStart.zoom * smoothRatio, 0.5, 2.2);
     // Mantém o centro do pinch fixo durante o zoom
     state.camera.zoom = newZoom;
     const u2 = unlockedWorldSize(currentEra());
@@ -480,17 +485,57 @@ document.querySelectorAll('.speed-btn').forEach((btn) => {
   });
 });
 
+const TAB_IDS = ['contract','mine','factory','market','projects','stats','log'];
+function activateTab(tabId) {
+  document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
+  const btn = document.querySelector(`.tab[data-tab="${tabId}"]`);
+  if (btn) btn.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
+  const panel = document.querySelector(`.tab-panel[data-panel="${tabId}"]`);
+  if (panel) panel.classList.add('active');
+}
+function currentTab() {
+  const el = document.querySelector('.tab.active');
+  return el ? el.getAttribute('data-tab') : 'contract';
+}
 document.querySelectorAll('.tab').forEach((btn) => {
   const el = /** @type {HTMLElement} */ (btn);
   el.addEventListener('click', () => {
-    const t = el.dataset.tab;
-    document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
-    el.classList.add('active');
-    document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
-    const panel = document.querySelector(`.tab-panel[data-panel="${t}"]`);
-    if (panel) panel.classList.add('active');
+    activateTab(el.dataset.tab || 'contract');
+    if (navigator.vibrate) navigator.vibrate(5);
   });
 });
+
+// Swipe horizontal no painel ativo da sidebar troca de tab (mobile)
+const sidebarEl = document.querySelector('.sidebar');
+if (sidebarEl) {
+  let swipeStartX = 0, swipeStartY = 0, swipeActive = false;
+  sidebarEl.addEventListener('touchstart', (ev) => {
+    const e = /** @type {TouchEvent} */ (ev);
+    if (e.touches.length !== 1) return;
+    swipeStartX = e.touches[0].clientX;
+    swipeStartY = e.touches[0].clientY;
+    swipeActive = true;
+  }, { passive: true });
+  sidebarEl.addEventListener('touchend', (ev) => {
+    const e = /** @type {TouchEvent} */ (ev);
+    if (!swipeActive) return;
+    swipeActive = false;
+    if (e.changedTouches.length !== 1) return;
+    const dx = e.changedTouches[0].clientX - swipeStartX;
+    const dy = e.changedTouches[0].clientY - swipeStartY;
+    // Swipe horizontal só se for predominantemente horizontal e > 60px
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      const cur = currentTab();
+      const idx = TAB_IDS.indexOf(cur);
+      const nextIdx = dx > 0 ? Math.max(0, idx - 1) : Math.min(TAB_IDS.length - 1, idx + 1);
+      if (nextIdx !== idx) {
+        activateTab(TAB_IDS[nextIdx]);
+        if (navigator.vibrate) navigator.vibrate(15);
+      }
+    }
+  }, { passive: true });
+}
 
 document.addEventListener('click', (e) => {
   const target = /** @type {HTMLElement|null} */ (e.target);
