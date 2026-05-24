@@ -3,7 +3,7 @@ import { state, log } from './state.js';
 import { $ } from './util.js';
 import { ROMAN, CFG, MINE } from './data.js';
 import { currentEra } from './progression.js';
-import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL } from './save.js';
+import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL, SAVE_SLOTS, getSlotInfo, getActiveSlot, setActiveSlot } from './save.js';
 import { initMines, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine, regenerateMine, activeMine as getActiveMine } from './mine.js';
 import { buyFactory, setRecipe, updateFactories } from './factories.js';
 import { updateWagon } from './wagon.js';
@@ -547,6 +547,72 @@ $('restart-btn').addEventListener('click', () => {
 $('save-btn').addEventListener('click', () => {
   if (saveGame()) log('Partida salva.', 'good');
   else log('Falha ao salvar partida.', 'bad');
+});
+
+// === Slots de save ===
+function renderSlotsModal() {
+  const listEl = document.getElementById('slots-list');
+  if (!listEl) return;
+  const active = getActiveSlot();
+  listEl.innerHTML = SAVE_SLOTS.map(slot => {
+    const info = getSlotInfo(slot);
+    const isActive = slot === active;
+    let inside;
+    if (!info) {
+      inside = `<div class="slot-meta empty">Vazio</div>`;
+    } else {
+      const eraN = ['I','II','III','IV','V','VI'][info.eraReached - 1] || '?';
+      const ago = info.savedAt ? Math.round((Date.now() - info.savedAt) / 60000) : 0;
+      const diffEmoji = info.difficulty === 'easy' ? '🌿' : info.difficulty === 'hard' ? '🔥' : '⚖';
+      inside = `<div class="slot-meta">
+        <div class="slot-row"><span>${diffEmoji} ${info.difficulty}</span> · <span>Era ${eraN}</span></div>
+        <div class="slot-row"><span>Dia ${info.day}</span> · <span>${info.contractsCompleted} contratos</span></div>
+        <div class="slot-row"><span>\$${info.money}</span> · <span class="muted">${info.currentCity}</span></div>
+        <div class="slot-row muted">Última gravação: ${ago < 1 ? 'agora' : ago < 60 ? ago + ' min' : Math.round(ago/60) + 'h'}</div>
+      </div>`;
+    }
+    return `<div class="slot-card ${isActive ? 'active' : ''} ${info ? '' : 'empty'}">
+      <div class="slot-header">
+        <strong>Slot ${slot}</strong>
+        ${isActive ? '<span class="slot-active-tag">ATIVO</span>' : ''}
+      </div>
+      ${inside}
+      <div class="slot-actions">
+        ${info ? `<button class="mini-btn" data-slot-action="load" data-slot="${slot}">📂 Carregar</button>` : ''}
+        ${!isActive ? `<button class="mini-btn" data-slot-action="setActive" data-slot="${slot}">★ Ativar</button>` : ''}
+        ${info ? `<button class="mini-btn danger" data-slot-action="delete" data-slot="${slot}">🗑 Apagar</button>` : `<button class="mini-btn" data-slot-action="setActive" data-slot="${slot}">★ Usar este slot</button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+$('slots-btn').addEventListener('click', () => {
+  renderSlotsModal();
+  document.getElementById('modal-slots')?.classList.remove('hidden');
+});
+
+document.addEventListener('click', (e) => {
+  const t = /** @type {HTMLElement|null} */ (e.target);
+  const btn = t?.closest('[data-slot-action]');
+  if (!btn) return;
+  const action = /** @type {HTMLElement} */ (btn).dataset.slotAction;
+  const slot = parseInt(/** @type {HTMLElement} */ (btn).dataset.slot || '1', 10);
+  if (action === 'load') {
+    if (!state.over) saveGame(); // salva o atual antes
+    setActiveSlot(slot);
+    location.reload();
+  } else if (action === 'setActive') {
+    if (!state.over) saveGame();
+    setActiveSlot(slot);
+    renderSlotsModal();
+    log(`Slot ${slot} agora é o ativo.`, 'good');
+  } else if (action === 'delete') {
+    if (confirm(`Apagar slot ${slot}? Não dá pra desfazer.`)) {
+      deleteSave(slot);
+      renderSlotsModal();
+      log(`Slot ${slot} apagado.`, 'bad');
+    }
+  }
 });
 $('newgame-btn').addEventListener('click', () => {
   document.getElementById('modal-newgame')?.classList.remove('hidden');

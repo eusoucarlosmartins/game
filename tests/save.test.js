@@ -71,9 +71,9 @@ describe('save/load roundtrip', () => {
   it('deleteSave limpa o storage', () => {
     state.money = 999;
     saveGame();
-    expect(localStorage.getItem('tapuia_save_v2')).not.toBeNull();
+    expect(localStorage.getItem('tapuia_save_v2_slot1')).not.toBeNull();
     deleteSave();
-    expect(localStorage.getItem('tapuia_save_v2')).toBeNull();
+    expect(localStorage.getItem('tapuia_save_v2_slot1')).toBeNull();
   });
 
   it('loadGame retorna false sem save', () => {

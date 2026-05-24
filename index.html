@@ -63,6 +63,7 @@
         <button id="mute-btn" class="save-btn" title="Mudo (tecla M)">🔊</button>
         <button id="upgrades-btn" class="save-btn upgrade" title="Tela de Upgrades (tecla U)">⚙ Upgrades</button>
         <button id="save-btn" class="save-btn" title="Salvar agora">💾 Salvar</button>
+        <button id="slots-btn" class="save-btn" title="Gerenciar slots de save">📂 Slots</button>
         <button id="newgame-btn" class="save-btn danger" title="Apaga a partida atual">↻ Novo Jogo</button>
         <span class="save-status" id="save-status">—</span>
         <span class="difficulty-badge" id="difficulty-badge" title="Modo de dificuldade">⚖</span>
@@ -279,6 +280,16 @@
       <h2 id="end-title">A população te destituiu</h2>
       <p id="end-text">A aprovação caiu a zero.</p>
       <button id="restart-btn">Recomeçar</button>
+    </div>
+  </div>
+
+  <!-- Modal: Slots de save -->
+  <div id="modal-slots" class="modal hidden">
+    <div class="modal-card wide">
+      <button class="modal-close" data-close="modal-slots">×</button>
+      <h2>📂 Slots de Save</h2>
+      <p class="modal-sub">3 partidas paralelas. O slot ativo recebe os autosaves e cliques em "Salvar".</p>
+      <div id="slots-list" class="slots-list"></div>
     </div>
   </div>
 

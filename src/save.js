@@ -1,11 +1,44 @@
-// save.js — persistência em localStorage. Versão 2 = mina em grid (incompatível com v1).
+// save.js — persistência em localStorage com 3 slots independentes.
+// Slot ativo é guardado em ACTIVE_KEY; cada slot tem sua própria chave
+// 'tapuia_save_v2_slotN' (N = 1, 2, 3).
 import { state } from './state.js';
 import { R, SILO_DEFAULT_CAP } from './data.js';
 import { $ } from './util.js';
 
-export const SAVE_KEY = 'tapuia_save_v2';
 export const SAVE_VERSION = 2;
-export const AUTOSAVE_INTERVAL = 15; // segundos de tempo real
+export const AUTOSAVE_INTERVAL = 15;
+const LEGACY_KEY = 'tapuia_save_v2'; // pre-slot
+const ACTIVE_KEY = 'tapuia_active_slot';
+export const SAVE_SLOTS = [1, 2, 3];
+
+function slotKey(slot) { return `tapuia_save_v2_slot${slot}`; }
+
+export function getActiveSlot() {
+  try {
+    const s = parseInt(localStorage.getItem(ACTIVE_KEY) || '1', 10);
+    return SAVE_SLOTS.includes(s) ? s : 1;
+  } catch { return 1; }
+}
+
+export function setActiveSlot(slot) {
+  if (!SAVE_SLOTS.includes(slot)) return;
+  try { localStorage.setItem(ACTIVE_KEY, String(slot)); } catch { /* ignore */ }
+}
+
+// Migra save legado pro slot 1 na primeira vez que carrega
+function migrateLegacyIfNeeded() {
+  try {
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (!legacy) return;
+    if (localStorage.getItem(slotKey(1))) {
+      // já tem slot 1; só remove o legado pra não confundir
+      localStorage.removeItem(LEGACY_KEY);
+      return;
+    }
+    localStorage.setItem(slotKey(1), legacy);
+    localStorage.removeItem(LEGACY_KEY);
+  } catch { /* ignore */ }
+}
 
 const PERSIST_KEYS = [
   'money','approval','day','dayTimer','speed','over',
@@ -21,11 +54,12 @@ const PERSIST_KEYS = [
 
 let lastSaveTime = 0;
 
-export function saveGame() {
+export function saveGame(slot) {
+  const s = slot ?? getActiveSlot();
   try {
     const data = { version: SAVE_VERSION, savedAt: Date.now() };
     for (const k of PERSIST_KEYS) data[k] = state[k];
-    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    localStorage.setItem(slotKey(s), JSON.stringify(data));
     lastSaveTime = Date.now();
     updateSaveStatus();
     return true;
@@ -35,9 +69,11 @@ export function saveGame() {
   }
 }
 
-export function loadGame() {
+export function loadGame(slot) {
+  migrateLegacyIfNeeded();
+  const s = slot ?? getActiveSlot();
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(slotKey(s));
     if (!raw) return false;
     const data = JSON.parse(raw);
     if (data.version !== SAVE_VERSION) {
@@ -55,17 +91,14 @@ export function loadGame() {
       }
       if (R[k].kind === 'prod' && state.products[k] === undefined) state.products[k] = 0;
     }
-    // MIGRAÇÃO: saves antigos tinham state.mine (single) — converter pra mines[]
-    // @ts-ignore — campo legado pode existir em saves antigos
+    // Migração antiga: state.mine (single) → state.mines[] (array)
+    // @ts-ignore — campo legado
     if (state.mine && (!state.mines || state.mines.length === 0)) {
       // @ts-ignore
       const old = state.mine;
       state.mines = [{
-        id: 'mina_central',
-        name: 'Mina Central',
-        grid: old.grid || null,
-        tntFx: null,
-        exhausted: false,
+        id: 'mina_central', name: 'Mina Central',
+        grid: old.grid || null, tntFx: null, exhausted: false,
         elevator: { y: 0, dir: 1 },
       }];
       state.activeMineIdx = 0;
@@ -73,10 +106,7 @@ export function loadGame() {
       // @ts-ignore
       delete state.mine;
     }
-    // Reseta efeitos transitórios das minas
     for (const m of (state.mines || [])) m.tntFx = null;
-    // Migração de saves antigos: cada factory precisa ter seu próprio wagon
-    // (antes era um state.wagon global; agora é por fábrica)
     for (const f of (state.factories || [])) {
       if (!f.wagon) f.wagon = { pos: 0, dir: 0, product: null, load: 0, state: 'idle', timer: 0 };
     }
@@ -90,17 +120,38 @@ export function loadGame() {
   }
 }
 
-export function deleteSave() {
-  try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
+export function deleteSave(slot) {
+  const s = slot ?? getActiveSlot();
+  try { localStorage.removeItem(slotKey(s)); } catch { /* ignore */ }
+}
+
+// Metadados de um slot pra exibir no modal (sem carregar o save todo no state)
+export function getSlotInfo(slot) {
+  try {
+    const raw = localStorage.getItem(slotKey(slot));
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return {
+      day: data.day || 1,
+      contractsCompleted: data.contractsCompleted || 0,
+      eraReached: data.eraReached || 1,
+      money: data.money || 0,
+      difficulty: data.difficulty || 'normal',
+      savedAt: data.savedAt || 0,
+      currentCity: data.currentCity || '—',
+    };
+  } catch { return null; }
 }
 
 export function updateSaveStatus() {
   const el = $('save-status');
   if (!el) return;
-  if (!lastSaveTime) { el.textContent = 'sem gravação'; return; }
+  if (!lastSaveTime) { el.textContent = `slot ${getActiveSlot()} · vazio`; return; }
   const ago = Math.floor((Date.now() - lastSaveTime) / 1000);
-  if (ago < 5) el.textContent = 'salvo agora';
-  else if (ago < 60) el.textContent = `salvo há ${ago}s`;
-  else if (ago < 3600) el.textContent = `salvo há ${Math.floor(ago/60)} min`;
-  else el.textContent = `salvo há ${Math.floor(ago/3600)}h`;
+  let when;
+  if (ago < 5) when = 'agora';
+  else if (ago < 60) when = `${ago}s`;
+  else if (ago < 3600) when = `${Math.floor(ago/60)} min`;
+  else when = `${Math.floor(ago/3600)}h`;
+  el.textContent = `slot ${getActiveSlot()} · salvo ${when}`;
 }
