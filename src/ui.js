@@ -855,7 +855,13 @@ export function openBuyMineModal() {
   const opts = $('buy-mine-options');
   if (!opts) return;
   const era = currentEra();
-  let html = '';
+  let html = '<div class="hint" style="margin-bottom:8px;">Onde abrir o poço do elevador?</div>';
+  // Seletor de coluna do poço (esquerda/centro/direita)
+  html += `<div class="shaft-pos-picker" style="display:flex;gap:6px;margin-bottom:10px;">
+    <label class="shaft-pos"><input type="radio" name="shaft-pos" value="0" checked> ⬅ Esquerda</label>
+    <label class="shaft-pos"><input type="radio" name="shaft-pos" value="14"> ⏺ Centro</label>
+    <label class="shaft-pos"><input type="radio" name="shaft-pos" value="28"> ➡ Direita</label>
+  </div>`;
   for (const cat of MINE_CATALOG) {
     const owned = isMineOwned(cat.id);
     const eraOk = era >= cat.eraReq;

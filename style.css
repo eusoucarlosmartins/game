@@ -1535,6 +1535,20 @@ html, body {
   color: var(--ink);
 }
 .grid-option:hover:not(:disabled) { background: rgba(255,255,255,0.8); border-color: var(--brass); }
+.shaft-pos {
+  flex: 1;
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.04);
+  border: 1px solid var(--wood-dark);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.shaft-pos:hover { background: rgba(0,0,0,0.08); }
+.shaft-pos input { margin: 0; }
 .grid-option:disabled { opacity: 0.45; cursor: not-allowed; }
 .grid-option-title { font-weight: bold; font-size: 13px; display: flex; align-items: center; gap: 6px; }
 .grid-option-cost { font-style: italic; font-size: 11px; color: var(--wood-dark); }

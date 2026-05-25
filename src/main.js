@@ -4,8 +4,8 @@ import { $ } from './util.js';
 import { ROMAN, CFG, MINE } from './data.js';
 import { currentEra } from './progression.js';
 import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL, SAVE_SLOTS, getSlotInfo, getActiveSlot, setActiveSlot, backupCurrentSlot, restoreBackup, hasBackup } from './save.js';
-import { initMines, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine, regenerateMine, tryUpgradeSilo, activeMine as getActiveMine } from './mine.js';
-import { siloAt, factoryCapUpgradeAt } from './draw.js';
+import { initMines, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine, regenerateMine, tryUpgradeSilo, tryExtendShaft, tryAddShaft, tryUpgradeShaftSpeed, migrateMineShafts, shaftExtendCost, shaftSpeedUpgradeCost, MAX_SHAFT_SPEED_LV, NEW_SHAFT_COST, activeMine as getActiveMine } from './mine.js';
+import { siloAt, factoryCapUpgradeAt, shaftExtendBtnAt, shaftOpsHudHitTest } from './draw.js';
 import { buyFactory, setRecipe, updateFactories, tryUpgradeRecipeCap } from './factories.js';
 import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
@@ -173,11 +173,24 @@ function inToolbar(sx, sy) {
   return sx >= TOOLBAR.x && sx < TOOLBAR.x + TOOLBAR.w &&
          sy >= TOOLBAR.y && sy < TOOLBAR.y + 4 * TOOLBAR.slotH;
 }
+// Helper: ativa modo "escolher coluna pro novo poço". Próximo click no grid
+// vira chamada de tryAddShaft.
+function startAddShaftMode() {
+  if (state.money < NEW_SHAFT_COST) {
+    log(`Sem dinheiro pra construir novo poço ($${NEW_SHAFT_COST}).`, 'bad');
+    return;
+  }
+  state._addingShaftMode = true;
+  log('🪜 Clique numa coluna vazia da mina pra construir o poço.', '');
+}
+
 // Áreas da cena 'mine' que NÃO iniciam pan (botões/UI sobreposta no grid)
 function isMineUiHit(sx, sy) {
   if (inToolbar(sx, sy)) return true;
   // Silos (clicar pra expandir capacidade)
   if (siloAt(sx, sy)) return true;
+  // HUD do elevador (canto superior esquerdo)
+  if (shaftOpsHudHitTest(sx, sy)) return true;
   // Botões de troca de mina no canto sup. direito (renderizados sobre o céu,
   // mas vamos garantir mesmo se o layout mudar)
   if (state.mines && state.mines.length >= 2) {
@@ -484,6 +497,34 @@ function handleCanvasClick(sc) {
     const sRes = siloAt(sc.x, sc.y);
     if (sRes) { tryUpgradeSilo(sRes); return; }
   }
+  // HUD do elevador (canto superior esquerdo, depois do "Voltar"):
+  // botões de velocidade e novo poço
+  {
+    const op = shaftOpsHudHitTest(sc.x, sc.y);
+    if (op === 'speed') { tryUpgradeShaftSpeed(); return; }
+    if (op === 'newShaft') { startAddShaftMode(); return; }
+  }
+  // Se está no modo "escolher coluna pra novo poço", click no grid escolhe
+  if (state._addingShaftMode) {
+    const gridY = y + state.mineCamera.y;
+    if (x >= MINE.x && x < MINE.x + MINE.cols * MINE.cell &&
+        gridY >= MINE.y && gridY < MINE.y + MINE.rows * MINE.cell &&
+        y >= MINE.y) {
+      const c = Math.floor((x - MINE.x) / MINE.cell);
+      tryAddShaft(c);
+      state._addingShaftMode = false;
+      return;
+    }
+    // ESC virtual: click em outro lugar cancela
+    state._addingShaftMode = false;
+    log('Construção de poço cancelada.', '');
+    return;
+  }
+  // Click no botão "+ Estender" abaixo de algum poço (em world coords)
+  {
+    const sIdx = shaftExtendBtnAt(x, y + state.mineCamera.y);
+    if (sIdx >= 0) { tryExtendShaft(sIdx); return; }
+  }
   // Botão "Regenerar" no banner de mina esgotada
   {
     const m = getActiveMine();
@@ -670,7 +711,10 @@ document.addEventListener('click', (e) => {
       break;
     }
     case 'confirm-buy-mine': {
-      buyMine(t.dataset.id);
+      // Lê a coluna do poço escolhida no radio
+      const picked = /** @type {HTMLInputElement|null} */ (document.querySelector('input[name="shaft-pos"]:checked'));
+      const shaftCol = picked ? parseInt(picked.value, 10) : 0;
+      buyMine(t.dataset.id, shaftCol);
       closeModal('modal-buy-mine');
       break;
     }
@@ -851,6 +895,8 @@ if (loaded) {
   state.eraReached = Math.max(state.eraReached || 1, currentEra());
   // Garante array de minas válido após carregar (migração já feita em save.js)
   if (!state.mines || state.mines.length === 0) initMines();
+  // Migração de poços: saves antigos não têm mine.shafts — adiciona shaft full-depth
+  for (const m of (state.mines || [])) migrateMineShafts(m);
   ensureWorkers(); // saves antigos só tinham workersTotal — cria array agora
   // Saves antigos sem campo tutorial: marca como dismissed (não atrapalha)
   if (!state.tutorial) state.tutorial = { step: 0, dismissed: true, autoDismissIn: 0 };

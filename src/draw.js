@@ -3015,13 +3015,84 @@ function drawMineScene() {
   drawToolbar();
   drawBackBtn();
   drawMineSwitcher();
+  drawShaftOpsHud();
   drawExhaustedOverlay();
+}
+
+// HUD pra operações do elevador: speed upgrade + novo poço. Fica no topo
+// abaixo do botão "Voltar ao Mapa" e antes da toolbar.
+const SHAFT_OPS_HUD = { x: 12, y: 60, w: 168, btnH: 26, gap: 4 };
+function drawShaftOpsHud() {
+  const mine = activeMine();
+  if (!mine) return;
+  const speedLv = mine.speedLv || 0;
+  const maxLv = 5;
+  const speedCost = 400 * (speedLv + 1);
+  const speedAtMax = speedLv >= maxLv;
+  const newShaftCost = 1500;
+  const x = SHAFT_OPS_HUD.x;
+  const w = SHAFT_OPS_HUD.w;
+  let y = SHAFT_OPS_HUD.y;
+  // Header
+  ctx.fillStyle = 'rgba(20,10,5,0.6)';
+  ctx.fillRect(x, y, w, 14);
+  ctx.fillStyle = '#ffd44a';
+  ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`⛏ ELEVADOR Lv ${speedLv}/${maxLv}`, x + 4, y + 7);
+  y += 16;
+  // Botão velocidade
+  drawHudBtn(x, y, w, SHAFT_OPS_HUD.btnH,
+    speedAtMax ? '⚡ Velocidade MÁX' : `⚡ +Velocidade · $${speedCost}`,
+    !speedAtMax && state.money >= speedCost);
+  y += SHAFT_OPS_HUD.btnH + SHAFT_OPS_HUD.gap;
+  // Botão novo poço
+  drawHudBtn(x, y, w, SHAFT_OPS_HUD.btnH,
+    `🪜 +Poço · $${newShaftCost}`,
+    state.money >= newShaftCost);
+}
+
+function drawHudBtn(x, y, w, h, label, canPay) {
+  const hovering = state.mouseX >= x && state.mouseX < x + w &&
+                   state.mouseY >= y && state.mouseY < y + h;
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+  ctx.fillStyle = hovering
+    ? (canPay ? '#3a7a2a' : '#7a3a3a')
+    : (canPay ? '#3a6a2a' : '#5a3a3a');
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, x + w / 2, y + h / 2);
+}
+
+// Hit-test dos botões do HUD. Retorna 'speed', 'newShaft' ou null.
+export function shaftOpsHudHitTest(sx, sy) {
+  const x = SHAFT_OPS_HUD.x;
+  const w = SHAFT_OPS_HUD.w;
+  let y = SHAFT_OPS_HUD.y + 16;
+  if (sx >= x && sx < x + w && sy >= y && sy < y + SHAFT_OPS_HUD.btnH) return 'speed';
+  y += SHAFT_OPS_HUD.btnH + SHAFT_OPS_HUD.gap;
+  if (sx >= x && sx < x + w && sy >= y && sy < y + SHAFT_OPS_HUD.btnH) return 'newShaft';
+  return null;
 }
 
 // Cabeça do elevador (estrutura de superfície) — sempre fixa no topo,
 // não pana com o resto da mina.
 function drawElevatorHead() {
-  const col = 0;
+  const mine = activeMine();
+  const shafts = (mine && mine.shafts) || [{ col: 0, depth: MINE.rows }];
+  // Cabeça grande só no primeiro poço; demais ganham coifa menor
+  for (let i = 0; i < shafts.length; i++) {
+    if (i === 0) drawSingleElevatorHead(shafts[i].col);
+    // outros poços recebem só decoração mínima desenhada em drawElevator()
+  }
+}
+
+function drawSingleElevatorHead(col) {
   const x = MINE.x + col * MINE.cell;
   const yTop = MINE.y;
   const headW = MINE.cell + 12;
@@ -3072,37 +3143,91 @@ function drawDepthMeter() {
 function drawElevator() {
   const mine = activeMine();
   if (!mine) return;
-  const col = 0;
-  const x = MINE.x + col * MINE.cell;
+  const shafts = mine.shafts || [{ col: 0, depth: MINE.rows }];
   const yTop = MINE.y;
-  const totalH = MINE.rows * MINE.cell;
   const headH = 36;
-  // posição do car (em world coords da mina; o ctx.translate(-cam.y) já ajusta)
-  const carY = yTop + mine.elevator.y * (totalH - MINE.cell);
-  // cabo (parte do topo do grid até a cabine)
-  ctx.strokeStyle = '#222';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(x + MINE.cell / 2, yTop - headH + 14);
-  ctx.lineTo(x + MINE.cell / 2, carY + 2);
-  ctx.stroke();
-  // Marcar variável headH usado pelo cálculo do cabo
-  void headH;
-  // car
-  ctx.fillStyle = '#7a4b25';
-  ctx.fillRect(x + 4, carY + 4, MINE.cell - 8, MINE.cell - 12);
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(x + 4, carY + 6, MINE.cell - 8, 3);
-  // rodas
-  ctx.fillStyle = '#222';
-  ctx.beginPath(); ctx.arc(x + 10, carY + MINE.cell - 10, 3, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(x + MINE.cell - 10, carY + MINE.cell - 10, 3, 0, Math.PI * 2); ctx.fill();
-  // mini carga visível (variando)
-  const t = performance.now() / 1000;
-  if (Math.sin(t * 0.7) > 0) {
-    ctx.fillStyle = '#1f1c1a';
-    ctx.fillRect(x + 8, carY + 8, MINE.cell - 16, 6);
+  // Cabine principal anima pelo primeiro poço; demais ficam estáticas em meio caminho
+  for (let i = 0; i < shafts.length; i++) {
+    const s = shafts[i];
+    const x = MINE.x + s.col * MINE.cell;
+    const shaftBottomY = yTop + s.depth * MINE.cell;
+    // Bobina/topo extra pros poços secundários (sem chapéu — o head só é desenhado no 0)
+    if (i > 0) {
+      ctx.fillStyle = '#5a3416';
+      ctx.fillRect(x - 6, yTop - 12, MINE.cell + 12, 12);
+      ctx.fillStyle = '#888';
+      ctx.beginPath();
+      ctx.arc(x + MINE.cell / 2, yTop - 6, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Cabine anima entre topo e fundo deste poço
+    const elevY = mine.elevator?.y ?? 0;
+    const shaftLen = Math.max(MINE.cell, s.depth * MINE.cell - MINE.cell);
+    const carY = yTop + elevY * shaftLen;
+    // Cabo
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x + MINE.cell / 2, i === 0 ? yTop - headH + 14 : yTop - 6);
+    ctx.lineTo(x + MINE.cell / 2, carY + 2);
+    ctx.stroke();
+    // Cabine
+    ctx.fillStyle = '#7a4b25';
+    ctx.fillRect(x + 4, carY + 4, MINE.cell - 8, MINE.cell - 12);
+    ctx.fillStyle = '#5a3416';
+    ctx.fillRect(x + 4, carY + 6, MINE.cell - 8, 3);
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.arc(x + 10, carY + MINE.cell - 10, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + MINE.cell - 10, carY + MINE.cell - 10, 3, 0, Math.PI * 2); ctx.fill();
+    const t = performance.now() / 1000;
+    if (Math.sin(t * 0.7) > 0) {
+      ctx.fillStyle = '#1f1c1a';
+      ctx.fillRect(x + 8, carY + 8, MINE.cell - 16, 6);
+    }
+    // Botão "+ Estender" no fundo do poço (clicável)
+    if (s.depth < MINE.rows) {
+      const btnW = MINE.cell - 4;
+      const btnH = 18;
+      const btnX = x + 2;
+      const btnY = shaftBottomY + 2;
+      const cost = shaftExtendCostFn(s.depth);
+      const canPay = state.money >= cost;
+      const hovering = state.mouseX >= btnX && state.mouseX < btnX + btnW &&
+                       state.mouseY >= btnY && state.mouseY < btnY + btnH;
+      ctx.fillStyle = hovering ? (canPay ? '#3a7a2a' : '#7a3a3a') : (canPay ? '#3a6a2a' : '#6a3a3a');
+      ctx.fillRect(btnX, btnY, btnW, btnH);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 9px "Segoe UI", Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`+1m`, btnX + btnW / 2, btnY + 6);
+      ctx.fillText(`$${cost}`, btnX + btnW / 2, btnY + 14);
+    }
   }
+}
+
+// Re-export local da função importada (evita circular no draw)
+function shaftExtendCostFn(depth) { return 30 + depth * 5; }
+
+// Hit-test do botão "+ Estender" — retorna o índice do shaft clicado ou -1.
+// Coords passadas devem ser SCREEN coords convertidos pra world (mineCamera ajustado).
+export function shaftExtendBtnAt(worldX, worldY) {
+  const mine = activeMine();
+  if (!mine) return -1;
+  const shafts = mine.shafts || [];
+  for (let i = 0; i < shafts.length; i++) {
+    const s = shafts[i];
+    if (s.depth >= MINE.rows) continue;
+    const x = MINE.x + s.col * MINE.cell;
+    const shaftBottomY = MINE.y + s.depth * MINE.cell;
+    const btnW = MINE.cell - 4;
+    const btnH = 18;
+    if (worldX >= x + 2 && worldX < x + 2 + btnW &&
+        worldY >= shaftBottomY + 2 && worldY < shaftBottomY + 2 + btnH) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 // Botões pra alternar entre as minas (canto superior direito, acima da toolbar)

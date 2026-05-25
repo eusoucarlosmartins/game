@@ -25,7 +25,25 @@ export function initMines() {
   state.activeMineIdx = 0;
 }
 
-function createMineFromCatalog(catalog) {
+// Profundidade inicial do poço de uma mina nova (rows). Player extende manual.
+export const INITIAL_SHAFT_DEPTH = 6;
+// Custo por linha pra estender o poço: $30 + depth atual × $5
+export function shaftExtendCost(currentDepth) {
+  return 30 + currentDepth * 5;
+}
+// Custo pra construir um poço novo numa coluna virgem (5 linhas iniciais)
+export const NEW_SHAFT_COST = 1500;
+// Custo pra upgrade de velocidade do elevador (multiplica extração)
+export function shaftSpeedUpgradeCost(level) {
+  return 400 * (level + 1);
+}
+export const MAX_SHAFT_SPEED_LV = 5;
+// Multiplicador de extração por nível (cada level = +20%)
+export function shaftSpeedMul(mine) {
+  return 1 + (mine.speedLv || 0) * 0.2;
+}
+
+function createMineFromCatalog(catalog, shaftCol = 0) {
   const mine = {
     id: catalog.id,
     name: catalog.name,
@@ -33,13 +51,26 @@ function createMineFromCatalog(catalog) {
     tntFx: null,
     exhausted: false,
     elevator: { y: 0, dir: 1 },
+    shafts: [{ col: shaftCol, depth: INITIAL_SHAFT_DEPTH }],
+    speedLv: 0,
   };
   buildMineGrid(mine, catalog.oreBias);
   return mine;
 }
 
+// Migração: garante que minas antigas (saves pré-shafts) tenham a estrutura.
+// Saves antigos têm coluna 0 inteira como shaft → depth = MINE.rows pra
+// preservar comportamento.
+export function migrateMineShafts(mine) {
+  if (!mine) return;
+  if (!Array.isArray(mine.shafts)) {
+    mine.shafts = [{ col: 0, depth: MINE.rows }];
+  }
+  if (typeof mine.speedLv !== 'number') mine.speedLv = 0;
+}
+
 // ----- Compra de novas minas -----
-export function buyMine(catalogId) {
+export function buyMine(catalogId, shaftCol = 0) {
   const catalog = MINE_CATALOG.find((c) => c.id === catalogId);
   if (!catalog) return;
   if (isMineOwned(catalogId)) return;
@@ -51,8 +82,10 @@ export function buyMine(catalogId) {
     log(`${catalog.name} requer era ${catalog.eraReq}.`, 'bad');
     return;
   }
+  // Sanitiza coluna (0..cols-1)
+  const safeCol = Math.max(0, Math.min(MINE.cols - 1, Number(shaftCol) || 0));
   state.money -= catalog.cost;
-  state.mines.push(createMineFromCatalog(catalog));
+  state.mines.push(createMineFromCatalog(catalog, safeCol));
   log(`✨ Nova mina aberta: ${catalog.name} por ${fmtMoney(catalog.cost)}.`, 'good');
   play('success');
   checkMineCountAchievements();
@@ -77,27 +110,44 @@ export function getMineCatalog() {
 
 function buildMineGrid(mine, oreBias) {
   mine.grid = [];
+  // Determina colunas de poço e profundidade de cada um
+  const shaftMap = {}; // col → depth
+  for (const s of (mine.shafts || [{ col: 0, depth: MINE.rows }])) {
+    shaftMap[s.col] = Math.max(shaftMap[s.col] || 0, s.depth);
+  }
   for (let r = 0; r < MINE.rows; r++) {
     const row = [];
-    // Col 0 é o POÇO DO ELEVADOR (não diggable, sempre revelado)
-    row.push({ type: 'shaft', resource: null, amount: 0, revealed: true, worker: false });
-    for (let c = 1; c < MINE.cols; c++) {
-      const roll = Math.random();
-      const type = roll < 0.18 ? 'stone' : 'dirt';
-      row.push({ type, resource: null, amount: 0, revealed: false, worker: false });
+    for (let c = 0; c < MINE.cols; c++) {
+      const shaftDepth = shaftMap[c];
+      if (shaftDepth !== undefined && r < shaftDepth) {
+        // Tile do poço — sempre revelado, não diggable
+        row.push({ type: 'shaft', resource: null, amount: 0, revealed: true, worker: false });
+      } else {
+        const roll = Math.random();
+        const type = roll < 0.18 ? 'stone' : 'dirt';
+        row.push({ type, resource: null, amount: 0, revealed: false, worker: false });
+      }
     }
     mine.grid.push(row);
   }
   placeOreVeins(mine.grid, oreBias);
-  // Túnel inicial: 4 colunas saindo do elevador (col 0) pra direita, no topo.
-  // Conecta visualmente o poço aos primeiros veios — o jogador entra na mina
-  // e já vê o caminho começando do elevador.
-  for (let c = 1; c <= 4; c++) mine.grid[0][c] = airTile(true);
-  mine.grid[1][2] = oreTile('coal', 25, true);
-  mine.grid[1][3] = oreTile('iron_ore', 25, true);
-  // Revela a área inicial em volta pra ajudar o player a se localizar
-  revealAround(mine.grid, 0, 2, 3);
-  revealAround(mine.grid, 1, 3, 2);
+  // Túnel inicial: a partir do PRIMEIRO poço (geralmente col 0), abre um túnel
+  // horizontal de 4 tiles e coloca 2 veios essenciais pra orientar o jogador.
+  const firstShaft = mine.shafts && mine.shafts[0];
+  if (firstShaft) {
+    const sc = firstShaft.col;
+    // Túnel horizontal saindo do shaft (pra direita se col<cols-5, senão esquerda)
+    const dir = sc < MINE.cols - 5 ? 1 : -1;
+    for (let i = 1; i <= 4; i++) {
+      const c = sc + dir * i;
+      if (c >= 0 && c < MINE.cols) mine.grid[0][c] = airTile(true);
+    }
+    const c2 = sc + dir * 2, c3 = sc + dir * 3;
+    if (c2 >= 0 && c2 < MINE.cols) mine.grid[1][c2] = oreTile('coal', 25, true);
+    if (c3 >= 0 && c3 < MINE.cols) mine.grid[1][c3] = oreTile('iron_ore', 25, true);
+    revealAround(mine.grid, 0, sc + dir * 2, 3);
+    revealAround(mine.grid, 1, sc + dir * 3, 2);
+  }
 }
 
 function airTile(revealed) {
@@ -399,6 +449,94 @@ export function workersActive() {
   return n;
 }
 
+// ----- Operações do elevador -----
+// Estende o poço (shaftIdx) em 1 row, pagando o custo escalonado
+export function tryExtendShaft(shaftIdx) {
+  const mine = activeMine();
+  if (!mine || !mine.shafts) return false;
+  const s = mine.shafts[shaftIdx];
+  if (!s) return false;
+  if (s.depth >= MINE.rows) {
+    log('Poço já atingiu o fundo da mina.', 'bad');
+    return false;
+  }
+  const cost = shaftExtendCost(s.depth);
+  if (state.money < cost) {
+    log(`Sem dinheiro pra estender o poço ($${cost}).`, 'bad');
+    return false;
+  }
+  state.money -= cost;
+  // Converte o tile no topo do "fundo" pra shaft tile
+  const r = s.depth, c = s.col;
+  if (mine.grid[r] && mine.grid[r][c]) {
+    mine.grid[r][c] = { type: 'shaft', resource: null, amount: 0, revealed: true, worker: false };
+  }
+  s.depth += 1;
+  // Revela ao redor pra mostrar a área nova
+  revealAround(mine.grid, r, c, 1);
+  log(`Poço estendido para ${s.depth}m (-$${cost}).`, 'good');
+  play('pickaxe');
+  return true;
+}
+
+// Constrói um poço novo numa coluna específica (depth = INITIAL_SHAFT_DEPTH)
+export function tryAddShaft(col) {
+  const mine = activeMine();
+  if (!mine) return false;
+  if (!Array.isArray(mine.shafts)) mine.shafts = [];
+  col = Math.max(0, Math.min(MINE.cols - 1, Number(col) || 0));
+  // Não permite shaft já existente na mesma coluna
+  if (mine.shafts.some(s => s.col === col)) {
+    log('Já existe um poço nessa coluna.', 'bad');
+    return false;
+  }
+  if (state.money < NEW_SHAFT_COST) {
+    log(`Sem dinheiro pra construir novo poço ($${NEW_SHAFT_COST}).`, 'bad');
+    return false;
+  }
+  state.money -= NEW_SHAFT_COST;
+  mine.shafts.push({ col, depth: INITIAL_SHAFT_DEPTH });
+  // Converte tiles da coluna em shaft até a profundidade inicial
+  for (let r = 0; r < INITIAL_SHAFT_DEPTH; r++) {
+    if (mine.grid[r] && mine.grid[r][col]) {
+      mine.grid[r][col] = { type: 'shaft', resource: null, amount: 0, revealed: true, worker: false };
+    }
+  }
+  // Túnel horizontal curto pra mostrar acesso
+  const dir = col < MINE.cols - 3 ? 1 : -1;
+  for (let i = 1; i <= 2; i++) {
+    const nc = col + dir * i;
+    if (mine.grid[0] && mine.grid[0][nc] && mine.grid[0][nc].type !== 'shaft') {
+      mine.grid[0][nc] = airTile(true);
+    }
+  }
+  revealAround(mine.grid, 0, col, 2);
+  log(`✨ Novo poço aberto na coluna ${col + 1} (-$${NEW_SHAFT_COST}).`, 'good');
+  play('success');
+  return true;
+}
+
+// Upgrade de velocidade do elevador (afeta extração de TODOS workers da mina)
+export function tryUpgradeShaftSpeed() {
+  const mine = activeMine();
+  if (!mine) return false;
+  const lv = mine.speedLv || 0;
+  if (lv >= MAX_SHAFT_SPEED_LV) {
+    log('Velocidade do elevador já no máximo.', 'bad');
+    return false;
+  }
+  const cost = shaftSpeedUpgradeCost(lv);
+  if (state.money < cost) {
+    log(`Sem dinheiro pra upgrade de velocidade ($${cost}).`, 'bad');
+    return false;
+  }
+  state.money -= cost;
+  mine.speedLv = lv + 1;
+  log(`⚡ Velocidade do elevador: nível ${lv + 1}/${MAX_SHAFT_SPEED_LV} (+${mine.speedLv * 20}% extração).`, 'good');
+  play('coin');
+  return true;
+}
+
 // Contratação rápida: gera worker aleatório com custo fixo (vs. seleção)
 export function tryHireWorker() {
   if (state.money < WORKER_COST) return;
@@ -484,6 +622,8 @@ export function updateMine(dt) {
 function updateSingleMine(mine, dt, rate) {
   // Recomputa conectividade a cada tick (BFS rápido, 30×50 = 1500 cells)
   mine._connectivity = computeConnectivity(mine.grid);
+  // Aplica multiplicador de velocidade do elevador (upgrade da mina)
+  rate *= shaftSpeedMul(mine);
   // Produção dos workers (modulada por skill e fatigue individuais)
   for (let r = 0; r < MINE.rows; r++) {
     for (let c = 0; c < MINE.cols; c++) {

@@ -28,10 +28,13 @@ describe('initMines', () => {
     }
   });
 
-  it('col 0 de toda mina é poço (shaft) revelado', () => {
+  it('col 0 de toda mina tem poço (shaft) revelado até a profundidade inicial', () => {
     initMines();
     for (const m of state.mines) {
-      for (let r = 0; r < MINE.rows; r++) {
+      // Apenas as primeiras INITIAL_SHAFT_DEPTH linhas são shaft (poço progressivo)
+      const shaftDepth = m.shafts[0].depth;
+      expect(shaftDepth).toBeGreaterThan(0);
+      for (let r = 0; r < shaftDepth; r++) {
         expect(m.grid[r][0].type).toBe('shaft');
         expect(m.grid[r][0].revealed).toBe(true);
       }
