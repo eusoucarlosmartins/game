@@ -8,12 +8,12 @@
 export const R = {
   // NÍVEL 1 - BRUTOS (subsolo)
   coal:        { name: 'Carvão',             color: '#1f1c1a', kind: 'raw', tier: 1, price: 4 },
-  iron_ore:    { name: 'Minério de Ferro',   color: '#6a4a30', kind: 'raw', tier: 1, price: 5 },
-  copper_ore:  { name: 'Minério de Cobre',   color: '#7a4020', kind: 'raw', tier: 1, price: 7 },
-  zinc_ore:    { name: 'Minério de Zinco',   color: '#7a8870', kind: 'raw', tier: 1, price: 6 },
+  iron_ore:    { name: 'Ferro',              color: '#6a4a30', kind: 'raw', tier: 1, price: 5 },
+  copper_ore:  { name: 'Cobre',              color: '#7a4020', kind: 'raw', tier: 1, price: 7 },
+  zinc_ore:    { name: 'Zinco',              color: '#7a8870', kind: 'raw', tier: 1, price: 6 },
   lead:        { name: 'Chumbo',             color: '#5a6068', kind: 'raw', tier: 1, price: 5 },
-  silver_ore:  { name: 'Minério de Prata',   color: '#a0a0a0', kind: 'raw', tier: 1, price: 25 },
-  gold_ore:    { name: 'Minério de Ouro',    color: '#b8902a', kind: 'raw', tier: 1, price: 40 },
+  silver_ore:  { name: 'Prata',              color: '#a0a0a0', kind: 'raw', tier: 1, price: 25 },
+  gold_ore:    { name: 'Ouro',               color: '#b8902a', kind: 'raw', tier: 1, price: 40 },
   sulfur:      { name: 'Enxofre',            color: '#e6d149', kind: 'raw', tier: 1, price: 8 },
   saltpeter:   { name: 'Salitre',            color: '#f0e6d2', kind: 'raw', tier: 1, price: 7 },
   oil:         { name: 'Petróleo Bruto',     color: '#2a1a08', kind: 'raw', tier: 1, price: 12 },
@@ -25,7 +25,7 @@ export const R = {
   ruby:        { name: 'Rubi Bruto',         color: '#c8243c', kind: 'raw', tier: 1, price: 250 },
   emerald:     { name: 'Esmeralda Bruta',    color: '#3aa860', kind: 'raw', tier: 1, price: 280 },
   mercury:     { name: 'Mercúrio',           color: '#c0c8d0', kind: 'raw', tier: 1, price: 60 },
-  platinum_ore:{ name: 'Minério de Platina', color: '#d0d4d8', kind: 'raw', tier: 1, price: 90 },
+  platinum_ore:{ name: 'Platina',            color: '#d0d4d8', kind: 'raw', tier: 1, price: 90 },
   water:       { name: 'Água',               color: '#5a9fc8', kind: 'raw', tier: 1, price: 0, free: true },
 
   // NÍVEL 2 - PROCESSADOS

@@ -418,6 +418,23 @@ export function setTool(toolId) {
 }
 
 // ----- Silos -----
+// Expande a capacidade do silo de um recurso (+200, custo escala com cap)
+export function tryUpgradeSilo(resource) {
+  if (!R[resource] || R[resource].free) return false;
+  if (!state.silos[resource]) state.silos[resource] = { cap: SILO_DEFAULT_CAP };
+  const cur = state.silos[resource].cap || SILO_DEFAULT_CAP;
+  const cost = Math.max(200, Math.round(cur * 0.5));
+  if (state.money < cost) {
+    log(`Sem dinheiro pra expandir silo de ${R[resource].name} ($${cost}).`, 'bad');
+    return false;
+  }
+  state.money -= cost;
+  state.silos[resource].cap = cur + 200;
+  log(`Silo de ${R[resource].name} expandido: ${cur} → ${cur + 200} (-$${cost}).`, 'good');
+  play('coin');
+  return true;
+}
+
 export function tryAddToSilo(resource, amount) {
   if (!R[resource] || R[resource].free) return 0;
   const cap = (state.silos[resource] && state.silos[resource].cap) || SILO_DEFAULT_CAP;

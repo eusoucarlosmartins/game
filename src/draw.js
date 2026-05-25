@@ -82,10 +82,13 @@ function drawSilo(x, baseY, w, resourceId) {
   const fillPct = clamp(stock / cap, 0, 1);
   const h = 110;
   const top = baseY - h;
+  // hover detection (screen coords, mina não pana esta área)
+  const hovering = state.mouseX >= x && state.mouseX < x + w &&
+                   state.mouseY >= top - 16 && state.mouseY < baseY + 18;
   // base de madeira
   ctx.fillStyle = '#5a3416';
   ctx.fillRect(x, top, w, h);
-  ctx.fillStyle = '#7a4b25';
+  ctx.fillStyle = hovering ? '#8a5a2a' : '#7a4b25';
   ctx.fillRect(x + 3, top + 3, w - 6, h - 6);
   // teto triangular
   ctx.fillStyle = '#3a1f0a';
@@ -100,7 +103,7 @@ function drawSilo(x, baseY, w, resourceId) {
   ctx.fillStyle = res.color;
   ctx.fillRect(x + 6, top + (h - 8) - fillH, w - 12, fillH);
   // moldura
-  ctx.strokeStyle = '#1a0e06';
+  ctx.strokeStyle = hovering ? '#ffd44a' : '#1a0e06';
   ctx.lineWidth = 2;
   ctx.strokeRect(x + 3, top + 3, w - 6, h - 6);
   // placa com nome (curto)
@@ -112,12 +115,52 @@ function drawSilo(x, baseY, w, resourceId) {
   ctx.textBaseline = 'middle';
   const short = res.name.length > 12 ? res.name.slice(0, 11) + '…' : res.name;
   ctx.fillText(short, x + w / 2, top + 14);
-  // contador
+  // contador (maior + mais legível)
   ctx.fillStyle = '#1a0e06';
-  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+  ctx.font = 'bold 13px "Segoe UI", Arial, sans-serif';
   ctx.textBaseline = 'top';
   const cheio = fillPct >= 0.99;
   ctx.fillText(`${Math.floor(stock)}/${cap}${cheio ? ' ★' : ''}`, x + w / 2, baseY + 2);
+  // dica de expansão (só no hover) — botão "+200 / $custo"
+  if (hovering) {
+    const cost = siloUpgradeCost(cap);
+    ctx.fillStyle = state.money >= cost ? '#3a6a2a' : '#6a3a3a';
+    ctx.fillRect(x, baseY + 18, w, 14);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`+200 cap · $${cost}`, x + w / 2, baseY + 25);
+  }
+}
+
+// Custo escala com a capacidade atual (50% do cap atual, mín. $200)
+export function siloUpgradeCost(currentCap) {
+  return Math.max(200, Math.round(currentCap * 0.5));
+}
+
+// Hit-test: retorna o resourceId do silo sob (sx, sy), ou null.
+// Recomputa as posições igual drawSilos pra não duplicar estado.
+export function siloAt(sx, sy) {
+  const items = [];
+  for (const k in state.warehouse) {
+    if (R[k] && R[k].free) continue;
+    const stock = state.warehouse[k] || 0;
+    if (stock > 0) items.push({ k, n: stock });
+  }
+  items.sort((a, b) => b.n - a.n);
+  const visible = items.slice(0, 8);
+  if (visible.length === 0) return null;
+  const startX = 200;
+  const maxW = W - 220;
+  const siloW = Math.min(100, maxW / visible.length);
+  const baseY = MINE_GROUND_Y;
+  const top = baseY - 110;
+  if (sy < top - 16 || sy > baseY + 32) return null;
+  for (let i = 0; i < visible.length; i++) {
+    const x = startX + i * siloW;
+    if (sx >= x && sx < x + (siloW - 6)) return visible[i].k;
+  }
+  return null;
 }
 
 // ---------- Fábricas compactas ----------

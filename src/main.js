@@ -4,7 +4,8 @@ import { $ } from './util.js';
 import { ROMAN, CFG, MINE } from './data.js';
 import { currentEra } from './progression.js';
 import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL, SAVE_SLOTS, getSlotInfo, getActiveSlot, setActiveSlot } from './save.js';
-import { initMines, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine, regenerateMine, activeMine as getActiveMine } from './mine.js';
+import { initMines, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine, regenerateMine, tryUpgradeSilo, activeMine as getActiveMine } from './mine.js';
+import { siloAt } from './draw.js';
 import { buyFactory, setRecipe, updateFactories } from './factories.js';
 import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
@@ -137,6 +138,8 @@ function inToolbar(sx, sy) {
 // Áreas da cena 'mine' que NÃO iniciam pan (botões/UI sobreposta no grid)
 function isMineUiHit(sx, sy) {
   if (inToolbar(sx, sy)) return true;
+  // Silos (clicar pra expandir capacidade)
+  if (siloAt(sx, sy)) return true;
   // Botões de troca de mina no canto sup. direito (renderizados sobre o céu,
   // mas vamos garantir mesmo se o layout mudar)
   if (state.mines && state.mines.length >= 2) {
@@ -428,6 +431,11 @@ function handleCanvasClick(sc) {
     state.scene = 'overworld';
     play('whoosh');
     return;
+  }
+  // Click num silo → expande capacidade
+  {
+    const sRes = siloAt(sc.x, sc.y);
+    if (sRes) { tryUpgradeSilo(sRes); return; }
   }
   // Botão "Regenerar" no banner de mina esgotada
   {
