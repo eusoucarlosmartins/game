@@ -43,7 +43,7 @@ function migrateLegacyIfNeeded() {
 const PERSIST_KEYS = [
   'money','approval','day','dayTimer','speed','over',
   'mines','activeMineIdx','tool','workersTotal','workers','tilesDug',
-  'factories','warehouse','products','silos',
+  'factories','warehouse','products','silos','recipeCap',
   'contract','contracts','currentCity','nextContractIn','contractsCompleted',
   'equipment','research','rp','eraReached','log',
   'projects','permContractBonus','passiveIncome','approvalFloor',

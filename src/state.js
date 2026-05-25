@@ -33,6 +33,10 @@ export const state = {
       .map(k => [k, { cap: SILO_DEFAULT_CAP }])
   ),
 
+  // Capacidade individual por receita (estoque máximo de produto pronto).
+  // Default vem de CFG.factoryStockMax (200). Cada upgrade adiciona +50.
+  recipeCap: {},
+
   // (state.wagon removido — agora cada factory tem seu próprio wagon)
 
   contract: null,            // alias pra contracts[0] (mantido pra compat com código antigo)

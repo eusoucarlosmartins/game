@@ -315,7 +315,7 @@ export const CFG = {
   cartSpeedBase: 60,
   wagonCapacityBase: 5,
   wagonSpeedBase: 80,
-  factoryStockMax: 25,
+  factoryStockMax: 200,
   warehouseMax: 300,
   minePileMaxBase: 30,
   cityDeadlineMin: 90,

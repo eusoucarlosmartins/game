@@ -4,6 +4,36 @@ import { R, RECIPE_BY_ID, CFG } from './data.js';
 import { fmtMoney } from './util.js';
 import { factSpdMul } from './progression.js';
 import { closeModal } from './modals.js';
+import { play } from './audio.js';
+
+// Capacidade atual do estoque pronto por receita.
+// Default = CFG.factoryStockMax. Cada upgrade adiciona +50.
+export function recipeCap(recipeId) {
+  if (!state.recipeCap) state.recipeCap = {};
+  return state.recipeCap[recipeId] || CFG.factoryStockMax;
+}
+
+// Custo pra expandir: max(200, cap atual * 0.4)
+export function recipeCapUpgradeCost(recipeId) {
+  return Math.max(200, Math.round(recipeCap(recipeId) * 0.4));
+}
+
+// Aumenta cap da receita em +50 mediante pagamento
+export function tryUpgradeRecipeCap(recipeId) {
+  if (!RECIPE_BY_ID[recipeId]) return false;
+  const cost = recipeCapUpgradeCost(recipeId);
+  if (state.money < cost) {
+    log(`Sem dinheiro pra expandir estoque de ${R[recipeId].name} ($${cost}).`, 'bad');
+    return false;
+  }
+  if (!state.recipeCap) state.recipeCap = {};
+  const cur = recipeCap(recipeId);
+  state.money -= cost;
+  state.recipeCap[recipeId] = cur + 50;
+  log(`Estoque máximo de ${R[recipeId].name}: ${cur} → ${cur + 50} (-$${cost}).`, 'good');
+  play('coin');
+  return true;
+}
 
 export function buyFactory() {
   if (state.factories.length >= CFG.factorySlotsMax) return;
@@ -50,7 +80,7 @@ export function updateFactories(dt) {
         f.brewing = 0;
       }
     }
-    if (f.brewing <= 0 && (state.products[f.recipeId] || 0) < CFG.factoryStockMax) {
+    if (f.brewing <= 0 && (state.products[f.recipeId] || 0) < recipeCap(f.recipeId)) {
       let canStart = true;
       for (const ing in recipe.in) {
         if (ingredientHave(ing) < recipe.in[ing]) { canStart = false; break; }

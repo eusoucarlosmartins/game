@@ -5,8 +5,8 @@ import { ROMAN, CFG, MINE } from './data.js';
 import { currentEra } from './progression.js';
 import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL, SAVE_SLOTS, getSlotInfo, getActiveSlot, setActiveSlot } from './save.js';
 import { initMines, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine, regenerateMine, tryUpgradeSilo, activeMine as getActiveMine } from './mine.js';
-import { siloAt } from './draw.js';
-import { buyFactory, setRecipe, updateFactories } from './factories.js';
+import { siloAt, factoryCapUpgradeAt } from './draw.js';
+import { buyFactory, setRecipe, updateFactories, tryUpgradeRecipeCap } from './factories.js';
 import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
 import { updateEvents } from './events.js';
@@ -410,6 +410,15 @@ function handleCanvasClick(sc) {
       openUpgradesModal();
       play('click');
       return;
+    }
+    // Click no botão "+50 cap" do painel da fábrica (aparece no hover)
+    {
+      const fIdx = factoryCapUpgradeAt(x, y);
+      if (fIdx >= 0) {
+        const f = state.factories[fIdx];
+        if (f) tryUpgradeRecipeCap(f.recipeId);
+        return;
+      }
     }
     // Click numa fábrica (prédio ou painel acima) → abre modal de receita
     for (let i = 0; i < state.factories.length; i++) {

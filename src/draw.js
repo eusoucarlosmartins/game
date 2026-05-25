@@ -3,7 +3,7 @@ import { state } from './state.js';
 import { R, RECIPE_BY_ID, CFG, MINE, TOOLS, SILO_DEFAULT_CAP } from './data.js';
 import { fmtMoney, clamp } from './util.js';
 import { transportTier, wagonCapacity, currentEra, eraData } from './progression.js';
-import { ingredientHave } from './factories.js';
+import { ingredientHave, recipeCap, recipeCapUpgradeCost } from './factories.js';
 import { getProjectDef } from './projects.js';
 import { activeMine, regenCost } from './mine.js';
 import {
@@ -82,9 +82,9 @@ function drawSilo(x, baseY, w, resourceId) {
   const fillPct = clamp(stock / cap, 0, 1);
   const h = 110;
   const top = baseY - h;
-  // hover detection (screen coords, mina não pana esta área)
+  // hover detection — APENAS o corpo do silo (não invade a primeira linha do grid)
   const hovering = state.mouseX >= x && state.mouseX < x + w &&
-                   state.mouseY >= top - 16 && state.mouseY < baseY + 18;
+                   state.mouseY >= top - 16 && state.mouseY < baseY;
   // base de madeira
   ctx.fillStyle = '#5a3416';
   ctx.fillRect(x, top, w, h);
@@ -115,21 +115,22 @@ function drawSilo(x, baseY, w, resourceId) {
   ctx.textBaseline = 'middle';
   const short = res.name.length > 12 ? res.name.slice(0, 11) + '…' : res.name;
   ctx.fillText(short, x + w / 2, top + 14);
-  // contador (maior + mais legível)
+  // contador (maior + mais legível) — DENTRO do silo (não invade o grid)
   ctx.fillStyle = '#1a0e06';
   ctx.font = 'bold 13px "Segoe UI", Arial, sans-serif';
-  ctx.textBaseline = 'top';
+  ctx.textBaseline = 'bottom';
   const cheio = fillPct >= 0.99;
-  ctx.fillText(`${Math.floor(stock)}/${cap}${cheio ? ' ★' : ''}`, x + w / 2, baseY + 2);
-  // dica de expansão (só no hover) — botão "+200 / $custo"
+  ctx.fillText(`${Math.floor(stock)}/${cap}${cheio ? ' ★' : ''}`, x + w / 2, baseY - 4);
+  // dica de expansão (só no hover) — botão "+200 / $custo" dentro do silo
   if (hovering) {
     const cost = siloUpgradeCost(cap);
+    const btnY = baseY - 22;
     ctx.fillStyle = state.money >= cost ? '#3a6a2a' : '#6a3a3a';
-    ctx.fillRect(x, baseY + 18, w, 14);
+    ctx.fillRect(x + 4, btnY, w - 8, 14);
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`+200 cap · $${cost}`, x + w / 2, baseY + 25);
+    ctx.fillText(`+200 cap · $${cost}`, x + w / 2, btnY + 7);
   }
 }
 
@@ -155,7 +156,10 @@ export function siloAt(sx, sy) {
   const siloW = Math.min(100, maxW / visible.length);
   const baseY = MINE_GROUND_Y;
   const top = baseY - 110;
-  if (sy < top - 16 || sy > baseY + 32) return null;
+  // Hit-test SÓ no corpo do silo (top - 16 telhado até baseY).
+  // NUNCA inclui a área do grid (y >= MINE_GROUND_Y), senão click cobra
+  // silo quando o usuário tenta cavar a primeira linha.
+  if (sy < top - 16 || sy >= baseY) return null;
   for (let i = 0; i < visible.length; i++) {
     const x = startX + i * siloW;
     if (sx >= x && sx < x + (siloW - 6)) return visible[i].k;
@@ -2818,11 +2822,13 @@ function drawFactoryRecipePanel(rect, factory) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('→', px + pw / 2, py + ph / 2);
-  // output: ícone + estoque/cap
-  const outHave = state.products[factory.recipeId] || 0;
-  const outCap = CFG.factoryStockMax;
+  // output: ícone + estoque/cap (cap por receita, expansível)
+  const outHave = Math.floor(state.products[factory.recipeId] || 0);
+  const outCap = recipeCap(factory.recipeId);
   drawResourceIcon(px + pw - 4 - iconSize, py + 4, iconSize, factory.recipeId);
-  ctx.fillStyle = '#1a0e06';
+  // alerta se cheio: cor vermelha
+  const full = outHave >= outCap;
+  ctx.fillStyle = full ? '#a82e1c' : '#1a0e06';
   ctx.font = 'bold 11px "Segoe UI"';
   ctx.textAlign = 'right';
   ctx.fillText(`${outHave}/${outCap}`, px + pw - 4 - iconSize - 4, py + 4 + iconSize / 2);
@@ -2834,7 +2840,7 @@ function drawFactoryRecipePanel(rect, factory) {
     ctx.fillStyle = '#c69042';
     ctx.fillRect(px + 4, py + ph - 5, (pw - 8) * pct, 3);
   }
-  // hover destaca o painel inteiro
+  // hover destaca o painel inteiro + mostra botão de expandir cap
   const fullRect = { x: px, y: py, w: pw, h: ph + rect.h + 8 };
   const hovering =
     state.mouseX >= fullRect.x && state.mouseX < fullRect.x + fullRect.w &&
@@ -2843,9 +2849,36 @@ function drawFactoryRecipePanel(rect, factory) {
     ctx.strokeStyle = 'rgba(255,220,80,0.7)';
     ctx.lineWidth = 2;
     ctx.strokeRect(rect.x - 3, py - 3, pw + 6, ph + rect.h + 14);
+    // Botão "+50 cap · $custo" abaixo do painel
+    const cost = recipeCapUpgradeCost(factory.recipeId);
+    const btnH = 16;
+    const btnY = py + ph + 2;
+    ctx.fillStyle = state.money >= cost ? '#3a6a2a' : '#6a3a3a';
+    ctx.fillRect(px, btnY, pw, btnH);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`+50 cap · $${cost}`, px + pw / 2, btnY + btnH / 2);
   }
   // suprime nome do produto: já fica na placa amarela do prédio
   product; // referenciada implicitamente via outHave/cap
+}
+
+// Hit-test do botão de expansão de cap (painel da fábrica). Retorna o idx
+// da fábrica clicada ou -1. Apenas considera click se NÃO houver hover na
+// área do prédio (esse hit-test já abre o modal de receita).
+export function factoryCapUpgradeAt(sx, sy) {
+  for (let i = 0; i < state.factories.length; i++) {
+    const rect = factoryRect(i);
+    const pw = rect.w;
+    const ph = 44;
+    const px = rect.x;
+    const py = rect.y - ph - 8;
+    const btnY = py + ph + 2;
+    if (sx >= px && sx < px + pw && sy >= btnY && sy < btnY + 16) return i;
+  }
+  return -1;
 }
 
 // ---------- Banner do projeto ativo (overworld) ----------
