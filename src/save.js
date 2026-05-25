@@ -50,6 +50,7 @@ const PERSIST_KEYS = [
   'wagonSpeedBonus','wagonCapacityBonus','marketBonus','rpBonus','factorySpeedBonus','approvalPerContractBonus',
   'muted','musicEnabled','scene','tutorial','difficulty','dailyChallenge',
   'totalEarnings','oreMined','cityGrowth','tntUses','achievements','history','gameMode',
+  'victoryShown',
 ];
 
 let lastSaveTime = 0;

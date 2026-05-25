@@ -32,17 +32,20 @@ function checkEnd() {
     state.over = true;
     $('end-title').textContent = 'A população te destituiu';
     $('end-text').textContent = 'A aprovação caiu a zero. O governo central revogou seu mandato.';
+    $('continue-btn').classList.add('hidden');
     $('game-over').classList.remove('hidden');
     // Hardcore: deleta o save ao perder (sem retomar)
     if (state.gameMode === 'hardcore') {
       try { deleteSave(); } catch { /* ignore */ }
       $('end-text').textContent += ' Modo Hardcore: a partida foi apagada permanentemente.';
     }
-  } else if (state.approval >= CFG.approvalMax && state.day >= 21 && state.contractsCompleted >= 10) {
+  } else if (state.approval >= CFG.approvalMax && state.day >= 21 && state.contractsCompleted >= 10 && !state.victoryShown) {
     state.over = true;
     $('end-title').textContent = 'Vitória política!';
     const modeLbl = sandbox ? ' (sandbox)' : state.gameMode === 'hardcore' ? ' [HARDCORE]' : '';
-    $('end-text').textContent = `Aprovação máxima após ${state.day} dias e ${state.contractsCompleted} contratos cumpridos${modeLbl}. Santa Catarina prospera sob a Tapuia.`;
+    $('end-text').textContent = `Aprovação máxima após ${state.day} dias e ${state.contractsCompleted} contratos cumpridos${modeLbl}. Santa Catarina prospera sob a Tapuia. Quer continuar construindo seu império?`;
+    // Vitória permite seguir jogando (modo sandbox de fato)
+    $('continue-btn').classList.remove('hidden');
     $('game-over').classList.remove('hidden');
   }
 }
@@ -650,8 +653,16 @@ document.querySelectorAll('.modal').forEach(m => {
 });
 
 $('restart-btn').addEventListener('click', () => {
+  state.over = true; // evita beforeunload re-salvar o estado antigo
   deleteSave();
   location.reload();
+});
+$('continue-btn').addEventListener('click', () => {
+  // Vitória "aceita" — marca pra não re-disparar e libera o jogo.
+  state.victoryShown = true;
+  state.over = false;
+  $('game-over').classList.add('hidden');
+  log('🏆 Vitória registrada — siga construindo, agora sem fim de jogo por aprovação máxima.', 'good');
 });
 // (botão "Salvar" removido em favor do autosave de 15s + ações no modal de slots)
 

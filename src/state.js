@@ -8,6 +8,7 @@ export const state = {
   dayTimer: 0,
   speed: 1,
   over: false,
+  victoryShown: false,    // após ganhar 1x, libera continuar sem re-disparar vitória
 
   // Minas — array de minas independentes (cada uma com grid próprio)
   mines: [],            // populado por initMines() no boot

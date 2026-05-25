@@ -1540,7 +1540,14 @@ html, body {
 .grid-option-cost { font-style: italic; font-size: 11px; color: var(--wood-dark); }
 .grid-option-detail { font-size: 11px; color: var(--ink-soft); margin-top: 3px; }
 
-#restart-btn {
+.end-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+#restart-btn, #continue-btn {
   padding: 10px 24px;
   background: var(--brass);
   color: var(--ink);
@@ -1551,4 +1558,9 @@ html, body {
   cursor: pointer;
   letter-spacing: 2px;
 }
-#restart-btn:hover { background: #d9a25a; }
+#restart-btn:hover, #continue-btn:hover { background: #d9a25a; }
+#continue-btn {
+  background: #b8d8a0;
+  border-color: #6a8a4a;
+}
+#continue-btn:hover { background: #c8e8b0; }
