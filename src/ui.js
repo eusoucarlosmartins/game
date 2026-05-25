@@ -509,6 +509,29 @@ function renderStats() {
       ).join('');
     }
   }
+  const remainEl = $('stats-ores-remaining');
+  if (remainEl) {
+    // Soma todo t.amount onde type==='ore' em todas as minas
+    const remaining = {};
+    for (const m of (state.mines || [])) {
+      if (!m.grid) continue;
+      for (const row of m.grid) {
+        for (const t of row) {
+          if (t.type === 'ore' && t.amount > 0) {
+            remaining[t.resource] = (remaining[t.resource] || 0) + t.amount;
+          }
+        }
+      }
+    }
+    const keys = Object.keys(remaining).sort((a, b) => remaining[b] - remaining[a]);
+    if (keys.length === 0) {
+      remainEl.innerHTML = '<li><em>Nenhum veio detectado nas minas atuais.</em></li>';
+    } else {
+      remainEl.innerHTML = keys.map((k) =>
+        `<li><span class="dot" style="background:${R[k].color}"></span>${R[k].name} <strong>${Math.floor(remaining[k]).toLocaleString('pt-BR')}</strong></li>`
+      ).join('');
+    }
+  }
   const minesEl = $('stats-mines');
   if (minesEl) {
     const rows = (state.mines || []).map((m, i) => {
