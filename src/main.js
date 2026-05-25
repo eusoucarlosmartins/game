@@ -20,7 +20,7 @@ import { checkDailyChallenge } from './daily.js';
 import { draw } from './draw.js';
 import { syncUI, openRecipeModal, openBuyMineModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
-import { sellRaw, sellAllRaw, sellProduct, sellAllProduct } from './market.js';
+import { sellRaw, sellAllRaw, sellProduct, sellAllProduct, buyRaw } from './market.js';
 import { W, H, WORLD_W, WORLD_H, TOOLBAR, MINE_BACK_BTN, MINIMAP, OVERWORLD, factoryRect, unlockedWorldSize } from './geometry.js';
 import { clamp } from './util.js';
 
@@ -613,6 +613,10 @@ document.addEventListener('click', (e) => {
     case 'sell-raw': {
       if (t.dataset.amt === 'all') sellAllRaw(t.dataset.id);
       else sellRaw(t.dataset.id, parseInt(t.dataset.amt, 10) || 1);
+      break;
+    }
+    case 'buy-raw': {
+      buyRaw(t.dataset.id, parseInt(t.dataset.amt, 10) || 1);
       break;
     }
     case 'sell-prod': {

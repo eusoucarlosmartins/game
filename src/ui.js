@@ -278,6 +278,32 @@ function renderProjects() {
 function renderMarket() {
   const cont = $('market-list');
   if (!cont) return;
+  // === COMPRA de matérias-primas (essenciais + qualquer destravado pela era) ===
+  // Útil quando os veios da mina acabam. Preço 160% do contrato.
+  const buyableEssentials = ['coal','iron_ore','wood','stone','clay','sand'];
+  const era = eraData(currentEra());
+  const buyables = buyableEssentials.filter(k => R[k] && era.deposits.includes(k));
+  let html = '';
+  if (buyables.length > 0) {
+    html += '<div class="market-section"><h4>Importar matérias-primas (160% do preço)</h4>';
+    html += '<p class="hint" style="margin:0 0 6px;">Útil quando a mina esgota o veio. Preço premium.</p>';
+    html += buyables.map(k => {
+      const stock = Math.floor(state.warehouse[k] || 0);
+      const cap = (state.silos[k] && state.silos[k].cap) || 400;
+      const unit = Math.max(1, Math.round(R[k].price * 1.6));
+      const canBuy1 = state.money >= unit && stock < cap;
+      const canBuy10 = state.money >= unit * 10 && stock + 10 <= cap;
+      return `<div class="market-item">
+        <span class="dot" style="background:${R[k].color}"></span>
+        <span class="market-name">${R[k].name}</span>
+        <span class="market-stock">${stock}/${cap}</span>
+        <span class="market-price">${fmtMoney(unit)}/un</span>
+        <button class="mini-btn" data-action="buy-raw" data-id="${k}" data-amt="1" ${!canBuy1 ? 'disabled' : ''}>Comprar 1</button>
+        <button class="mini-btn" data-action="buy-raw" data-id="${k}" data-amt="10" ${!canBuy10 ? 'disabled' : ''}>Comprar 10</button>
+      </div>`;
+    }).join('');
+    html += '</div>';
+  }
   // Matérias-primas
   const raws = [];
   for (const k in state.warehouse) {
@@ -285,7 +311,7 @@ function renderMarket() {
     if ((state.warehouse[k] || 0) > 0) raws.push(k);
   }
   raws.sort((a, b) => state.warehouse[b] - state.warehouse[a]);
-  let html = '<div class="market-section"><h4>Matérias-primas (60% do preço)</h4>';
+  html += '<div class="market-section"><h4>Vender matérias-primas (60% do preço)</h4>';
   if (raws.length === 0) {
     html += '<div class="market-empty">Nenhuma matéria-prima em estoque.</div>';
   } else {
