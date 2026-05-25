@@ -1239,17 +1239,11 @@ function drawTile(px, py, cell, t) {
   }
   if (t.type === 'ore') {
     const res = R[t.resource];
-    // fundo levemente mais escuro pra destacar chips coloridos
+    // fundo da rocha hospedeira (mais escuro pra destacar o minério)
     ctx.fillStyle = '#4a3020';
     ctx.fillRect(px, py, cell, cell);
-    // chips coloridos do minério
-    ctx.fillStyle = res.color;
-    const n = Math.max(4, Math.floor(t.amount / 4));
-    for (let i = 0; i < n; i++) {
-      const dx = (px * 7 + i * 5) % (cell - 10);
-      const dy = (py * 11 + i * 7) % (cell - 14);
-      ctx.fillRect(px + 4 + dx, py + 14 + dy, 6, 5);
-    }
+    // Ilustração específica do minério (categoria visual)
+    drawOreContent(px, py, cell, t.resource, res.color, t.amount);
     const era = eraData(currentEra());
     const locked = !era.deposits.includes(t.resource);
     // moldura amarela quando minerador alocado
@@ -1292,6 +1286,215 @@ function drawTile(px, py, cell, t) {
       ctx.textBaseline = 'middle';
       ctx.fillText('🔒', px + cell / 2, py + cell / 2 + 8);
     }
+  }
+}
+
+// ---------- Ilustração visual de cada minério ----------
+// Área útil: ~24px de altura (entre label do topo e amount canto-baixo).
+// Cada categoria tem padrão próprio: nuggets metálicos, cristais facetados,
+// grãos, líquido, etc. Densidade escala com t.amount (veio maior = mais conteúdo).
+function drawOreContent(px, py, cell, id, color, amount) {
+  const cx = px + cell / 2;
+  const cy = py + cell / 2 + 4;
+  // Categorias visuais
+  const gems = { diamond: 1, ruby: 1, emerald: 1 };
+  const liquids = { oil: 1, mercury: 1, water: 1 };
+  const powders = { sulfur: 1, saltpeter: 1, sand: 1 };
+  const metals = { iron_ore: 1, copper_ore: 1, zinc_ore: 1, lead: 1,
+                   silver_ore: 1, gold_ore: 1, platinum_ore: 1 };
+  if (id === 'coal') return drawCoal(px, py, cell, amount);
+  if (id === 'wood') return drawWood(px, py, cell, amount);
+  if (id === 'clay') return drawClay(px, py, cell, amount, color);
+  if (id === 'stone') return drawStoneOre(px, py, cell, amount);
+  if (gems[id]) return drawGem(px, py, cell, color, amount);
+  if (liquids[id]) return drawLiquid(px, py, cell, color, amount);
+  if (powders[id]) return drawPowder(px, py, cell, color, amount);
+  if (metals[id]) return drawMetalNuggets(px, py, cell, color, amount, id);
+  // fallback: chips genéricos
+  ctx.fillStyle = color;
+  const n = Math.max(4, Math.floor(amount / 4));
+  for (let i = 0; i < n; i++) {
+    const dx = (px * 7 + i * 5) % (cell - 10);
+    const dy = (py * 11 + i * 7) % (cell - 14);
+    ctx.fillRect(px + 4 + dx, py + 14 + dy, 6, 5);
+  }
+}
+
+// Carvão: lascas pretas angulosas com leve reflexo
+function drawCoal(px, py, cell, amount) {
+  const n = Math.max(3, Math.min(6, Math.floor(amount / 6)));
+  for (let i = 0; i < n; i++) {
+    const x = px + 5 + ((i * 9) % (cell - 14));
+    const y = py + 16 + ((i * 7) % (cell - 22));
+    ctx.fillStyle = '#0a0a0a';
+    ctx.beginPath();
+    ctx.moveTo(x, y + 4);
+    ctx.lineTo(x + 4, y);
+    ctx.lineTo(x + 9, y + 3);
+    ctx.lineTo(x + 7, y + 7);
+    ctx.lineTo(x + 2, y + 7);
+    ctx.closePath();
+    ctx.fill();
+    // reflexo
+    ctx.fillStyle = 'rgba(200,200,210,0.4)';
+    ctx.fillRect(x + 3, y + 1, 2, 1);
+  }
+}
+
+// Madeira: tronco circular com anéis de crescimento
+function drawWood(px, py, cell, amount) {
+  const cx = px + cell / 2;
+  const cy = py + cell / 2 + 4;
+  const r = Math.min(11, 7 + Math.floor(amount / 12));
+  // tronco base
+  ctx.fillStyle = '#8a5a30';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  // anéis
+  ctx.strokeStyle = '#5a3416';
+  ctx.lineWidth = 1;
+  for (let i = 2; i < r; i += 2) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, i, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  // casca escura
+  ctx.strokeStyle = '#3a1f0a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+// Argila: massa lisa arredondada com brilho úmido
+function drawClay(px, py, cell, amount, color) {
+  const cx = px + cell / 2;
+  const cy = py + cell / 2 + 5;
+  const w = Math.min(22, 14 + Math.floor(amount / 6));
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, w / 2, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // brilho úmido
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(cx - 3, cy - 3, w / 4, 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// Pedra (depósito): pedras irregulares cinzas empilhadas
+function drawStoneOre(px, py, cell, amount) {
+  const n = Math.max(2, Math.min(4, Math.floor(amount / 10)));
+  for (let i = 0; i < n; i++) {
+    const x = px + 6 + i * 6 + ((i * 3) % 5);
+    const y = py + 18 + ((i * 5) % 8);
+    ctx.fillStyle = '#8a8a8a';
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#aaa';
+    ctx.fillRect(x - 2, y - 3, 2, 1);
+  }
+}
+
+// Gemas: cristal facetado (losango com facetas internas)
+function drawGem(px, py, cell, color, amount) {
+  const cx = px + cell / 2;
+  const cy = py + cell / 2 + 5;
+  const s = Math.min(11, 7 + Math.floor(amount / 10));
+  // corpo facetado
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - s);
+  ctx.lineTo(cx + s, cy);
+  ctx.lineTo(cx, cy + s);
+  ctx.lineTo(cx - s, cy);
+  ctx.closePath();
+  ctx.fill();
+  // faceta superior (mais clara)
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - s);
+  ctx.lineTo(cx + s, cy);
+  ctx.lineTo(cx, cy);
+  ctx.closePath();
+  ctx.fill();
+  // borda escura
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - s);
+  ctx.lineTo(cx + s, cy);
+  ctx.lineTo(cx, cy + s);
+  ctx.lineTo(cx - s, cy);
+  ctx.closePath();
+  ctx.stroke();
+  // brilho pontual (estrela)
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.fillRect(cx - 2, cy - 4, 1, 1);
+  ctx.fillRect(cx - 3, cy - 3, 1, 1);
+}
+
+// Líquido (petróleo/mercúrio): poça em movimento sutil
+function drawLiquid(px, py, cell, color, amount) {
+  const cx = px + cell / 2;
+  const cy = py + cell - 8;
+  const w = Math.min(24, 16 + Math.floor(amount / 8));
+  // poça base
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, w / 2, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // bolha menor acima
+  ctx.beginPath();
+  ctx.ellipse(cx - 3, cy - 6, w / 4, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // reflexo metálico (mais forte pra mercúrio)
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(cx + 1, cy - 1, w / 4, 1, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// Pó/grãos: muitos pontinhos espalhados (areia, enxofre, salitre)
+function drawPowder(px, py, cell, color, amount) {
+  const n = Math.min(28, 14 + Math.floor(amount / 2));
+  ctx.fillStyle = color;
+  for (let i = 0; i < n; i++) {
+    const x = px + 4 + ((i * 7) % (cell - 8));
+    const y = py + 16 + ((i * 11) % (cell - 22));
+    ctx.fillRect(x, y, 2, 2);
+  }
+  // alguns grãos com brilho
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (let i = 0; i < 4; i++) {
+    const x = px + 6 + ((i * 9) % (cell - 12));
+    const y = py + 18 + ((i * 7) % (cell - 24));
+    ctx.fillRect(x, y, 1, 1);
+  }
+}
+
+// Metais: nuggets irregulares com brilho metálico
+function drawMetalNuggets(px, py, cell, color, amount, id) {
+  const n = Math.max(2, Math.min(4, Math.floor(amount / 12)));
+  // gold tem mais brilho, lead mais opaco
+  const shinyMul = id === 'gold_ore' || id === 'silver_ore' || id === 'platinum_ore' ? 0.7 : 0.35;
+  for (let i = 0; i < n; i++) {
+    const x = px + 6 + i * 6 + ((i * 3) % 4);
+    const y = py + 17 + ((i * 5) % 6);
+    // corpo do nugget
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 5, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // borda escura
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // brilho metálico
+    ctx.fillStyle = `rgba(255,255,255,${shinyMul})`;
+    ctx.fillRect(x - 2, y - 2, 2, 1);
   }
 }
 
