@@ -132,6 +132,33 @@ export function deleteSave(slot) {
   try { localStorage.removeItem(slotKey(s)); } catch { /* ignore */ }
 }
 
+// Backup do slot atual antes de uma operação destrutiva (restart, novo jogo).
+// Guarda em tapuia_backup_slotN. Útil pra recuperar de click acidental.
+export function backupCurrentSlot() {
+  const s = getActiveSlot();
+  try {
+    const raw = localStorage.getItem(slotKey(s));
+    if (raw) localStorage.setItem(`tapuia_backup_slot${s}`, raw);
+  } catch { /* ignore */ }
+}
+
+// Restaura o backup do slot ativo (se existir). Retorna true se conseguiu.
+export function restoreBackup(slot) {
+  const s = slot ?? getActiveSlot();
+  try {
+    const raw = localStorage.getItem(`tapuia_backup_slot${s}`);
+    if (!raw) return false;
+    localStorage.setItem(slotKey(s), raw);
+    return true;
+  } catch { return false; }
+}
+
+export function hasBackup(slot) {
+  const s = slot ?? getActiveSlot();
+  try { return !!localStorage.getItem(`tapuia_backup_slot${s}`); }
+  catch { return false; }
+}
+
 // Metadados de um slot pra exibir no modal (sem carregar o save todo no state)
 export function getSlotInfo(slot) {
   try {

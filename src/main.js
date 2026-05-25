@@ -3,7 +3,7 @@ import { state, log } from './state.js';
 import { $ } from './util.js';
 import { ROMAN, CFG, MINE } from './data.js';
 import { currentEra } from './progression.js';
-import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL, SAVE_SLOTS, getSlotInfo, getActiveSlot, setActiveSlot } from './save.js';
+import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL, SAVE_SLOTS, getSlotInfo, getActiveSlot, setActiveSlot, backupCurrentSlot, restoreBackup, hasBackup } from './save.js';
 import { initMines, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine, regenerateMine, tryUpgradeSilo, activeMine as getActiveMine } from './mine.js';
 import { siloAt, factoryCapUpgradeAt } from './draw.js';
 import { buyFactory, setRecipe, updateFactories, tryUpgradeRecipeCap } from './factories.js';
@@ -25,6 +25,23 @@ import { W, H, WORLD_W, WORLD_H, TOOLBAR, MINE_BACK_BTN, MINIMAP, OVERWORLD, fac
 import { clamp } from './util.js';
 
 // ---------- Game over / vitória ----------
+// Marca o momento em que o modal de fim apareceu. Botão "Recomeçar"
+// fica travado nos primeiros 3s pra não ser clicado acidentalmente.
+let endModalShownAt = 0;
+const RESTART_LOCK_MS = 3000;
+
+function showEndModal(allowContinue) {
+  endModalShownAt = performance.now();
+  const restartBtn = $('restart-btn');
+  if (restartBtn) {
+    restartBtn.disabled = true;
+    restartBtn.dataset.lockedUntil = String(endModalShownAt + RESTART_LOCK_MS);
+  }
+  if (allowContinue) $('continue-btn').classList.remove('hidden');
+  else $('continue-btn').classList.add('hidden');
+  $('game-over').classList.remove('hidden');
+}
+
 function checkEnd() {
   if (state.over) return;
   // Sandbox nunca tem game over (modo "sem pressão")
@@ -33,21 +50,26 @@ function checkEnd() {
     state.over = true;
     $('end-title').textContent = 'A população te destituiu';
     $('end-text').textContent = 'A aprovação caiu a zero. O governo central revogou seu mandato.';
-    $('continue-btn').classList.add('hidden');
-    $('game-over').classList.remove('hidden');
+    showEndModal(false);
     // Hardcore: deleta o save ao perder (sem retomar)
     if (state.gameMode === 'hardcore') {
       try { deleteSave(); } catch { /* ignore */ }
       $('end-text').textContent += ' Modo Hardcore: a partida foi apagada permanentemente.';
     }
-  } else if (state.approval >= CFG.approvalMax && state.day >= 21 && state.contractsCompleted >= 10 && !state.victoryShown) {
+    return;
+  }
+  // Vitória "completa": SÓ dispara quando o jogador chegou na era final (6),
+  // bateu 100% de aprovação E acumulou 40+ contratos. Pop modal acidental
+  // pra quem só atingiu 100% antes era frustrante.
+  if (!state.victoryShown
+      && state.approval >= CFG.approvalMax
+      && currentEra() >= 6
+      && state.contractsCompleted >= 40) {
     state.over = true;
     $('end-title').textContent = 'Vitória política!';
     const modeLbl = sandbox ? ' (sandbox)' : state.gameMode === 'hardcore' ? ' [HARDCORE]' : '';
-    $('end-text').textContent = `Aprovação máxima após ${state.day} dias e ${state.contractsCompleted} contratos cumpridos${modeLbl}. Santa Catarina prospera sob a Tapuia. Quer continuar construindo seu império?`;
-    // Vitória permite seguir jogando (modo sandbox de fato)
-    $('continue-btn').classList.remove('hidden');
-    $('game-over').classList.remove('hidden');
+    $('end-text').textContent = `Aprovação máxima após ${state.day} dias e ${state.contractsCompleted} contratos cumpridos na Era VI${modeLbl}. Santa Catarina prospera sob a Tapuia. Quer continuar construindo seu império?`;
+    showEndModal(true);
   }
 }
 
@@ -90,6 +112,22 @@ function frame(now) {
     if (Math.floor(performance.now() / 1000) !== lastStatusSecond) {
       lastStatusSecond = Math.floor(performance.now() / 1000);
       updateSaveStatus();
+    }
+    // Anti-misclick: atualiza o botão Recomeçar com countdown
+    if (endModalShownAt > 0) {
+      const restartBtn = $('restart-btn');
+      if (restartBtn) {
+        const lockedUntil = Number(restartBtn.dataset.lockedUntil || 0);
+        const remaining = Math.max(0, Math.ceil((lockedUntil - performance.now()) / 1000));
+        if (remaining > 0) {
+          restartBtn.disabled = true;
+          restartBtn.textContent = `Recomeçar (${remaining}s)`;
+        } else {
+          restartBtn.disabled = false;
+          restartBtn.textContent = 'Recomeçar';
+          endModalShownAt = 0;
+        }
+      }
     }
   } catch (err) {
     console.error('[tick]', err);
@@ -674,6 +712,11 @@ document.querySelectorAll('.modal').forEach(m => {
 });
 
 $('restart-btn').addEventListener('click', () => {
+  const btn = $('restart-btn');
+  // Anti-misclick: ignora se ainda tá no período travado
+  if (btn && btn.disabled) return;
+  // Backup do save atual ANTES de apagar (pra recuperação se foi acidente)
+  backupCurrentSlot();
   state.over = true; // evita beforeunload re-salvar o estado antigo
   deleteSave();
   location.reload();
@@ -709,6 +752,7 @@ function renderSlotsModal() {
         <div class="slot-row muted">Última gravação: ${ago < 1 ? 'agora' : ago < 60 ? ago + ' min' : Math.round(ago/60) + 'h'}</div>
       </div>`;
     }
+    const hasBkp = hasBackup(slot);
     return `<div class="slot-card ${isActive ? 'active' : ''} ${info ? '' : 'empty'}">
       <div class="slot-header">
         <strong>Slot ${slot}</strong>
@@ -719,6 +763,7 @@ function renderSlotsModal() {
         ${isActive ? `<button class="mini-btn" data-slot-action="saveNow" data-slot="${slot}">💾 Salvar agora</button>` : ''}
         ${info && !isActive ? `<button class="mini-btn" data-slot-action="load" data-slot="${slot}">📂 Carregar</button>` : ''}
         ${!isActive ? `<button class="mini-btn" data-slot-action="setActive" data-slot="${slot}">★ Ativar</button>` : ''}
+        ${hasBkp ? `<button class="mini-btn" data-slot-action="restore" data-slot="${slot}" title="Recupera o save antes do último Recomeçar/Novo Jogo">↩ Restaurar backup</button>` : ''}
         ${info ? `<button class="mini-btn danger" data-slot-action="delete" data-slot="${slot}">🗑 Apagar</button>` : (!isActive ? `<button class="mini-btn" data-slot-action="setActive" data-slot="${slot}">★ Usar este slot</button>` : '')}
       </div>
     </div>`;
@@ -758,6 +803,21 @@ document.addEventListener('click', (e) => {
       renderSlotsModal();
       log(`Slot ${slot} apagado.`, 'bad');
     }
+  } else if (action === 'restore') {
+    if (confirm(`Restaurar o backup do slot ${slot}? O save atual desse slot será substituído.`)) {
+      if (restoreBackup(slot)) {
+        // Se restaurou o slot ativo, recarrega a página pra aplicar
+        if (slot === getActiveSlot()) {
+          state.over = true; // evita beforeunload re-salvar
+          location.reload();
+        } else {
+          renderSlotsModal();
+          log(`Backup do slot ${slot} restaurado.`, 'good');
+        }
+      } else {
+        log('Nenhum backup pra restaurar.', 'bad');
+      }
+    }
   }
 });
 $('newgame-btn').addEventListener('click', () => {
@@ -768,6 +828,8 @@ document.querySelectorAll('[data-newgame-diff]').forEach(btn => {
   el.addEventListener('click', () => {
     const diff = el.dataset.newgameDiff;
     const mode = el.dataset.newgameMode || 'normal';
+    // Backup do save atual ANTES de apagar (pode ser recuperado no modal de slots)
+    backupCurrentSlot();
     // Marca que estamos iniciando novo jogo PRA o beforeunload não re-salvar
     // o estado antigo por cima (location.reload dispara beforeunload).
     state.over = true;
