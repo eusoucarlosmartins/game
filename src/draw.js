@@ -252,31 +252,17 @@ function drawSingleFactory(idx, f) {
   drawFlowerCluster(x + w / 2 - 8, y + h + 8, decorRng);
   drawFlowerCluster(x + w / 2 + 8, y + h + 8, decorRng);
 
-  // === Telhado de duas águas (acima do prédio) ===
-  const roofH = 22;
-  ctx.fillStyle = '#5a2a1a'; // telhado escuro
-  ctx.beginPath();
-  ctx.moveTo(x - 6, y);
-  ctx.lineTo(x + w / 2, y - roofH);
-  ctx.lineTo(x + w + 6, y);
-  ctx.closePath();
-  ctx.fill();
-  // Telhas (linhas horizontais sobre o telhado)
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-  ctx.lineWidth = 1;
-  for (let i = 1; i < 5; i++) {
-    const ry = y - (roofH / 5) * i;
-    const inset = (roofH / 5) * i * (w / 2 + 6) / roofH;
-    ctx.beginPath();
-    ctx.moveTo(x - 6 + inset, ry);
-    ctx.lineTo(x + w + 6 - inset, ry);
-    ctx.stroke();
-  }
-
-  // === Parede de tijolos ===
-  ctx.fillStyle = '#8a3a1a';
-  ctx.fillRect(x, y, w, h);
-  // Textura de tijolos (linhas horizontais + verticais escalonadas)
+  // === Corpo da fábrica em iso box (parede de tijolos) ===
+  const cxF = x + w / 2;
+  const baseYF = y + h;
+  const dF = w * 0.32;
+  const brickFace = '#8a3a1a';
+  drawIsoBox(cxF, baseYF, w, dF, h, {
+    top: adjustColor(brickFace, 0.06),
+    left: adjustColor(brickFace, -0.22),
+    right: brickFace,
+  });
+  // Textura de tijolos sobre a face direita (iluminada)
   ctx.fillStyle = 'rgba(0,0,0,0.22)';
   for (let row = 0; row < Math.floor(h / 7); row++) {
     const ry = y + row * 7;
@@ -286,15 +272,17 @@ function drawSingleFactory(idx, f) {
       ctx.fillRect(x + bx, ry, 1, 7);
     }
   }
-  // Faixa lateral (vigas estruturais nas pontas)
+  // Vigas estruturais nas pontas (face direita)
   ctx.fillStyle = '#3a1f0a';
   ctx.fillRect(x, y, 4, h);
   ctx.fillRect(x + w - 4, y, 4, h);
-  // Faixa decorativa no topo (cornija)
+  // Cornija dourada no topo (face direita)
   ctx.fillStyle = '#3a1f0a';
   ctx.fillRect(x - 2, y, w + 4, 6);
   ctx.fillStyle = '#c69042';
   ctx.fillRect(x - 2, y + 6, w + 4, 2);
+  // === Telhado iso de duas águas ===
+  drawIsoRoof(cxF, y, w, dF, 22, '#5a2a1a');
 
   // === Janelas industriais ===
   // 2 fileiras de janelas em grade
@@ -354,27 +342,28 @@ function drawSingleFactory(idx, f) {
   ctx.fillRect(doorX + 2, doorY + doorH - 5, 3, 3);
   ctx.fillRect(doorX + doorW - 5, doorY + doorH - 5, 3, 3);
 
-  // === Chaminé grossa de tijolos ===
+  // === Chaminé como iso box (vermelho de tijolo) ===
   const chimX = x + w - 28;
   const chimW = 14;
   const chimH = 52;
   const chimTop = y - chimH - 4;
-  // base alargada
-  ctx.fillStyle = '#5a2a1a';
-  ctx.fillRect(chimX - 2, chimTop + chimH - 8, chimW + 4, 8);
-  // corpo de tijolo
-  ctx.fillStyle = '#8a3a1a';
-  ctx.fillRect(chimX, chimTop, chimW, chimH);
-  // textura de tijolo
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  // Chimney iso (centro fica em chimX + chimW/2)
+  const chimCx = chimX + chimW / 2;
+  const chimBaseY = chimTop + chimH;
+  const chimD = chimW * 0.4;
+  drawIsoBox(chimCx, chimBaseY, chimW, chimD, chimH, {
+    top: adjustColor(brickFace, 0.08),
+    left: adjustColor(brickFace, -0.24),
+    right: brickFace,
+  });
+  // Textura de tijolo na face direita
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
   for (let i = 0; i < Math.floor(chimH / 5); i++) {
     ctx.fillRect(chimX, chimTop + i * 5, chimW, 1);
-  }
-  for (let i = 0; i < Math.floor(chimH / 5); i++) {
     if (i % 2 === 0) ctx.fillRect(chimX + chimW / 2, chimTop + i * 5, 1, 5);
     else ctx.fillRect(chimX, chimTop + i * 5, 1, 5);
   }
-  // bordo escuro no topo da chaminé
+  // Bordo escuro no topo
   ctx.fillStyle = '#3a1f0a';
   ctx.fillRect(chimX - 2, chimTop, chimW + 4, 4);
 
