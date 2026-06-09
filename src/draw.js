@@ -758,67 +758,77 @@ function drawColonialHouse(x, baseY, w, h, faceColor, roofColor) {
 
 function drawColonialChurch(x, baseY) {
   const w = 40, h = 110;
-  const top = baseY - h;
-  // corpo branco (caiado)
-  ctx.fillStyle = '#f1e3c2';
-  ctx.fillRect(x, top, w, h);
-  // rodapé
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(x, baseY - 5, w, 5);
-  // telhado triangular (vermelho)
-  ctx.fillStyle = '#a82e1c';
+  const cx = x + w / 2;
+  const d = w * 0.38;
+  // Corpo da igreja em iso box (paredes brancas caiadas)
+  const faceColor = '#f1e3c2';
+  drawIsoBox(cx, baseY, w, d, h, {
+    top: adjustColor(faceColor, 0.04),
+    left: adjustColor(faceColor, -0.18),
+    right: faceColor,
+  });
+  // Telhado iso vermelho
+  drawIsoRoof(cx, baseY - h, w, d, 14, '#a82e1c');
+  // === Torre central (iso box mais estreito, acima do telhado) ===
+  const tw = 14, tDepth = 8, tHeight = 40;
+  const ttopY = baseY - h - 10; // base da torre fica acima do telhado
+  drawIsoBox(cx, ttopY, tw, tDepth, tHeight, {
+    top: adjustColor(faceColor, 0.04),
+    left: adjustColor(faceColor, -0.18),
+    right: faceColor,
+  });
+  // Teto piramidal da torre (cone iso simplificado)
+  ctx.fillStyle = adjustColor('#a82e1c', -0.18);
   ctx.beginPath();
-  ctx.moveTo(x - 4, top);
-  ctx.lineTo(x + w / 2, top - 14);
-  ctx.lineTo(x + w + 4, top);
+  ctx.moveTo(cx - tw / 2 - 2, ttopY - tHeight);
+  ctx.lineTo(cx, ttopY - tHeight - 16);
+  ctx.lineTo(cx, ttopY - tHeight - tDepth * 0.5);
+  ctx.lineTo(cx - tw / 2, ttopY - tHeight - tDepth);
   ctx.closePath();
   ctx.fill();
-  // torre central (sobe acima do telhado)
-  const tx = x + w / 2 - 6;
-  const ty = top - 38;
-  ctx.fillStyle = '#f1e3c2';
-  ctx.fillRect(tx, ty, 12, 40);
-  // teto piramidal da torre
   ctx.fillStyle = '#a82e1c';
   ctx.beginPath();
-  ctx.moveTo(tx - 3, ty);
-  ctx.lineTo(tx + 6, ty - 14);
-  ctx.lineTo(tx + 15, ty);
+  ctx.moveTo(cx + tw / 2 + 2, ttopY - tHeight);
+  ctx.lineTo(cx, ttopY - tHeight - 16);
+  ctx.lineTo(cx, ttopY - tHeight - tDepth * 0.5);
+  ctx.lineTo(cx + tw / 2, ttopY - tHeight - tDepth);
   ctx.closePath();
   ctx.fill();
-  // arco do sino
+  // Arco do sino na face frontal da torre
   ctx.fillStyle = '#1a0e06';
   ctx.beginPath();
-  ctx.arc(tx + 6, ty + 12, 5, Math.PI, Math.PI * 2);
+  ctx.arc(cx, ttopY - tHeight + 18, 5, Math.PI, Math.PI * 2);
   ctx.fill();
-  ctx.fillRect(tx + 1, ty + 12, 10, 4);
-  // cruz no topo
+  ctx.fillRect(cx - 5, ttopY - tHeight + 18, 10, 4);
+  // Cruz no topo da torre
   ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(tx + 5, ty - 22, 2, 10);
-  ctx.fillRect(tx + 3, ty - 18, 6, 2);
-  // porta arqueada principal
+  ctx.fillRect(cx - 1, ttopY - tHeight - 26, 2, 12);
+  ctx.fillRect(cx - 4, ttopY - tHeight - 22, 8, 2);
+  // === Porta arqueada principal (na face direita do corpo) ===
   ctx.fillStyle = '#5a3416';
   ctx.beginPath();
-  ctx.arc(x + w / 2, baseY - 14, 6, Math.PI, Math.PI * 2);
+  ctx.arc(cx, baseY - 14, 6, Math.PI, Math.PI * 2);
   ctx.fill();
-  ctx.fillRect(x + w / 2 - 6, baseY - 14, 12, 9);
-  // detalhe vertical na porta
+  ctx.fillRect(cx - 6, baseY - 14, 12, 9);
   ctx.strokeStyle = '#3a1f0a';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(x + w / 2, baseY - 20);
-  ctx.lineTo(x + w / 2, baseY - 5);
+  ctx.moveTo(cx, baseY - 20);
+  ctx.lineTo(cx, baseY - 5);
   ctx.stroke();
-  // janela arqueada acima da porta
-  const jy = top + 30;
-  ctx.fillStyle = '#a8c8d8';
+  // === Janela arqueada acima da porta ===
+  const jy = baseY - h + 30;
+  ctx.fillStyle = '#b8d8e8';
   ctx.beginPath();
-  ctx.arc(x + w / 2, jy, 5, Math.PI, Math.PI * 2);
+  ctx.arc(cx, jy, 5, Math.PI, Math.PI * 2);
   ctx.fill();
-  ctx.fillRect(x + w / 2 - 5, jy, 10, 8);
+  ctx.fillRect(cx - 5, jy, 10, 8);
+  // brilho do vidro
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillRect(cx - 4, jy + 1, 3, 3);
   ctx.strokeStyle = '#3a1f0a';
   ctx.beginPath();
-  ctx.arc(x + w / 2, jy, 5, Math.PI, Math.PI * 2);
+  ctx.arc(cx, jy, 5, Math.PI, Math.PI * 2);
   ctx.stroke();
   ctx.strokeRect(x + w / 2 - 5, jy, 10, 8);
 }
@@ -3194,28 +3204,20 @@ function drawVillageStyle(x, baseY, scale) {
   ];
   for (const b of houses) {
     const hx = x + b.dx * scale;
-    const top = baseY - b.h * scale;
     const w = b.w * scale, h = b.h * scale;
-    // sombra
-    ctx.fillStyle = 'rgba(0,0,0,0.18)';
-    ctx.fillRect(hx, baseY, w + 2, 3);
-    // parede
-    ctx.fillStyle = b.face;
-    ctx.fillRect(hx, top, w, h);
-    // rodapé
-    ctx.fillStyle = '#3a1f0a';
-    ctx.fillRect(hx, baseY - 2, w, 2);
-    // telhado triangular
-    ctx.fillStyle = b.roof;
-    ctx.beginPath();
-    ctx.moveTo(hx - 2, top);
-    ctx.lineTo(hx + w / 2, top - 8 * scale);
-    ctx.lineTo(hx + w + 2, top);
-    ctx.closePath();
-    ctx.fill();
-    // janela
-    ctx.fillStyle = '#a8c8d8';
-    ctx.fillRect(hx + 2 * scale, top + 6 * scale, 4 * scale, 5 * scale);
+    const d = w * 0.35;
+    // Iso box
+    drawIsoBox(hx + w / 2, baseY, w, d, h, {
+      top: adjustColor(b.face, 0.05),
+      left: adjustColor(b.face, -0.20),
+      right: b.face,
+    });
+    drawIsoRoof(hx + w / 2, baseY - h, w, d, 8 * scale, b.roof);
+    // Janelinha na face direita (iluminada)
+    ctx.fillStyle = '#b8d8e8';
+    ctx.fillRect(hx + 2 * scale, baseY - h + 6 * scale, 4 * scale, 5 * scale);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillRect(hx + 2.5 * scale, baseY - h + 6.5 * scale, 1.5 * scale, 1.5 * scale);
   }
 }
 
@@ -3223,92 +3225,77 @@ function drawVillageStyle(x, baseY, scale) {
 function drawPuebloStyle(x, baseY, scale) {
   // Sombra agregada
   drawBuildingShadow(x, baseY, 70 * scale);
-  // casa adobe esquerda
-  const ax = x - 24 * scale;
+  // === Casa adobe esquerda (iso box, telhado plano) ===
   const ah = 22 * scale, aw = 18 * scale;
-  ctx.fillStyle = 'rgba(20,40,15,0.20)';
-  ctx.fillRect(ax, baseY, aw + 2, 3);
-  ctx.fillStyle = '#d8a868';
-  ctx.fillRect(ax, baseY - ah, aw, ah);
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(ax, baseY - 2, aw, 2);
-  // telhado plano adobe
-  ctx.fillStyle = '#8a5a30';
-  ctx.fillRect(ax - 1, baseY - ah - 2, aw + 2, 3);
-  // igrejinha branca central
-  const cx = x - 5 * scale;
+  const adobeFace = '#d8a868';
+  const axCenter = x - 24 * scale + aw / 2;
+  drawIsoBox(axCenter, baseY, aw, aw * 0.4, ah, {
+    top: '#8a5a30', // teto plano marrom (adobe)
+    left: adjustColor(adobeFace, -0.18),
+    right: adobeFace,
+  });
+  // === Igrejinha central (iso box + telhado triangular + torre) ===
+  const cx = x - 5 * scale + 9 * scale; // centro horizontal
   const cw = 18 * scale, ch = 28 * scale;
-  ctx.fillStyle = 'rgba(0,0,0,0.2)';
-  ctx.fillRect(cx, baseY, cw + 2, 3);
-  ctx.fillStyle = '#f1e3c2';
-  ctx.fillRect(cx, baseY - ch, cw, ch);
+  const cFace = '#f1e3c2';
+  drawIsoBox(cx, baseY, cw, cw * 0.4, ch, {
+    top: adjustColor(cFace, 0.05),
+    left: adjustColor(cFace, -0.18),
+    right: cFace,
+  });
+  drawIsoRoof(cx, baseY - ch, cw, cw * 0.4, 8 * scale, '#a82e1c');
+  // Torre sineira pequena em cima (iso mini box)
+  drawIsoBox(cx, baseY - ch - 6 * scale, 6 * scale, 4 * scale, 8 * scale, {
+    top: adjustColor(cFace, 0.05),
+    left: adjustColor(cFace, -0.18),
+    right: cFace,
+  });
+  // Cruz no topo da torre
   ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(cx, baseY - 2, cw, 2);
-  // telhado triangular vermelho
-  ctx.fillStyle = '#a82e1c';
-  ctx.beginPath();
-  ctx.moveTo(cx - 2, baseY - ch);
-  ctx.lineTo(cx + cw / 2, baseY - ch - 8 * scale);
-  ctx.lineTo(cx + cw + 2, baseY - ch);
-  ctx.closePath();
-  ctx.fill();
-  // torre sineira pequena
-  const tx = cx + cw / 2 - 3 * scale;
-  ctx.fillStyle = '#f1e3c2';
-  ctx.fillRect(tx, baseY - ch - 14 * scale, 6 * scale, 8 * scale);
-  // cruz
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(tx + 2.5 * scale, baseY - ch - 22 * scale, 1.5 * scale, 8 * scale);
-  ctx.fillRect(tx + 1.5 * scale, baseY - ch - 19 * scale, 3.5 * scale, 1.5 * scale);
-  // casa adobe direita
-  const dx = x + 16 * scale;
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.fillRect(dx, baseY, aw + 2, 3);
-  ctx.fillStyle = '#c69460';
-  ctx.fillRect(dx, baseY - ah * 0.85, aw, ah * 0.85);
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(dx, baseY - 2, aw, 2);
-  ctx.fillStyle = '#8a5a30';
-  ctx.fillRect(dx - 1, baseY - ah * 0.85 - 2, aw + 2, 3);
+  ctx.fillRect(cx - 0.75 * scale, baseY - ch - 22 * scale, 1.5 * scale, 8 * scale);
+  ctx.fillRect(cx - 1.75 * scale, baseY - ch - 19 * scale, 3.5 * scale, 1.5 * scale);
+  // === Casa adobe direita (menor, iso box) ===
+  const dxCenter = x + 16 * scale + aw / 2;
+  const adobeFace2 = '#c69460';
+  drawIsoBox(dxCenter, baseY, aw, aw * 0.4, ah * 0.85, {
+    top: '#8a5a30',
+    left: adjustColor(adobeFace2, -0.18),
+    right: adobeFace2,
+  });
 }
 
-// Fazenda — celeiro vermelho com X branco + cerca
+// Fazenda — celeiro vermelho com X branco + cerca (iso box)
 function drawFazendaStyle(x, baseY, scale) {
   // Sombra agregada
   drawBuildingShadow(x, baseY, 60 * scale);
-  // celeiro principal
+  // === Celeiro principal em iso box ===
   const bw = 32 * scale, bh = 26 * scale;
-  const bx = x - bw / 2;
-  ctx.fillStyle = 'rgba(20,40,15,0.20)';
-  ctx.fillRect(bx, baseY, bw + 2, 3);
-  ctx.fillStyle = '#a8442a';
-  ctx.fillRect(bx, baseY - bh, bw, bh);
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(bx, baseY - 2, bw, 2);
-  // telhado triangular escuro
-  ctx.fillStyle = '#3a1f0a';
-  ctx.beginPath();
-  ctx.moveTo(bx - 3, baseY - bh);
-  ctx.lineTo(bx + bw / 2, baseY - bh - 12 * scale);
-  ctx.lineTo(bx + bw + 3, baseY - bh);
-  ctx.closePath();
-  ctx.fill();
-  // X branco característico
+  const d = bw * 0.4;
+  const barnFace = '#a8442a';
+  drawIsoBox(x, baseY, bw, d, bh, {
+    top: adjustColor(barnFace, 0.06),
+    left: adjustColor(barnFace, -0.22),
+    right: barnFace,
+  });
+  drawIsoRoof(x, baseY - bh, bw, d, 12 * scale, '#3a1f0a');
+  // === X branco característico na face direita (iluminada) ===
   ctx.strokeStyle = '#f1e3c2';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(bx + 4, baseY - bh + 4); ctx.lineTo(bx + bw - 4, baseY - 4);
-  ctx.moveTo(bx + bw - 4, baseY - bh + 4); ctx.lineTo(bx + 4, baseY - 4);
+  ctx.moveTo(x - bw / 2 + 4, baseY - bh + 4);
+  ctx.lineTo(x + bw / 2 - 4, baseY - 4);
+  ctx.moveTo(x + bw / 2 - 4, baseY - bh + 4);
+  ctx.lineTo(x - bw / 2 + 4, baseY - 4);
   ctx.stroke();
-  // porta
+  // Porta central
   ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(bx + bw / 2 - 4, baseY - 14, 8, 12);
-  // cerca à direita
-  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(x - 4, baseY - 14, 8, 12);
+  // === Cerca branca à direita (estacas + travessa) ===
+  ctx.fillStyle = '#f5f0e8';
   for (let i = 0; i < 4; i++) {
-    ctx.fillRect(bx + bw + 4 + i * 6 * scale, baseY - 14, 2, 14);
+    ctx.fillRect(x + bw / 2 + 4 + i * 6 * scale, baseY - 14, 2, 14);
   }
-  ctx.fillRect(bx + bw + 4, baseY - 8, 22 * scale, 1.5);
+  ctx.fillRect(x + bw / 2 + 4, baseY - 8, 22 * scale, 1.5);
 }
 
 // ---------- Helpers: ícone de recurso + scroll/painel ----------
