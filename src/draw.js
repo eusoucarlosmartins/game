@@ -322,16 +322,25 @@ function drawSingleFactory(idx, f) {
   ctx.fillStyle = '#3a1f0a';
   ctx.fillRect(chimX - 2, chimTop, chimW + 4, 4);
 
-  // Fumaça animada quando brewing
-  if (f.brewing > 0) {
+  // Fumaça cartoon: mais densa quando brewing, leve sempre que a fábrica
+  // tem receita configurada (sensação "viva")
+  const smokeIntensity = f.brewing > 0 ? 1 : 0.35;
+  if (smokeIntensity > 0) {
     const t = performance.now() / 350;
-    for (let k = 0; k < 4; k++) {
-      const yOff = (t * 14 + k * 12) % 50;
-      const drift = Math.sin((t + k) * 2) * 4;
-      ctx.fillStyle = `rgba(90,75,55,${0.55 - k * 0.12})`;
+    const puffs = f.brewing > 0 ? 6 : 3;
+    for (let k = 0; k < puffs; k++) {
+      const yOff = (t * 12 + k * 14) % 80;
+      const drift = Math.sin((t + k) * 1.5) * (4 + k);
+      const r = (5 + k * 2.2) * (0.7 + smokeIntensity * 0.3);
+      // Bolha branca (cartoon Township)
+      ctx.fillStyle = `rgba(245,245,240,${(0.7 - k * 0.08) * smokeIntensity})`;
       ctx.beginPath();
-      ctx.arc(chimX + chimW / 2 + drift, chimTop - 4 - yOff, 5 + k * 1.5, 0, Math.PI * 2);
+      ctx.arc(chimX + chimW / 2 + drift, chimTop - 4 - yOff, r, 0, Math.PI * 2);
       ctx.fill();
+      // Contorno escuro sutil pra dar definição cartoon
+      ctx.strokeStyle = `rgba(120,120,110,${0.25 * smokeIntensity})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
     }
   }
 
@@ -1665,22 +1674,23 @@ function drawEventBanner() {
 
 // ---------- Cena OVERWORLD: mapa ----------
 function drawOverworldBg() {
-  // Fundo papel envelhecido com gradiente, cobre o MUNDO inteiro (não só o canvas)
+  // Fundo verde lush (estilo Township): gradiente de grama brilhante.
+  // Cobre o MUNDO inteiro pra a câmera ver verde em qualquer pan.
   const grd = ctx.createLinearGradient(0, 0, 0, WORLD_H);
-  grd.addColorStop(0, '#d4b478');
-  grd.addColorStop(0.5, '#c9a76a');
-  grd.addColorStop(1, '#a87f48');
+  grd.addColorStop(0, '#a8d878');   // verde claro no topo (perto das montanhas)
+  grd.addColorStop(0.4, '#88c858'); // verde médio vibrante (pastagens)
+  grd.addColorStop(1, '#6ab040');   // verde forte (chão saturado)
   ctx.fillStyle = grd;
   ctx.fillRect(0, 0, WORLD_W, WORLD_H);
-  // Textura sutil cobrindo todo o mundo
-  ctx.fillStyle = 'rgba(80,50,20,0.07)';
-  for (let i = 0; i < 1600; i++) {
+  // Textura: pequenos tufos de grama mais escura (pontilhado natural)
+  ctx.fillStyle = 'rgba(40,80,30,0.18)';
+  for (let i = 0; i < 2400; i++) {
     const x = (i * 137) % WORLD_W;
     const y = (i * 89) % WORLD_H;
     ctx.fillRect(x, y, 2, 2);
   }
-  // Camada de montanhas mais distante (clara, ao fundo) — repetida por todo o mundo
-  ctx.fillStyle = '#a88a5a';
+  // Montanhas ao fundo agora são azul-acinzentadas (distantes, atmosféricas)
+  ctx.fillStyle = '#8aa8c0';
   ctx.beginPath();
   ctx.moveTo(0, 150);
   for (let x = 0; x <= WORLD_W; x += 140) {
@@ -1692,8 +1702,8 @@ function drawOverworldBg() {
   ctx.lineTo(0, 0);
   ctx.closePath();
   ctx.fill();
-  // Camada de montanhas mais perto (escura, à frente)
-  ctx.fillStyle = '#8a6a3e';
+  // Camada mais perto: montanhas verde-azuladas (florestadas)
+  ctx.fillStyle = '#6a8a78';
   ctx.beginPath();
   ctx.moveTo(0, 190);
   for (let x = 0; x <= WORLD_W; x += 150) {
@@ -1705,34 +1715,30 @@ function drawOverworldBg() {
   ctx.lineTo(0, 0);
   ctx.closePath();
   ctx.fill();
-  // Sombra na base das montanhas (transição pro chão) — em todo o mundo
-  ctx.fillStyle = 'rgba(0,0,0,0.14)';
-  ctx.fillRect(0, 180, WORLD_W, 12);
-  // Penhascos avermelhados em primeiro plano (rodapé do canvas)
-  drawForegroundCliffs();
+  // Sombra suave na base das montanhas (transição pro chão verde)
+  ctx.fillStyle = 'rgba(60,80,30,0.20)';
+  ctx.fillRect(0, 180, WORLD_W, 14);
+  // Colinas verdes em primeiro plano (substitui os penhascos terracota)
+  drawForegroundHills();
   // Vegetação + decorações espalhadas (deterministic scatter)
   drawNatureScatter();
+  // Pequenas lagoas/poças d'água azuis
+  drawPonds();
 }
 
-// ---- Penhascos/rochas no rodapé do mundo (efeito far-west) ----
-function drawForegroundCliffs() {
-  // Faixa de areia mais escura no chão do mundo
-  ctx.fillStyle = 'rgba(120,80,40,0.25)';
-  ctx.fillRect(0, WORLD_H - 60, WORLD_W, 60);
-  // Penhascos vermelho-tijolo espalhados pela largura do mundo
-  const cliffs = [
+// ---- Colinas verdes arredondadas (substituem os penhascos terracota) ----
+function drawForegroundHills() {
+  const hills = [
     { x: 210, y: WORLD_H - 70, w: 80, h: 50 },
     { x: 310, y: WORLD_H - 90, w: 110, h: 70 },
     { x: 470, y: WORLD_H - 60, w: 70, h: 40 },
     { x: 720, y: WORLD_H - 80, w: 90, h: 60 },
     { x: 1130, y: WORLD_H - 70, w: 95, h: 50 },
-    // Novos penhascos no quadrante expandido (direita / abaixo)
     { x: 1500, y: WORLD_H - 80, w: 100, h: 60 },
     { x: 1720, y: WORLD_H - 60, w: 70, h: 40 },
     { x: 1900, y: WORLD_H - 90, w: 120, h: 70 },
     { x: 2200, y: WORLD_H - 70, w: 90, h: 50 },
     { x: 2400, y: WORLD_H - 80, w: 110, h: 60 },
-    // Penhascos no meio vertical (separadores naturais)
     { x: 100,  y: 760, w: 90, h: 55 },
     { x: 400,  y: 800, w: 110, h: 65 },
     { x: 800,  y: 770, w: 80, h: 50 },
@@ -1740,47 +1746,61 @@ function drawForegroundCliffs() {
     { x: 1600, y: 770, w: 100, h: 55 },
     { x: 2000, y: 800, w: 90, h: 60 },
   ];
-  for (const c of cliffs) drawCliff(c.x, c.y, c.w, c.h);
+  for (const h of hills) drawHill(h.x, h.y, h.w, h.h);
 }
 
-function drawCliff(x, y, w, h) {
-  // Sombra projetada
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+function drawHill(x, y, w, h) {
+  // Sombra projetada (suave)
+  ctx.fillStyle = 'rgba(40,80,30,0.25)';
   ctx.beginPath();
-  ctx.ellipse(x + w / 2, y + h + 4, w / 2 + 6, 5, 0, 0, Math.PI * 2);
+  ctx.ellipse(x + w / 2, y + h + 2, w / 2 + 4, 4, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Massa rochosa principal (terracota)
-  ctx.fillStyle = '#b86848';
+  // Colina verde arredondada (semi-elipse)
+  ctx.fillStyle = '#5a9038';
   ctx.beginPath();
-  ctx.moveTo(x, y + h);
-  ctx.lineTo(x + w * 0.15, y + h * 0.45);
-  ctx.lineTo(x + w * 0.35, y + h * 0.1);
-  ctx.lineTo(x + w * 0.55, y + h * 0.35);
-  ctx.lineTo(x + w * 0.75, y);
-  ctx.lineTo(x + w * 0.95, y + h * 0.4);
-  ctx.lineTo(x + w, y + h);
-  ctx.closePath();
+  ctx.ellipse(x + w / 2, y + h, w / 2, h, 0, Math.PI, Math.PI * 2);
   ctx.fill();
-  // Faixa horizontal mais clara (camada geológica)
-  ctx.fillStyle = 'rgba(232,180,140,0.35)';
-  ctx.fillRect(x + 2, y + h * 0.55, w - 4, 3);
-  ctx.fillRect(x + 6, y + h * 0.75, w - 12, 2);
-  // Sombras laterais (volume)
-  ctx.fillStyle = 'rgba(60,30,15,0.22)';
+  // Highlight no topo (verde claro pra dar volume)
+  ctx.fillStyle = 'rgba(180,220,120,0.55)';
   ctx.beginPath();
-  ctx.moveTo(x + w * 0.55, y + h * 0.35);
-  ctx.lineTo(x + w, y + h);
-  ctx.lineTo(x + w * 0.65, y + h);
-  ctx.closePath();
+  ctx.ellipse(x + w * 0.42, y + h * 0.6, w * 0.22, h * 0.35, 0, Math.PI, Math.PI * 2);
   ctx.fill();
-  // Pedrinhas na base
-  ctx.fillStyle = '#8a4828';
-  for (let i = 0; i < 4; i++) {
-    const rx = x + 8 + i * (w - 16) / 4;
-    ctx.beginPath();
-    ctx.arc(rx, y + h - 2, 3 + (i % 2), 0, Math.PI * 2);
-    ctx.fill();
-  }
+  // Pequenos arbustos no topo (decoração)
+  ctx.fillStyle = '#3a6a2a';
+  ctx.beginPath();
+  ctx.arc(x + w * 0.3, y + h * 0.6, 4, 0, Math.PI * 2);
+  ctx.arc(x + w * 0.7, y + h * 0.55, 5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ---- Pequenas lagoas/poças d'água azul claras ----
+function drawPonds() {
+  const ponds = [
+    { x: 600,  y: 700, w: 80, h: 36 },
+    { x: 1350, y: 880, w: 110, h: 48 },
+    { x: 1850, y: 720, w: 70, h: 32 },
+    { x: 2150, y: 950, w: 95, h: 40 },
+    { x: 950,  y: 990, w: 100, h: 44 },
+  ];
+  for (const p of ponds) drawPond(p.x, p.y, p.w, p.h);
+}
+
+function drawPond(x, y, w, h) {
+  // Borda lamacenta (verde escuro)
+  ctx.fillStyle = '#4a6a2a';
+  ctx.beginPath();
+  ctx.ellipse(x + w / 2, y + h / 2, w / 2 + 4, h / 2 + 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Água azul-clara
+  ctx.fillStyle = '#5ab8d8';
+  ctx.beginPath();
+  ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Reflexo (linhas claras)
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  const phase = performance.now() / 1000;
+  ctx.fillRect(x + w * 0.25, y + h * 0.4 + Math.sin(phase) * 1, w * 0.3, 1.5);
+  ctx.fillRect(x + w * 0.55, y + h * 0.6 + Math.cos(phase * 1.3) * 1, w * 0.2, 1.5);
 }
 
 // ---- Scatter determinístico de árvores, cactos e pedras ----
@@ -1828,28 +1848,37 @@ function getDecorAvoidRects() {
 function drawNatureScatter() {
   const avoid = getDecorAvoidRects();
   const rng = lcg(8675309);
-  // Árvores espalhadas pelo MUNDO inteiro (mais densas que antes)
+  // Árvores cute espalhadas pelo MUNDO (mais densas — Township é cheia de verde)
   let placed = 0;
-  for (let tries = 0; tries < 800 && placed < 180; tries++) {
+  for (let tries = 0; tries < 1200 && placed < 240; tries++) {
     const x = rng() * (WORLD_W - 40) + 20;
     const y = 210 + rng() * (WORLD_H - 280);
     if (inAnyRect(x, y, avoid)) continue;
-    const size = 0.55 + rng() * 0.7;
+    const size = 0.6 + rng() * 0.7;
     drawTree(x, y, size);
     placed++;
   }
-  // Cactos espalhados pelo mundo (mais na metade direita)
+  // Arbustos coloridos / florais (substitui o cactos do tema desértico)
   placed = 0;
-  for (let tries = 0; tries < 200 && placed < 30; tries++) {
-    const x = 450 + rng() * (WORLD_W - 500);
-    const y = 320 + rng() * (WORLD_H - 400);
+  for (let tries = 0; tries < 600 && placed < 80; tries++) {
+    const x = rng() * (WORLD_W - 30) + 15;
+    const y = 250 + rng() * (WORLD_H - 320);
     if (inAnyRect(x, y, avoid)) continue;
-    drawCactus(x, y);
+    drawBush(x, y, rng);
     placed++;
   }
-  // Pedras pequenas espalhadas (textura)
+  // Tufos de flores (clusters de pontos coloridos)
   placed = 0;
-  for (let tries = 0; tries < 500 && placed < 70; tries++) {
+  for (let tries = 0; tries < 800 && placed < 120; tries++) {
+    const x = rng() * (WORLD_W - 20) + 10;
+    const y = 240 + rng() * (WORLD_H - 300);
+    if (inAnyRect(x, y, avoid)) continue;
+    drawFlowerCluster(x, y, rng);
+    placed++;
+  }
+  // Pedrinhas pequenas pra textura
+  placed = 0;
+  for (let tries = 0; tries < 400 && placed < 50; tries++) {
     const x = rng() * (WORLD_W - 30) + 15;
     const y = 210 + rng() * (WORLD_H - 280);
     if (inAnyRect(x, y, avoid)) continue;
@@ -1860,31 +1889,85 @@ function drawNatureScatter() {
 
 function drawTree(x, y, size = 1) {
   const r = 14 * size;
-  // sombra
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  // sombra (mais suave)
+  ctx.fillStyle = 'rgba(40,60,20,0.30)';
   ctx.beginPath();
-  ctx.ellipse(x, y + r * 0.6, r * 0.9, r * 0.25, 0, 0, Math.PI * 2);
+  ctx.ellipse(x, y + r * 0.65, r * 0.95, r * 0.28, 0, 0, Math.PI * 2);
   ctx.fill();
-  // tronco
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(x - 2 * size, y + r * 0.4, 4 * size, 9 * size);
-  // copa grande (verde médio)
-  ctx.fillStyle = '#4a6a3a';
+  // tronco arredondado (cor terra)
+  ctx.fillStyle = '#7a4a26';
+  ctx.fillRect(x - 2.5 * size, y + r * 0.35, 5 * size, 10 * size);
+  ctx.fillStyle = '#5a3010';
+  ctx.fillRect(x - 2.5 * size, y + r * 0.35, 5 * size, 2);
+  // copa: 3 círculos sobrepostos pra dar aquele look "fluffy" Township
+  ctx.fillStyle = '#3e7a2a';
   ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.arc(x - r * 0.4, y, r * 0.85, 0, Math.PI * 2);
+  ctx.arc(x + r * 0.4, y, r * 0.85, 0, Math.PI * 2);
+  ctx.arc(x, y - r * 0.4, r * 0.95, 0, Math.PI * 2);
   ctx.fill();
-  // copa secundária (verde escuro pra dar volume)
-  ctx.fillStyle = '#3a5a2a';
+  // contorno escuro (estilo cartoon)
+  ctx.strokeStyle = 'rgba(20,40,10,0.45)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // highlight (verde claro brilhante — sol no canto superior esquerdo)
+  ctx.fillStyle = 'rgba(180,220,100,0.55)';
   ctx.beginPath();
-  ctx.arc(x + r * 0.3, y - r * 0.3, r * 0.7, 0, Math.PI * 2);
-  ctx.fill();
-  // highlight (verde claro)
-  ctx.fillStyle = 'rgba(140,170,90,0.45)';
-  ctx.beginPath();
-  ctx.arc(x - r * 0.35, y - r * 0.35, r * 0.35, 0, Math.PI * 2);
+  ctx.arc(x - r * 0.45, y - r * 0.45, r * 0.32, 0, Math.PI * 2);
   ctx.fill();
 }
 
+// Arbusto colorido — alternativa cute aos cactos do tema desértico
+function drawBush(x, y, rng) {
+  const colors = ['#4a8a30', '#5a9a3a', '#6aa84a'];
+  const color = colors[Math.floor(rng() * colors.length)];
+  // sombra
+  ctx.fillStyle = 'rgba(40,60,20,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 4, 9, 2.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // corpo (3 bolhas verdes pequenas)
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x - 4, y, 5, 0, Math.PI * 2);
+  ctx.arc(x + 4, y, 5, 0, Math.PI * 2);
+  ctx.arc(x, y - 3, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(20,40,10,0.4)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // highlight
+  ctx.fillStyle = 'rgba(180,220,120,0.45)';
+  ctx.beginPath();
+  ctx.arc(x - 4, y - 2, 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// Cluster de flores (pontinhos coloridos no chão)
+function drawFlowerCluster(x, y, rng) {
+  const palettes = [
+    ['#f08aa8', '#d86a88'], // rosa
+    ['#f0d048', '#d8a830'], // amarelo
+    ['#a878d8', '#8858b0'], // lilás
+    ['#f08850', '#d06830'], // laranja
+    ['#ffffff', '#e0e0d0'], // branco
+  ];
+  const pal = palettes[Math.floor(rng() * palettes.length)];
+  const n = 3 + Math.floor(rng() * 3);
+  for (let i = 0; i < n; i++) {
+    const fx = x + (rng() - 0.5) * 12;
+    const fy = y + (rng() - 0.5) * 8;
+    ctx.fillStyle = pal[0];
+    ctx.beginPath();
+    ctx.arc(fx, fy, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = pal[1];
+    ctx.fillRect(fx - 0.5, fy - 0.5, 1, 1);
+  }
+}
+
+// Mantida pra retrocompat (drawCactus ainda é exportada implicitamente,
+// mas drawNatureScatter não a chama mais). Deixar exposto não custa.
 function drawCactus(x, y) {
   // sombra
   ctx.fillStyle = 'rgba(0,0,0,0.18)';
@@ -1920,15 +2003,21 @@ function drawCactus(x, y) {
 }
 
 function drawSmallRock(x, y, size = 1) {
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  // sombra
+  ctx.fillStyle = 'rgba(40,60,20,0.20)';
   ctx.beginPath();
   ctx.ellipse(x, y + 3 * size, 6 * size, 1.6 * size, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#8a6a48';
+  // pedra cinza (combina com grama, não com deserto)
+  ctx.fillStyle = '#9aa0a8';
   ctx.beginPath();
   ctx.ellipse(x, y, 5 * size, 3.5 * size, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = 'rgba(255,235,200,0.3)';
+  ctx.strokeStyle = 'rgba(50,60,70,0.4)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
   ctx.beginPath();
   ctx.ellipse(x - 1.5 * size, y - 0.5 * size, 1.5 * size, 1 * size, 0, 0, Math.PI * 2);
   ctx.fill();
