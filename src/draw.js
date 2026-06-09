@@ -514,31 +514,25 @@ function drawCityGrowthBuildings(cx0, w) {
     const faces  = ['#f0d090', '#b8d8e8', '#f0b8a8', '#b8c8a8', '#f8e8b8', '#d8c0e0'];
     const roofs  = ['#d83a3a', '#3a78c8', '#a83a78', '#3a8a3a', '#d8a030', '#7a3aa8'];
     const k = idx % heights.length;
-    const top = GROUND_Y - heights[k];
     const ww = widths[k];
-    // sombra
-    ctx.fillStyle = 'rgba(0,0,0,0.18)';
-    ctx.fillRect(baseX, GROUND_Y, ww + 2, 3);
-    // parede
-    ctx.fillStyle = faces[k];
-    ctx.fillRect(baseX, top, ww, heights[k]);
-    // rodapé escuro
+    const hh = heights[k];
+    const cx = baseX + ww / 2;
+    const d = ww * 0.35;
+    // Casa colorida em iso box + telhado iso
+    drawIsoBox(cx, GROUND_Y, ww, d, hh, {
+      top: adjustColor(faces[k], 0.05),
+      left: adjustColor(faces[k], -0.20),
+      right: faces[k],
+    });
+    drawIsoRoof(cx, GROUND_Y - hh, ww, d, 9, roofs[k]);
+    // Janela na face direita
+    ctx.fillStyle = '#b8d8e8';
+    ctx.fillRect(baseX + 3, GROUND_Y - hh + 8, 5, 6);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillRect(baseX + 4, GROUND_Y - hh + 9, 1.5, 1.5);
+    // Porta central na face direita
     ctx.fillStyle = '#3a1f0a';
-    ctx.fillRect(baseX, GROUND_Y - 3, ww, 3);
-    // telhado triangular
-    ctx.fillStyle = roofs[k];
-    ctx.beginPath();
-    ctx.moveTo(baseX - 3, top);
-    ctx.lineTo(baseX + ww / 2, top - 9);
-    ctx.lineTo(baseX + ww + 3, top);
-    ctx.closePath();
-    ctx.fill();
-    // janela
-    ctx.fillStyle = '#a8c8d8';
-    ctx.fillRect(baseX + 3, top + 8, 5, 6);
-    // porta
-    ctx.fillStyle = '#3a1f0a';
-    ctx.fillRect(baseX + ww / 2 - 2, GROUND_Y - 11, 4, 8);
+    ctx.fillRect(cx - 2, GROUND_Y - 11, 4, 8);
   }
 }
 
@@ -630,21 +624,26 @@ function drawIndustrialCity(cx0, w) {
 
 function drawFactoryBuilding(x, baseY, w, h, faceColor, roofColor) {
   const top = baseY - h;
-  // corpo de tijolo
-  ctx.fillStyle = faceColor;
-  ctx.fillRect(x, top, w, h);
-  // padrão de tijolos (linhas horizontais)
+  const cx = x + w / 2;
+  const d = w * 0.4;
+  // Corpo iso (tijolo)
+  drawIsoBox(cx, baseY, w, d, h, {
+    top: adjustColor(faceColor, 0.06),
+    left: adjustColor(faceColor, -0.22),
+    right: faceColor,
+  });
+  // padrão de tijolos (linhas horizontais sobre face direita)
   ctx.strokeStyle = 'rgba(0,0,0,0.18)';
   ctx.lineWidth = 1;
   for (let y = top + 6; y < baseY - 6; y += 6) {
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.stroke();
   }
-  // telhado plano escuro
-  ctx.fillStyle = roofColor;
-  ctx.fillRect(x - 2, top - 4, w + 4, 6);
-  // rodapé
-  ctx.fillStyle = '#1a0e06';
-  ctx.fillRect(x, baseY - 4, w, 4);
+  // telhado plano iso (caixa baixa em cima)
+  drawIsoBox(cx, top, w + 4, d + 2, 4, {
+    top: adjustColor(roofColor, 0.08),
+    left: adjustColor(roofColor, -0.2),
+    right: roofColor,
+  });
   // chaminé com fumaça
   const chimX = x + w - 10;
   const chimTop = top - 36;
@@ -671,14 +670,18 @@ function drawFactoryBuilding(x, baseY, w, h, faceColor, roofColor) {
 
 function drawIndustrialBlock(x, baseY, w, h) {
   const top = baseY - h;
-  // prédio cinza-escuro
-  ctx.fillStyle = '#5a5a5a';
-  ctx.fillRect(x, top, w, h);
+  const cx = x + w / 2;
+  const d = w * 0.4;
+  // Prédio cinza iso
+  const face = '#5a5a5a';
+  drawIsoBox(cx, baseY, w, d, h, {
+    top: adjustColor(face, 0.08),
+    left: adjustColor(face, -0.22),
+    right: face,
+  });
+  // Faixa escura no topo (era horizontal flat)
   ctx.fillStyle = '#3a3a3a';
   ctx.fillRect(x, top, w, 8);
-  // rodapé
-  ctx.fillStyle = '#1a0e06';
-  ctx.fillRect(x, baseY - 4, w, 4);
   // grade densa de janelas
   ctx.fillStyle = '#ffd44a';
   for (let row = 0; row < Math.floor(h / 14); row++) {
@@ -2970,16 +2973,23 @@ function drawMercadoNode() {
   drawBush(x - 6, y + h + 8, rngM);
   drawBush(x + w + 6, y + h + 8, rngM);
   drawFlowerCluster(x + w / 2, y + h + 22, rngM);
-  // base / fundo de tijolo
-  ctx.fillStyle = '#8a3a1a';
-  ctx.fillRect(x, y + 8, w, h - 8);
-  // padrão de tijolos
+  // Corpo do mercado em iso box (tijolo vermelho)
+  const cxMkt = x + w / 2;
+  const baseYMkt = y + h;
+  const dMkt = w * 0.35;
+  const mktFace = '#8a3a1a';
+  drawIsoBox(cxMkt, baseYMkt, w, dMkt, h - 8, {
+    top: adjustColor(mktFace, 0.06),
+    left: adjustColor(mktFace, -0.22),
+    right: mktFace,
+  });
+  // Padrão de tijolos sobre face direita
   ctx.strokeStyle = 'rgba(0,0,0,0.18)';
   ctx.lineWidth = 1;
   for (let yy = y + 14; yy < y + h - 4; yy += 6) {
     ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + w, yy); ctx.stroke();
   }
-  // toldo listrado amarelo/vermelho
+  // Toldo listrado amarelo/vermelho (mantido 2D, fica em cima do iso box)
   ctx.fillStyle = '#e8c060';
   ctx.fillRect(x - 6, y + 4, w + 12, 12);
   ctx.fillStyle = '#a82e1c';
@@ -3014,20 +3024,17 @@ function drawPesquisaNode() {
   drawBush(x - 6, y + h + 8, rngP);
   drawBush(x + w + 6, y + h + 8, rngP);
   drawFlowerCluster(x + w / 2, y + h + 22, rngP);
-  // corpo branco (estilo colonial caiado)
-  ctx.fillStyle = '#f1e3c2';
-  ctx.fillRect(x, y, w, h);
-  // base escura
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(x, y + h - 4, w, 4);
-  // telhado triangular azul (acadêmico)
-  ctx.fillStyle = '#2a4a7a';
-  ctx.beginPath();
-  ctx.moveTo(x - 6, y);
-  ctx.lineTo(x + w / 2, y - 16);
-  ctx.lineTo(x + w + 6, y);
-  ctx.closePath();
-  ctx.fill();
+  // Corpo branco caiado em iso box + telhado iso azul acadêmico
+  const cxR = x + w / 2;
+  const baseYR = y + h;
+  const dR = w * 0.35;
+  const resFace = '#f1e3c2';
+  drawIsoBox(cxR, baseYR, w, dR, h, {
+    top: adjustColor(resFace, 0.05),
+    left: adjustColor(resFace, -0.18),
+    right: resFace,
+  });
+  drawIsoRoof(cxR, y, w, dR, 16, '#2a4a7a');
   // livro/pergaminho na fachada
   ctx.fillStyle = '#a82e1c';
   ctx.fillRect(x + w / 2 - 14, y + 20, 28, 22);
