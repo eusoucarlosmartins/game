@@ -711,50 +711,44 @@ function drawIndustrialBlock(x, baseY, w, h) {
 }
 
 function drawColonialHouse(x, baseY, w, h, faceColor, roofColor) {
-  const top = baseY - h;
-  // paredes
-  ctx.fillStyle = faceColor;
-  ctx.fillRect(x, top, w, h);
-  // rodapé escuro
+  // Híbrido iso (Opção B): casa renderizada como caixa 3D com 3 faces.
+  // x = left edge, baseY = ground line. Recentralizo pra o helper iso.
+  const cx = x + w / 2;
+  const d = w * 0.35; // profundidade visual da caixa
+  // Cores das faces: face direita ilumina, esquerda sombreia, topo médio
+  const top = adjustColor(faceColor, 0.05);
+  const left = adjustColor(faceColor, -0.18);
+  const right = faceColor;
+  drawIsoBox(cx, baseY, w, d, h, { top, left, right });
+  // Telhado iso por cima
+  drawIsoRoof(cx, baseY - h, w, d, 14, roofColor);
+  // === Detalhes na face direita (a iluminada/visível) ===
+  // Porta central
+  const doorW = 8, doorH = 14;
+  const doorX = cx + w * 0.15 - doorW / 2;
   ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(x, baseY - 5, w, 5);
-  // telhado triangular
-  ctx.fillStyle = roofColor;
-  ctx.beginPath();
-  ctx.moveTo(x - 4, top);
-  ctx.lineTo(x + w / 2, top - 14);
-  ctx.lineTo(x + w + 4, top);
-  ctx.closePath();
-  ctx.fill();
-  // beirado sombreado
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ctx.fillRect(x - 4, top, w + 8, 2);
-  // ripas do telhado (telhas)
-  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-  ctx.lineWidth = 1;
-  for (let i = 1; i < 4; i++) {
-    const r = i / 4;
-    const lx = x - 4 + (w + 8) * r;
-    const ly = top - 14 * (1 - Math.abs(r - 0.5) * 2);
-    ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx, top); ctx.stroke();
-  }
-  // porta central
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(x + w / 2 - 4, baseY - 20, 8, 15);
-  // maçaneta
+  ctx.fillRect(doorX, baseY - doorH, doorW, doorH);
   ctx.fillStyle = '#c69042';
-  ctx.fillRect(x + w / 2 + 2, baseY - 13, 1.5, 2);
-  // janelas (2 se cabe, 1 se for casa estreita)
+  ctx.fillRect(doorX + 5, baseY - doorH / 2, 1.5, 2);
+  // Janelas na face direita (1 ou 2 dependendo da largura)
   const wins = w >= 28 ? 2 : 1;
   for (let i = 0; i < wins; i++) {
-    const wx = wins === 2 ? (i === 0 ? x + 4 : x + w - 12) : x + w / 2 - 4;
-    const wy = top + 14;
-    ctx.fillStyle = '#a8c8d8';
+    const wx = wins === 2
+      ? (i === 0 ? cx + 2 : cx + w / 2 - 12)
+      : cx - 4;
+    const wy = baseY - h + 12;
+    // moldura escura
+    ctx.fillStyle = '#3a1f0a';
+    ctx.fillRect(wx - 1, wy - 1, 9, 11);
+    // vidro azulado (Township-style)
+    ctx.fillStyle = '#b8d8e8';
     ctx.fillRect(wx, wy, 8, 10);
+    // brilho do vidro (canto superior esquerdo)
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillRect(wx + 1, wy + 1, 3, 3);
+    // cruz da janela
     ctx.strokeStyle = '#3a1f0a';
     ctx.lineWidth = 1;
-    ctx.strokeRect(wx, wy, 8, 10);
-    // cruz da janela
     ctx.beginPath();
     ctx.moveTo(wx + 4, wy); ctx.lineTo(wx + 4, wy + 10);
     ctx.moveTo(wx, wy + 5); ctx.lineTo(wx + 8, wy + 5);
@@ -907,6 +901,115 @@ function drawBuildingShadow(cx, baseY, w, r = 8) {
   ctx.beginPath();
   ctx.ellipse(cx, baseY + 3, w / 2 + r, 6, 0, 0, Math.PI * 2);
   ctx.fill();
+}
+
+// ---- ISO BOX (Híbrido Isométrico - Opção B) ----
+// Desenha uma "caixa 3D" no estilo Township: topo em diamante, face
+// esquerda em parallelogramo, face direita em parallelogramo. Mantém
+// o mundo plano por baixo — só os prédios são renderizados em iso.
+//
+// Parâmetros:
+//   cx, baseY: centro da BASE inferior (no chão, no centro horizontal)
+//   w: largura horizontal (na tela)
+//   d: profundidade visual (quanto "vai pra trás") — geralmente w * 0.4
+//   h: altura
+//   colors: { top, left, right, edge? }
+function drawIsoBox(cx, baseY, w, d, h, colors) {
+  const { top, left, right, edge = 'rgba(20,30,15,0.55)' } = colors;
+  // Geometria iso de uma caixa retangular:
+  // - Topo é um diamante (losango) visto de cima com ~30°
+  // - Faces verticais são parallelogramos
+  const halfW = w / 2;
+  // Pontos chave (em coords de tela):
+  // BL = base-front-left, BR = base-front-right, BB = base-back-center
+  // TL = top-front-left, TR = top-front-right, TB = top-back-center, TF = top-front-center
+  const BL = { x: cx - halfW, y: baseY };
+  const BR = { x: cx + halfW, y: baseY };
+  const BB = { x: cx, y: baseY - d };
+  const TL = { x: BL.x, y: BL.y - h };
+  const TR = { x: BR.x, y: BR.y - h };
+  const TB = { x: BB.x, y: BB.y - h };
+  const TF = { x: cx, y: baseY - h + d * 0.2 }; // centro frente do topo (visual)
+  // === Face esquerda (parallelogramo) ===
+  ctx.fillStyle = left;
+  ctx.beginPath();
+  ctx.moveTo(BL.x, BL.y);
+  ctx.lineTo(BB.x, BB.y);
+  ctx.lineTo(TB.x, TB.y);
+  ctx.lineTo(TL.x, TL.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = edge;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // === Face direita (parallelogramo, mais clara) ===
+  ctx.fillStyle = right;
+  ctx.beginPath();
+  ctx.moveTo(BR.x, BR.y);
+  ctx.lineTo(BB.x, BB.y);
+  ctx.lineTo(TB.x, TB.y);
+  ctx.lineTo(TR.x, TR.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // === Topo (diamante visto de cima) ===
+  ctx.fillStyle = top;
+  ctx.beginPath();
+  ctx.moveTo(TL.x, TL.y);
+  ctx.lineTo(TF.x, TF.y);
+  ctx.lineTo(TR.x, TR.y);
+  ctx.lineTo(TB.x, TB.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  return { BL, BR, BB, TL, TR, TB, TF };
+}
+
+// Telhado triangular iso (encaixa em cima de uma drawIsoBox).
+// Estilo: telhado de duas águas pintado, com saliência pra dar profundidade.
+function drawIsoRoof(cx, topY, w, d, roofH, color) {
+  const halfW = w / 2;
+  const overhang = 4;
+  // Pontos da base do telhado (em cima do prédio)
+  const BL = { x: cx - halfW - overhang, y: topY };
+  const BR = { x: cx + halfW + overhang, y: topY };
+  const BB = { x: cx, y: topY - d - overhang * 0.4 };
+  const PEAK_F = { x: cx, y: topY - roofH + d * 0.2 }; // pico frente
+  const PEAK_B = { x: cx, y: topY - roofH - d * 0.5 }; // pico fundo
+  // Lado esquerdo (escuro)
+  ctx.fillStyle = adjustColor(color, -0.25);
+  ctx.beginPath();
+  ctx.moveTo(BL.x, BL.y);
+  ctx.lineTo(BB.x, BB.y);
+  ctx.lineTo(PEAK_B.x, PEAK_B.y);
+  ctx.lineTo(PEAK_F.x, PEAK_F.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(20,30,15,0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // Lado direito (cor base — mais iluminado)
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(BR.x, BR.y);
+  ctx.lineTo(BB.x, BB.y);
+  ctx.lineTo(PEAK_B.x, PEAK_B.y);
+  ctx.lineTo(PEAK_F.x, PEAK_F.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+}
+
+// Helper: clareia/escurece uma cor hex (#rrggbb) por uma fração (-1 a 1)
+function adjustColor(hex, amt) {
+  const m = hex.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (!m) return hex;
+  const adj = (c) => {
+    const v = parseInt(c, 16);
+    const nv = clamp(Math.round(v + 255 * amt), 0, 255);
+    return nv.toString(16).padStart(2, '0');
+  };
+  return '#' + adj(m[1]) + adj(m[2]) + adj(m[3]);
 }
 
 // ---- NPCs ambulantes nas estradas (cidadão andando) ----
