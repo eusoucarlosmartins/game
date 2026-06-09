@@ -3082,10 +3082,12 @@ function drawVillage(x, baseY, name, style = 'village', scale = 0.8) {
 
 // Vilarejo estilo colonial — casinhas com telhado triangular
 function drawVillageStyle(x, baseY, scale) {
+  // Sombra agregada sob o vilarejo
+  drawBuildingShadow(x, baseY, 60 * scale);
   const houses = [
-    { dx: -18, w: 18, h: 24, face: '#e8c87a', roof: '#a82e1c' },
-    { dx: 2,   w: 14, h: 28, face: '#b8c8a8', roof: '#8a4a2a' },
-    { dx: 20,  w: 16, h: 22, face: '#d8b878', roof: '#5a3416' },
+    { dx: -18, w: 18, h: 24, face: '#f0d090', roof: '#d83a3a' },
+    { dx: 2,   w: 14, h: 28, face: '#b8d8e8', roof: '#3a78c8' },
+    { dx: 20,  w: 16, h: 22, face: '#f0b8a8', roof: '#a83a78' },
   ];
   for (const b of houses) {
     const hx = x + b.dx * scale;
@@ -3116,10 +3118,12 @@ function drawVillageStyle(x, baseY, scale) {
 
 // Pueblo — adobe + igrejinha branca no centro
 function drawPuebloStyle(x, baseY, scale) {
+  // Sombra agregada
+  drawBuildingShadow(x, baseY, 70 * scale);
   // casa adobe esquerda
   const ax = x - 24 * scale;
   const ah = 22 * scale, aw = 18 * scale;
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillStyle = 'rgba(20,40,15,0.20)';
   ctx.fillRect(ax, baseY, aw + 2, 3);
   ctx.fillStyle = '#d8a868';
   ctx.fillRect(ax, baseY - ah, aw, ah);
@@ -3167,10 +3171,12 @@ function drawPuebloStyle(x, baseY, scale) {
 
 // Fazenda — celeiro vermelho com X branco + cerca
 function drawFazendaStyle(x, baseY, scale) {
+  // Sombra agregada
+  drawBuildingShadow(x, baseY, 60 * scale);
   // celeiro principal
   const bw = 32 * scale, bh = 26 * scale;
   const bx = x - bw / 2;
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillStyle = 'rgba(20,40,15,0.20)';
   ctx.fillRect(bx, baseY, bw + 2, 3);
   ctx.fillStyle = '#a8442a';
   ctx.fillRect(bx, baseY - bh, bw, bh);
