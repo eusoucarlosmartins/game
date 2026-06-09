@@ -198,9 +198,8 @@ function drawSingleFactory(idx, f) {
   const productColor = product?.color || '#c69042';
   const recipe = RECIPE_BY_ID[f.recipeId];
 
-  // Sombra no chão
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ctx.fillRect(x - 4, y + h - 2, w + 8, 4);
+  // Sombra suave unificada (estilo cartoon)
+  drawBuildingShadow(x + w / 2, y + h, w);
 
   // === Telhado de duas águas (acima do prédio) ===
   const roofH = 22;
@@ -395,6 +394,9 @@ const CITY_STYLES = {
 function drawCity() {
   const cx0 = CITY.x;
   const w = CITY.w;
+
+  // Sombra suave unificada sob a cidade inteira (estilo cartoon)
+  drawBuildingShadow(cx0 + w / 2, CITY.y + CITY.h, w + 8, 18);
 
   // base de terra
   ctx.fillStyle = '#a07a4a';
@@ -826,6 +828,94 @@ function drawRoad() {
     const dx = CITY.x;
     const dy = CITY.y + CITY.h / 2;
     drawTieredRoute(sx, sy, dx, dy, tier);
+  }
+}
+
+// ---- Sombra suave unificada sob prédios (estilo Township) ----
+// Chame ANTES de desenhar o prédio. Renderiza uma elipse escurecida sob
+// a base. r = quanto a sombra "vaza" pra fora dos lados.
+function drawBuildingShadow(cx, baseY, w, r = 8) {
+  ctx.fillStyle = 'rgba(20,40,15,0.30)';
+  ctx.beginPath();
+  ctx.ellipse(cx, baseY + 3, w / 2 + r, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ---- NPCs ambulantes nas estradas (cidadão andando) ----
+// Cada rota tem 1-2 walkers indo e voltando entre fábrica e cidade.
+// Posição é deterministica baseada em time + seed pra não consumir state.
+function drawAmbientNPCs() {
+  const t = performance.now() / 1000;
+  for (let i = 0; i < state.factories.length; i++) {
+    const fr = factoryRect(i);
+    const sx = fr.x + fr.w;
+    const sy = fr.y + fr.h / 2;
+    const dx = CITY.x;
+    const dy = CITY.y + CITY.h / 2;
+    // 1-2 walkers por rota com fase própria
+    for (let n = 0; n < 2; n++) {
+      const speed = 0.08 + (n * 0.02);
+      const phase = (i * 0.37 + n * 0.5);
+      const u = (Math.sin((t + phase) * speed * Math.PI) + 1) / 2; // 0..1 ping-pong
+      const px = sx + (dx - sx) * u;
+      const py = sy + (dy - sy) * u;
+      const dir = Math.cos((t + phase) * speed * Math.PI) >= 0 ? 1 : -1;
+      drawNPC(px, py, dir, n === 0 ? 'citizen' : 'farmer', t * 1.5 + phase * 3);
+    }
+  }
+  // 4 cidadãos andando em loop ao redor da cidade
+  if (CITY) {
+    for (let i = 0; i < 4; i++) {
+      const phase = i * Math.PI / 2 + t * 0.15;
+      const cx = CITY.x + CITY.w / 2 + Math.cos(phase) * (CITY.w / 2 + 8);
+      const cy = CITY.y + CITY.h / 2 + Math.sin(phase) * (CITY.h / 2 + 8);
+      drawNPC(cx, cy, Math.sin(phase) > 0 ? 1 : -1, ['citizen','farmer','worker','elder'][i], t * 2);
+    }
+  }
+}
+
+// Sprite simples de NPC: cabeça redonda + corpo retangular + perninhas alternadas
+function drawNPC(x, y, dir, kind, walkPhase) {
+  const palettes = {
+    citizen: { skin: '#f0c099', shirt: '#5a8ad8', pants: '#3a3a5a' },
+    farmer:  { skin: '#e0b080', shirt: '#a87040', pants: '#6a4a26' },
+    worker:  { skin: '#f0c099', shirt: '#d8a040', pants: '#5a3a26' },
+    elder:   { skin: '#e8c0a0', shirt: '#888888', pants: '#444444' },
+  };
+  const p = palettes[kind] || palettes.citizen;
+  const sway = Math.sin(walkPhase * 4) * 1.5;
+  // sombra
+  ctx.fillStyle = 'rgba(20,40,15,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 6, 4, 1.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // perninhas (alternam)
+  const legOffset = Math.sin(walkPhase * 4) * 1.5;
+  ctx.fillStyle = p.pants;
+  ctx.fillRect(x - 2, y + 1, 1.5, 4 + Math.abs(legOffset));
+  ctx.fillRect(x + 0.5, y + 1, 1.5, 4 - Math.abs(legOffset) + 1);
+  // corpo (camisa)
+  ctx.fillStyle = p.shirt;
+  ctx.fillRect(x - 2.5, y - 4, 5, 6);
+  // bordo escuro (cartoon)
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+  ctx.lineWidth = 0.8;
+  ctx.strokeRect(x - 2.5, y - 4, 5, 6);
+  // cabeça
+  ctx.fillStyle = p.skin;
+  ctx.beginPath();
+  ctx.arc(x, y - 6 + sway * 0.2, 2.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+  ctx.stroke();
+  // olhinhos (2 pontos pretos)
+  ctx.fillStyle = '#000';
+  if (dir > 0) {
+    ctx.fillRect(x + 0.5, y - 6.5, 0.7, 0.7);
+    ctx.fillRect(x - 1.2, y - 6.5, 0.7, 0.7);
+  } else {
+    ctx.fillRect(x - 1.2, y - 6.5, 0.7, 0.7);
+    ctx.fillRect(x - 2, y - 6.5, 0.7, 0.7);
   }
 }
 
@@ -2107,6 +2197,8 @@ function drawEmptyMineSlot(e, idx) {
 }
 
 function drawMineEntrance(e, mine, idx) {
+  // Sombra suave unificada sob a entrada da mina (estilo cartoon)
+  drawBuildingShadow(e.x + e.w / 2, e.y + e.h, e.w + 8, 10);
   // Colina marrom com base maior
   ctx.fillStyle = '#8a5a30';
   ctx.beginPath();
@@ -2115,9 +2207,6 @@ function drawMineEntrance(e, mine, idx) {
   ctx.bezierCurveTo(e.x + e.w * 0.6, e.y - 10, e.x + e.w, e.y + e.h * 0.2, e.x + e.w + 10, e.y + e.h);
   ctx.closePath();
   ctx.fill();
-  // Sombra na base
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.fillRect(e.x - 10, e.y + e.h - 6, e.w + 20, 6);
   // Pedrinhas na colina (textura)
   ctx.fillStyle = 'rgba(0,0,0,0.2)';
   for (let i = 0; i < 12; i++) {
@@ -2252,6 +2341,7 @@ function drawOverworld() {
   drawFactoryRecipePanels();
   drawCity();
   drawRoad();
+  drawAmbientNPCs();
   drawWagon();
   drawParticles(ctx, 'overworld');
   drawLockedAreaFog();
