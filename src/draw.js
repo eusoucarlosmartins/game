@@ -21,31 +21,74 @@ const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
 
 // ---------- Cena MINA: faixa de céu sobre a superfície + chão ----------
 function drawMineSky() {
+  // Céu azul vibrante estilo Township (era amarelo arenoso)
   const grd = ctx.createLinearGradient(0, 0, 0, MINE_GROUND_Y);
-  grd.addColorStop(0, '#e8c98a');
-  grd.addColorStop(1, '#d2a76a');
+  grd.addColorStop(0, '#8ccfee');   // azul claro topo
+  grd.addColorStop(0.7, '#b8e0ee'); // mais claro perto do solo
+  grd.addColorStop(1, '#d8ecf0');   // quase branco no horizonte
   ctx.fillStyle = grd;
   ctx.fillRect(0, 0, W, MINE_GROUND_Y);
-  // nuvens sutis
-  ctx.fillStyle = 'rgba(255,255,255,0.18)';
-  for (const c of [[280, 60, 50], [600, 50, 38], [950, 80, 55]]) {
-    ctx.beginPath();
-    ctx.ellipse(c[0], c[1], c[2], c[2] * 0.35, 0, 0, Math.PI * 2);
-    ctx.fill();
+  // Sol cartoon no canto direito
+  const sunX = W - 80, sunY = 50;
+  ctx.fillStyle = 'rgba(255,240,180,0.35)';
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, 38, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffe680';
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, 22, 0, Math.PI * 2);
+  ctx.fill();
+  // Nuvens fofas com drift baseado no tempo
+  const t = performance.now() / 8000;
+  const clouds = [
+    [180 + (t * 30) % 1200, 50, 55],
+    [560 + (t * 25 + 200) % 1200, 38, 42],
+    [880 + (t * 20 + 400) % 1200, 75, 60],
+  ];
+  for (const c of clouds) {
+    drawCloud(c[0] % W, c[1], c[2]);
   }
-  // título com nome da mina ativa
+  // título com nome da mina ativa (sombra branca pra contrastar com azul)
   const mine = activeMine();
   const nameTxt = mine ? `${mine.name.toUpperCase()} — SUPERFÍCIE` : 'SUPERFÍCIE';
-  ctx.fillStyle = 'rgba(58,31,10,0.7)';
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.fillRect(208, 60, ctx.measureText(nameTxt).width + 12, 18);
+  ctx.fillStyle = '#3a5470';
   ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(nameTxt, 210, 70);
-  // chão
-  ctx.fillStyle = '#8a5a30';
-  ctx.fillRect(0, MINE_GROUND_Y, W, 8);
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(0, MINE_GROUND_Y + 8, W, 4);
+  ctx.fillText(nameTxt, 214, 70);
+  // chão verde grama (era marrom)
+  const groundGrd = ctx.createLinearGradient(0, MINE_GROUND_Y, 0, MINE_GROUND_Y + 12);
+  groundGrd.addColorStop(0, '#5a9038');
+  groundGrd.addColorStop(1, '#3a6a28');
+  ctx.fillStyle = groundGrd;
+  ctx.fillRect(0, MINE_GROUND_Y, W, 12);
+  // grama detalhe (tufos verticais)
+  ctx.strokeStyle = '#88c858';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 9) {
+    const h = 3 + (x % 3);
+    ctx.beginPath();
+    ctx.moveTo(x, MINE_GROUND_Y);
+    ctx.lineTo(x, MINE_GROUND_Y - h);
+    ctx.stroke();
+  }
+}
+
+// Nuvem fofa estilo cartoon (3-4 bolhas brancas sobrepostas)
+function drawCloud(x, y, size) {
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.beginPath();
+  ctx.arc(x - size * 0.4, y, size * 0.35, 0, Math.PI * 2);
+  ctx.arc(x, y - size * 0.15, size * 0.45, 0, Math.PI * 2);
+  ctx.arc(x + size * 0.4, y, size * 0.38, 0, Math.PI * 2);
+  ctx.arc(x + size * 0.15, y + size * 0.1, size * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+  // contorno sutil cartoon
+  ctx.strokeStyle = 'rgba(180,200,220,0.5)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
 }
 
 // ---------- Silos por recurso ----------
@@ -1937,6 +1980,13 @@ function inAnyRect(x, y, rects) {
 
 function getDecorAvoidRects() {
   return [
+    // Hortas (não plantar árvores em cima das plantações)
+    { x: 970,  y: 270, w: 160, h: 90 },
+    { x: 1470, y: 310, w: 140, h: 80 },
+    { x: 1690, y: 840, w: 180, h: 95 },
+    { x: 280,  y: 870, w: 150, h: 85 },
+    { x: 2040, y: 460, w: 160, h: 90 },
+    { x: 590,  y: 1090, w: 150, h: 90 },
     // Áreas das minas (4 slots)
     ...OVERWORLD.mineEntrances.map(r => ({ x: r.x - 14, y: r.y - 14, w: r.w + 28, h: r.h + 60 })),
     // Fábricas (3 slots) + painel de receita acima
@@ -2328,21 +2378,42 @@ function drawEmptyMineSlot(e, idx) {
 function drawMineEntrance(e, mine, idx) {
   // Sombra suave unificada sob a entrada da mina (estilo cartoon)
   drawBuildingShadow(e.x + e.w / 2, e.y + e.h, e.w + 8, 10);
-  // Colina marrom com base maior
-  ctx.fillStyle = '#8a5a30';
+  // Colina: verde em cima (grama), marrom embaixo (terra exposta)
+  ctx.fillStyle = '#7a5028';
   ctx.beginPath();
   ctx.moveTo(e.x - 10, e.y + e.h);
   ctx.bezierCurveTo(e.x, e.y + e.h * 0.2, e.x + e.w * 0.4, e.y - 10, e.x + e.w * 0.5, e.y);
   ctx.bezierCurveTo(e.x + e.w * 0.6, e.y - 10, e.x + e.w, e.y + e.h * 0.2, e.x + e.w + 10, e.y + e.h);
   ctx.closePath();
   ctx.fill();
-  // Pedrinhas na colina (textura)
-  ctx.fillStyle = 'rgba(0,0,0,0.2)';
-  for (let i = 0; i < 12; i++) {
+  // Capa de grama no topo (verde acompanhando a curva)
+  ctx.fillStyle = '#5a9038';
+  ctx.beginPath();
+  ctx.moveTo(e.x - 6, e.y + e.h * 0.4);
+  ctx.bezierCurveTo(e.x + 4, e.y + e.h * 0.15, e.x + e.w * 0.4, e.y - 6, e.x + e.w * 0.5, e.y + 2);
+  ctx.bezierCurveTo(e.x + e.w * 0.6, e.y - 6, e.x + e.w - 4, e.y + e.h * 0.15, e.x + e.w + 6, e.y + e.h * 0.4);
+  ctx.lineTo(e.x + e.w + 6, e.y + e.h * 0.5);
+  ctx.bezierCurveTo(e.x + e.w * 0.7, e.y + e.h * 0.35, e.x + e.w * 0.3, e.y + e.h * 0.35, e.x - 6, e.y + e.h * 0.5);
+  ctx.closePath();
+  ctx.fill();
+  // Highlight de sol no topo da grama
+  ctx.fillStyle = 'rgba(180,220,120,0.5)';
+  ctx.beginPath();
+  ctx.ellipse(e.x + e.w * 0.4, e.y + 8, e.w * 0.15, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Pedrinhas cinza na colina (era preto-translúcido)
+  ctx.fillStyle = '#9a8a78';
+  for (let i = 0; i < 8; i++) {
     const px = e.x + ((i * 23) % (e.w - 20)) + 10;
-    const py = e.y + 40 + ((i * 31) % (e.h - 80));
-    ctx.fillRect(px, py, 3, 2);
+    const py = e.y + e.h * 0.5 + ((i * 31) % (e.h * 0.35));
+    ctx.beginPath();
+    ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+    ctx.fill();
   }
+  // Arbustos verdes na base
+  const decorRng = lcg(idx * 173 + 91);
+  drawBush(e.x + 4, e.y + e.h - 2, decorRng);
+  drawBush(e.x + e.w - 4, e.y + e.h - 2, decorRng);
   // Abertura da caverna (arco escuro)
   const caveX = e.x + e.w / 2;
   const caveY = e.y + e.h * 0.55;
@@ -2457,6 +2528,7 @@ function drawOverworld() {
   drawOverworldBg();
   drawAmbience(ctx);
   drawRiver();
+  drawCropFields();
   drawDecorativeLandmarks();
   // Rotas mina→fábrica também evoluem visualmente pelo transportTier
   const tier = transportTier();
@@ -2672,6 +2744,71 @@ function drawRiver() {
   }
 }
 
+// Hortas/plantações estilo Township: canteiros verdes com fileiras
+// de plantinhas, cercadas por cerca branca. Espalhadas pelo mundo.
+function drawCropFields() {
+  const fields = [
+    { x: 980,  y: 280, w: 140, h: 70, crop: 'wheat' },
+    { x: 1480, y: 320, w: 120, h: 60, crop: 'corn' },
+    { x: 1700, y: 850, w: 160, h: 75, crop: 'wheat' },
+    { x: 290,  y: 880, w: 130, h: 65, crop: 'carrot' },
+    { x: 2050, y: 470, w: 140, h: 70, crop: 'corn' },
+    { x: 600,  y: 1100, w: 130, h: 70, crop: 'wheat' },
+  ];
+  for (const f of fields) drawCropField(f);
+}
+
+function drawCropField({ x, y, w, h, crop }) {
+  // sombra leve
+  ctx.fillStyle = 'rgba(20,40,15,0.20)';
+  ctx.fillRect(x + 4, y + h - 1, w, 4);
+  // terra arada (marrom escuro)
+  ctx.fillStyle = '#6a4528';
+  ctx.fillRect(x, y, w, h);
+  // sulcos (faixas horizontais mais escuras)
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  for (let i = 1; i < 5; i++) {
+    ctx.fillRect(x, y + (h / 5) * i, w, 1);
+  }
+  // Plantas em fileiras
+  const colors = {
+    wheat:  ['#e8c060', '#d8a040'],  // trigo dourado
+    corn:   ['#3a8a3a', '#f0d048'],  // milho verde com espiga amarela
+    carrot: ['#3a8a3a', '#f08030'],  // cenoura
+  };
+  const [leaf, fruit] = colors[crop] || colors.wheat;
+  const rows = 4;
+  const cols = Math.floor(w / 14);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const px = x + 7 + c * 14;
+      const py = y + 8 + r * (h / rows);
+      // folhinha verde (V shape)
+      ctx.strokeStyle = leaf;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(px - 3, py);
+      ctx.lineTo(px, py - 4);
+      ctx.lineTo(px + 3, py);
+      ctx.stroke();
+      // fruto / ponta colorida
+      ctx.fillStyle = fruit;
+      ctx.beginPath();
+      ctx.arc(px, py - 4, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // Cerca branca em volta (estilo Township)
+  ctx.strokeStyle = '#f5f0e8';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x - 1, y - 1, w + 2, h + 2);
+  // estacas verticais
+  ctx.fillStyle = '#f5f0e8';
+  for (let i = 0; i <= w; i += 14) {
+    ctx.fillRect(x + i - 1, y - 3, 2, h + 6);
+  }
+}
+
 // Landmarks decorativos espalhados pelo mapa (não interativos).
 // Estilo: vila colonial, pueblo, fazenda — pra dar a sensação de "rede de
 // cidades" tipo a referência (Rancho Longhorn, Pueblo Blanco, etc.).
@@ -2725,6 +2862,12 @@ function drawDecorativeLandmarks() {
 function drawMercadoNode() {
   const n = OVERWORLD.mercadoNode;
   const { x, y, w, h } = n;
+  // Sombra suave + decoração
+  drawBuildingShadow(x + w / 2, y + h + 18, w + 4);
+  const rngM = lcg(2024);
+  drawBush(x - 6, y + h + 8, rngM);
+  drawBush(x + w + 6, y + h + 8, rngM);
+  drawFlowerCluster(x + w / 2, y + h + 22, rngM);
   // base / fundo de tijolo
   ctx.fillStyle = '#8a3a1a';
   ctx.fillRect(x, y + 8, w, h - 8);
@@ -2763,6 +2906,12 @@ function drawMercadoNode() {
 function drawPesquisaNode() {
   const n = OVERWORLD.pesquisaNode;
   const { x, y, w, h } = n;
+  // Sombra suave + decoração
+  drawBuildingShadow(x + w / 2, y + h + 18, w + 4);
+  const rngP = lcg(8128);
+  drawBush(x - 6, y + h + 8, rngP);
+  drawBush(x + w + 6, y + h + 8, rngP);
+  drawFlowerCluster(x + w / 2, y + h + 22, rngP);
   // corpo branco (estilo colonial caiado)
   ctx.fillStyle = '#f1e3c2';
   ctx.fillRect(x, y, w, h);
