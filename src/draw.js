@@ -201,6 +201,14 @@ function drawSingleFactory(idx, f) {
   // Sombra suave unificada (estilo cartoon)
   drawBuildingShadow(x + w / 2, y + h, w);
 
+  // Decoração local: arbustos nos cantos + tufo de flores em frente
+  // (idx usado como seed pra cada fábrica ter mistura própria mas estável)
+  const decorRng = lcg(idx * 137 + 42);
+  drawBush(x + 8, y + h + 4, decorRng);
+  drawBush(x + w - 8, y + h + 4, decorRng);
+  drawFlowerCluster(x + w / 2 - 8, y + h + 8, decorRng);
+  drawFlowerCluster(x + w / 2 + 8, y + h + 8, decorRng);
+
   // === Telhado de duas águas (acima do prédio) ===
   const roofH = 22;
   ctx.fillStyle = '#5a2a1a'; // telhado escuro
@@ -259,10 +267,16 @@ function drawSingleFactory(idx, f) {
       // moldura escura
       ctx.fillStyle = '#1a0e06';
       ctx.fillRect(wx - 1, wy - 1, winW + 2, winH + 2);
-      // vidro com tom levemente brilhante quando ativa
+      // vidro: amarelo brilhante quando produzindo (com leve pulse), azul quando idle
       const glowing = f.brewing > 0;
-      ctx.fillStyle = glowing ? '#ffe8a4' : '#a8c8d8';
+      const pulse = glowing ? 0.85 + 0.15 * Math.sin(performance.now() / 200 + j * 0.7) : 1;
+      ctx.fillStyle = glowing ? `rgba(255, ${230 * pulse}, ${130 * pulse}, 1)` : '#a8c8d8';
       ctx.fillRect(wx, wy, winW, winH);
+      // brilho/halo amarelo ao redor das janelas quando produzindo
+      if (glowing) {
+        ctx.fillStyle = `rgba(255,220,120,${0.18 * pulse})`;
+        ctx.fillRect(wx - 4, wy - 4, winW + 8, winH + 8);
+      }
       // cruz da janela (estrutura de vidro)
       ctx.strokeStyle = '#1a0e06';
       ctx.lineWidth = 1;
@@ -464,8 +478,9 @@ function drawCityGrowthBuildings(cx0, w) {
     const baseX = side < 0 ? cx0 - offset - 18 : cx0 + w + offset;
     const heights = [44, 58, 38, 52, 46];
     const widths = [22, 18, 24, 20, 22];
-    const faces  = ['#d8b070', '#c9a460', '#b89058', '#e8c87a', '#a88a4a'];
-    const roofs  = ['#a82e1c', '#7a4b25', '#5a3416', '#8a4a2a', '#a8442a'];
+    // Paleta Township: faces claras + telhados saturados variados
+    const faces  = ['#f0d090', '#b8d8e8', '#f0b8a8', '#b8c8a8', '#f8e8b8', '#d8c0e0'];
+    const roofs  = ['#d83a3a', '#3a78c8', '#a83a78', '#3a8a3a', '#d8a030', '#7a3aa8'];
     const k = idx % heights.length;
     const top = GROUND_Y - heights[k];
     const ww = widths[k];
@@ -496,9 +511,19 @@ function drawCityGrowthBuildings(cx0, w) {
 }
 
 function drawColonialCity(cx0, w) {
-  drawColonialHouse(cx0 + 4,  GROUND_Y, 32, 92, '#e8c87a', '#a82e1c');
+  // Township-style: mais casinhas com telhados coloridos variados
+  drawColonialHouse(cx0 + 4,  GROUND_Y, 28, 78, '#e8c87a', '#d83a3a');  // amarela / telha vermelha
+  drawColonialHouse(cx0 + 38, GROUND_Y, 26, 65, '#b8d8e8', '#3a78c8');  // azul-clara / telha azul
   drawColonialChurch(cx0 + w / 2 - 20, GROUND_Y);
-  drawColonialHouse(cx0 + w - 36, GROUND_Y, 32, 85, '#b8c8a8', '#8a4a2a');
+  drawColonialHouse(cx0 + w - 76, GROUND_Y, 26, 72, '#f0b8a8', '#a83a78'); // rosa / telha roxa
+  drawColonialHouse(cx0 + w - 40, GROUND_Y, 28, 82, '#b8c8a8', '#3a8a3a'); // verde / telha verde escura
+  // Decoração: arbustos + flores na frente
+  const rng = lcg(7777);
+  drawBush(cx0 + 20,    GROUND_Y + 6, rng);
+  drawBush(cx0 + w / 2, GROUND_Y + 6, rng);
+  drawBush(cx0 + w - 20, GROUND_Y + 6, rng);
+  drawFlowerCluster(cx0 + 60, GROUND_Y + 10, rng);
+  drawFlowerCluster(cx0 + w - 60, GROUND_Y + 10, rng);
 }
 
 // Cidade portuária: farol listrado + casas claras + ondinhas no chão
@@ -1975,6 +2000,110 @@ function drawNatureScatter() {
     drawSmallRock(x, y, 0.7 + rng() * 0.8);
     placed++;
   }
+  // === Animais (estilo Township): vaquinhas e galinhas espalhadas ===
+  const t = performance.now() / 1000;
+  placed = 0;
+  for (let tries = 0; tries < 400 && placed < 18; tries++) {
+    const x = 50 + rng() * (WORLD_W - 100);
+    const y = 280 + rng() * (WORLD_H - 360);
+    if (inAnyRect(x, y, avoid)) continue;
+    // Vaquinhas se movem MUITO devagar (drift de 6px em loop lento)
+    const drift = Math.sin(t * 0.15 + placed * 0.7) * 6;
+    drawCow(x + drift, y);
+    placed++;
+  }
+  placed = 0;
+  for (let tries = 0; tries < 400 && placed < 28; tries++) {
+    const x = 50 + rng() * (WORLD_W - 100);
+    const y = 280 + rng() * (WORLD_H - 360);
+    if (inAnyRect(x, y, avoid)) continue;
+    const drift = Math.sin(t * 0.4 + placed * 1.1) * 3;
+    drawChicken(x + drift, y, t + placed);
+    placed++;
+  }
+}
+
+// Vaquinha simples (top-down/lateral cartoon): corpo branco com manchas pretas
+function drawCow(x, y) {
+  // sombra
+  ctx.fillStyle = 'rgba(20,40,15,0.30)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 6, 11, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // corpo
+  ctx.fillStyle = '#f5f0e8';
+  ctx.beginPath();
+  ctx.ellipse(x, y, 10, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // cabeça
+  ctx.fillStyle = '#f5f0e8';
+  ctx.beginPath();
+  ctx.arc(x + 9, y - 2, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  // manchas pretas
+  ctx.fillStyle = '#2a2a2a';
+  ctx.beginPath();
+  ctx.ellipse(x - 4, y - 1, 3, 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(x + 3, y + 1, 2.5, 1.8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // focinho rosa
+  ctx.fillStyle = '#f0a8a8';
+  ctx.fillRect(x + 11, y - 1, 2, 2);
+  // chifres pequenos
+  ctx.fillStyle = '#3a2a18';
+  ctx.fillRect(x + 9, y - 7, 1, 2);
+  ctx.fillRect(x + 11, y - 7, 1, 2);
+  // perninhas (4 traços)
+  ctx.fillStyle = '#3a2a18';
+  ctx.fillRect(x - 6, y + 4, 1.5, 3);
+  ctx.fillRect(x - 2, y + 4, 1.5, 3);
+  ctx.fillRect(x + 2, y + 4, 1.5, 3);
+  ctx.fillRect(x + 6, y + 4, 1.5, 3);
+}
+
+// Galinha pequena: corpo amarelo, bico laranja, crista vermelha
+function drawChicken(x, y, walkPhase) {
+  // sombra
+  ctx.fillStyle = 'rgba(20,40,15,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 4, 5, 1.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // corpo bege/amarelado
+  ctx.fillStyle = '#f5e8b0';
+  ctx.beginPath();
+  ctx.ellipse(x, y, 5, 3.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+  // cabeça
+  ctx.fillStyle = '#f5e8b0';
+  ctx.beginPath();
+  ctx.arc(x + 4, y - 2, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  // crista vermelha
+  ctx.fillStyle = '#d83a3a';
+  ctx.fillRect(x + 3, y - 5, 2.5, 1.5);
+  // bico laranja (pequeno triângulo)
+  ctx.fillStyle = '#f08030';
+  ctx.beginPath();
+  ctx.moveTo(x + 6, y - 2);
+  ctx.lineTo(x + 8, y - 1);
+  ctx.lineTo(x + 6, y - 0.5);
+  ctx.closePath();
+  ctx.fill();
+  // perninhas (alternam com walkPhase)
+  const legSway = Math.sin(walkPhase * 8) * 0.7;
+  ctx.fillStyle = '#f08030';
+  ctx.fillRect(x - 1, y + 2, 1, 2 + Math.abs(legSway));
+  ctx.fillRect(x + 1, y + 2, 1, 2 - Math.abs(legSway) + 0.7);
 }
 
 function drawTree(x, y, size = 1) {
@@ -2495,8 +2624,21 @@ function drawPanIndicators() {
 // Rio decorativo serpenteando pelo MUNDO inteiro (borda direita do mundo)
 function drawRiver() {
   const baseX = WORLD_W - 50;
-  // Faixa azul ondulada
-  ctx.fillStyle = 'rgba(80,140,180,0.35)';
+  const phase = performance.now() / 800;
+  // Margem verde-amarelada (grama da beira)
+  ctx.fillStyle = '#5a8a2a';
+  ctx.beginPath();
+  ctx.moveTo(baseX - 8, 0);
+  for (let y = 0; y <= WORLD_H; y += 14) {
+    const wave = Math.sin(y * 0.04) * 12;
+    ctx.lineTo(baseX - 8 + wave, y);
+  }
+  ctx.lineTo(WORLD_W, WORLD_H);
+  ctx.lineTo(WORLD_W, 0);
+  ctx.closePath();
+  ctx.fill();
+  // Água azul vibrante (Township-style)
+  ctx.fillStyle = '#5ab8d8';
   ctx.beginPath();
   ctx.moveTo(baseX, 0);
   for (let y = 0; y <= WORLD_H; y += 14) {
@@ -2507,35 +2649,27 @@ function drawRiver() {
   ctx.lineTo(WORLD_W, 0);
   ctx.closePath();
   ctx.fill();
-  // Ondinhas brancas pra dar movimento
-  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-  ctx.lineWidth = 1;
+  // Ondinhas brancas animadas (estilo Township)
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = 1.5;
   for (let y = 20; y < WORLD_H; y += 28) {
     const wave = Math.sin(y * 0.04) * 12;
+    const drift = Math.sin(phase + y * 0.01) * 4;
     ctx.beginPath();
-    ctx.moveTo(baseX + wave + 6, y);
-    ctx.lineTo(baseX + wave + 14, y);
+    ctx.moveTo(baseX + wave + 6 + drift, y);
+    ctx.lineTo(baseX + wave + 14 + drift, y);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(baseX + wave + 20, y + 10);
-    ctx.lineTo(baseX + wave + 28, y + 10);
+    ctx.moveTo(baseX + wave + 20 + drift, y + 10);
+    ctx.lineTo(baseX + wave + 28 + drift, y + 10);
     ctx.stroke();
   }
-  // Margem (areia escura) do lado esquerdo do rio
-  ctx.fillStyle = 'rgba(120,80,40,0.4)';
-  ctx.beginPath();
-  ctx.moveTo(baseX - 4, 0);
-  for (let y = 0; y <= WORLD_H; y += 14) {
+  // Reflexo do céu (faixa muito clara no meio)
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  for (let y = 0; y <= WORLD_H; y += 4) {
     const wave = Math.sin(y * 0.04) * 12;
-    ctx.lineTo(baseX - 4 + wave, y);
+    ctx.fillRect(baseX + wave + 14, y, 18, 2);
   }
-  ctx.lineTo(baseX, WORLD_H);
-  for (let y = WORLD_H; y >= 0; y -= 14) {
-    const wave = Math.sin(y * 0.04) * 12;
-    ctx.lineTo(baseX + wave, y);
-  }
-  ctx.closePath();
-  ctx.fill();
 }
 
 // Landmarks decorativos espalhados pelo mapa (não interativos).
