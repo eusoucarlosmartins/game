@@ -576,28 +576,51 @@ function drawPortCity(cx0, w) {
 function drawLighthouse(x, baseY) {
   const w = 20, h = 130;
   const top = baseY - h;
-  // base larga
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(x - 4, baseY - 14, w + 8, 14);
-  // torre listrada vermelho/branco
+  const cx = x + w / 2;
+  const d = w * 0.5;
+  // Base larga em iso box
+  drawIsoBox(cx, baseY, w + 8, d + 4, 14, {
+    top: '#7a4b25',
+    left: '#3a1f0a',
+    right: '#5a3416',
+  });
+  // Torre listrada vermelho/branco em iso (5 anéis)
   for (let i = 0; i < 5; i++) {
-    ctx.fillStyle = i % 2 === 0 ? '#f1e3c2' : '#a82e1c';
-    ctx.fillRect(x, top + 20 + i * 18, w, 18);
+    const stripeY = baseY - 14 - i * 18;
+    const color = i % 2 === 0 ? '#f1e3c2' : '#a82e1c';
+    drawIsoBox(cx, stripeY, w, d, 18, {
+      top: adjustColor(color, 0.05),
+      left: adjustColor(color, -0.22),
+      right: color,
+    });
   }
-  // topo (sala da lanterna)
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(x - 4, top + 12, w + 8, 10);
-  ctx.fillStyle = '#ffe680';
-  ctx.fillRect(x + 2, top, w - 4, 14);
-  ctx.strokeStyle = '#3a1f0a';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x + 2, top, w - 4, 14);
-  // teto cônico
+  // Topo (sala da lanterna) em iso box
+  drawIsoBox(cx, top + 22, w + 8, d + 4, 10, {
+    top: '#7a4b25',
+    left: '#3a1f0a',
+    right: '#5a3416',
+  });
+  // Lanterna amarela (vidro) — iso box brilhante
+  drawIsoBox(cx, top + 14, w - 4, d - 2, 14, {
+    top: '#fff099',
+    left: '#d8b450',
+    right: '#ffe680',
+  });
+  // Teto cônico iso (telhado simplificado)
+  ctx.fillStyle = adjustColor('#3a1f0a', -0.15);
+  ctx.beginPath();
+  ctx.moveTo(cx - w / 2 - 4, top);
+  ctx.lineTo(cx, top - 14);
+  ctx.lineTo(cx, top - d * 0.5);
+  ctx.lineTo(cx - w / 2, top - d);
+  ctx.closePath();
+  ctx.fill();
   ctx.fillStyle = '#3a1f0a';
   ctx.beginPath();
-  ctx.moveTo(x - 4, top);
-  ctx.lineTo(x + w / 2, top - 14);
-  ctx.lineTo(x + w + 4, top);
+  ctx.moveTo(cx + w / 2 + 4, top);
+  ctx.lineTo(cx, top - 14);
+  ctx.lineTo(cx, top - d * 0.5);
+  ctx.lineTo(cx + w / 2, top - d);
   ctx.closePath();
   ctx.fill();
   // farol "piscando" (raio amarelo translúcido oscilante)
