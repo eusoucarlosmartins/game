@@ -624,8 +624,8 @@ function drawWindmill(cx, baseY, scale = 1, seedRot = 0) {
   ctx.beginPath();
   ctx.arc(ax, ay, 3 * scale, 0, Math.PI * 2);
   ctx.fill();
-  // Pás giratórias (4 pás)
-  const t = performance.now() / 1500;
+  // Pás giratórias (4 pás) — rotação lenta pra parecer natural
+  const t = performance.now() / 4500;
   const rot = t + seedRot;
   const bladeLen = 26 * scale;
   const bladeW = 5 * scale;
@@ -1081,27 +1081,35 @@ function factoryDoor(idx) {
   return { x: r.x + r.w / 2, y: r.y + r.h - 2 };
 }
 
-function cityDoor() {
-  // Portão da cidade = centro inferior (na altura do chão)
-  return { x: CITY.x + CITY.w / 2, y: CITY.y + CITY.h };
+// Cada fábrica tem entrada DIFERENTE na cidade — distribui ao longo da
+// frente (ground level), abaixo do cluster de casas. Isso evita rotas
+// convergindo no mesmo ponto e atravessando os prédios.
+function cityDoor(idx, totalFactories) {
+  const n = Math.max(1, totalFactories || 1);
+  // Espaça as entradas ao longo da frente da cidade (60% da largura central)
+  const span = CITY.w * 0.6;
+  const startX = CITY.x + CITY.w * 0.2;
+  const px = n === 1 ? CITY.x + CITY.w / 2 : startX + (span * idx) / (n - 1);
+  // Y = nível do chão, à frente das casas (não em cima delas)
+  return { x: px, y: GROUND_Y + 6 };
 }
 
 // Calcula o caminho curvo de uma fábrica até a cidade.
-// O ponto de controle desloca perpendicularmente pra criar arco.
-// Sinal alterna por idx pra fábricas adjacentes curvarem em lados opostos.
+// A curva sempre BENDS PRA BAIXO — passa por baixo do cluster de casas
+// em vez de atravessá-lo. Magnitude proporcional à distância pra evitar
+// loops gigantes em rotas longas.
 function factoryRoutePath(idx) {
+  const total = state.factories.length;
   const p0 = factoryDoor(idx);
-  const p1 = cityDoor();
+  const p1 = cityDoor(idx, total);
   const dx = p1.x - p0.x, dy = p1.y - p0.y;
   const len = Math.hypot(dx, dy) || 1;
-  // Perpendicular unitária (gira 90°)
-  const nx = -dy / len, ny = dx / len;
-  // Direção do offset: fábricas pares pra um lado, ímpares pro outro
-  const sign = (idx % 2 === 0) ? 1 : -1;
-  // Magnitude varia pra cada fábrica criar uma curva única
-  const mag = 70 + (idx % 4) * 25;
+  // Magnitude da curva = 12-18% do comprimento (curva suave, nunca loop)
+  const mag = Math.min(60, len * 0.15);
+  // Ponto médio + offset SEMPRE pra baixo (y +). Isso faz a curva descer
+  // antes de subir até o portão da cidade, contornando os prédios do meio.
   const mid = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
-  const c = { x: mid.x + nx * mag * sign, y: mid.y + ny * mag * sign };
+  const c = { x: mid.x, y: mid.y + mag };
   return { p0, c, p1 };
 }
 
