@@ -573,6 +573,90 @@ function drawLamp(x, baseY, flicker) {
   ctx.fillRect(x - 1, baseY - 39, 2, 3);
 }
 
+// ---- Moinho de vento (icônico Township) ----
+// Renderiza torre cilíndrica iso + telhado cônico + pás giratórias.
+// seedRot permite variar a velocidade de rotação por moinho.
+function drawWindmill(cx, baseY, scale = 1, seedRot = 0) {
+  // Sombra
+  drawBuildingShadow(cx, baseY, 30 * scale);
+  // Torre (iso box estreito)
+  const tw = 24 * scale;
+  const th = 60 * scale;
+  const td = tw * 0.5;
+  const torre = '#d8c498';
+  drawIsoBox(cx, baseY, tw, td, th, {
+    top: adjustColor(torre, 0.06),
+    left: adjustColor(torre, -0.20),
+    right: torre,
+  });
+  // Faixa de pedra na base (mais escura)
+  ctx.fillStyle = '#8a7a5a';
+  ctx.fillRect(cx - tw / 2, baseY - 8 * scale, tw, 8 * scale);
+  // Janelinha pequena na face direita
+  ctx.fillStyle = '#b8d8e8';
+  ctx.fillRect(cx - 2 * scale, baseY - th + 10 * scale, 4 * scale, 5 * scale);
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillRect(cx - 1.5 * scale, baseY - th + 10.5 * scale, 1.5 * scale, 1.5 * scale);
+  // Porta pequena no chão
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(cx - 3 * scale, baseY - 12 * scale, 6 * scale, 10 * scale);
+  // Telhado cônico (mesmo padrão do farol)
+  const top = baseY - th;
+  ctx.fillStyle = adjustColor('#a82e1c', -0.18);
+  ctx.beginPath();
+  ctx.moveTo(cx - tw / 2 - 2, top);
+  ctx.lineTo(cx, top - 14 * scale);
+  ctx.lineTo(cx, top - td * 0.5);
+  ctx.lineTo(cx - tw / 2, top - td);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#a82e1c';
+  ctx.beginPath();
+  ctx.moveTo(cx + tw / 2 + 2, top);
+  ctx.lineTo(cx, top - 14 * scale);
+  ctx.lineTo(cx, top - td * 0.5);
+  ctx.lineTo(cx + tw / 2, top - td);
+  ctx.closePath();
+  ctx.fill();
+  // Eixo central das pás
+  const ax = cx, ay = top + 4 * scale;
+  ctx.fillStyle = '#3a1f0a';
+  ctx.beginPath();
+  ctx.arc(ax, ay, 3 * scale, 0, Math.PI * 2);
+  ctx.fill();
+  // Pás giratórias (4 pás)
+  const t = performance.now() / 1500;
+  const rot = t + seedRot;
+  const bladeLen = 26 * scale;
+  const bladeW = 5 * scale;
+  for (let i = 0; i < 4; i++) {
+    const ang = rot + (i * Math.PI) / 2;
+    const tipX = ax + Math.cos(ang) * bladeLen;
+    const tipY = ay + Math.sin(ang) * bladeLen;
+    // Pá: triângulo do eixo até a ponta
+    ctx.save();
+    ctx.translate(ax, ay);
+    ctx.rotate(ang);
+    ctx.fillStyle = '#f5f0e8';
+    ctx.beginPath();
+    ctx.moveTo(0, -bladeW / 2);
+    ctx.lineTo(bladeLen, -bladeW * 0.3);
+    ctx.lineTo(bladeLen, bladeW * 0.3);
+    ctx.lineTo(0, bladeW / 2);
+    ctx.closePath();
+    ctx.fill();
+    // Estrutura interna (cruz preta sobre a pá)
+    ctx.strokeStyle = 'rgba(20,20,20,0.5)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(2, 0);
+    ctx.lineTo(bladeLen - 1, 0);
+    ctx.stroke();
+    ctx.restore();
+    void tipX; void tipY;
+  }
+}
+
 function drawCityGrowthBuildings(cx0, w) {
   const growth = state.cityGrowth || 0;
   const extras = Math.min(8, Math.floor(growth / 3)); // até 8 casas extras
@@ -3060,6 +3144,12 @@ function drawDecorativeLandmarks() {
   drawDottedRoute(960, 880, 1440, 880);
   drawDottedRoute(1440, 880, 1700, 950);
   drawDottedRoute(1700, 950, 2000, 880);
+
+  // Moinhos de vento espalhados (assinatura Township)
+  drawWindmill(820, 260, 0.85, 0);
+  drawWindmill(1180, 720, 1.0, 1.4);
+  drawWindmill(1820, 410, 0.9, 0.7);
+  drawWindmill(2240, 1010, 1.0, 2.1);
 }
 
 // Nodo do Mercado — clicável (abre aba Mercado)
