@@ -456,6 +456,10 @@ function drawCity() {
   // Casas extras de crescimento (1 a cada ~3 contratos cumpridos)
   drawCityGrowthBuildings(cx0, w);
 
+  // Cerca branca e lampiões estilo Township na frente da cidade
+  drawCityFence(cx0, w);
+  drawCityLamps(cx0, w);
+
   drawCitySign(cx0 + w / 2, CITY.y);
   drawCityDeliverableBadge();
 }
@@ -500,6 +504,75 @@ function drawCityDeliverableBadge() {
 
 // Adiciona prédios pequenos extras flanqueando a cidade conforme cityGrowth sobe.
 // Visual: cada nível extra acrescenta 1 casa simples nas laterais.
+// Cerca branca em frente à cidade (estilo Township — picket fence).
+// Renderiza linha de estacas brancas com travessas horizontais. Gaps
+// estratégicos pra "passagens" não bloquearem visualmente os prédios.
+function drawCityFence(cx0, w) {
+  const y = GROUND_Y + 4;
+  const stakeH = 8;
+  const stakeW = 2;
+  // travessas horizontais
+  ctx.fillStyle = '#f5f0e8';
+  ctx.fillRect(cx0 - 4, y, w + 8, 1.5);
+  ctx.fillRect(cx0 - 4, y + 5, w + 8, 1.5);
+  // estacas verticais (com gap no meio pra "portão")
+  const gapStart = w * 0.45, gapEnd = w * 0.55;
+  for (let x = 0; x <= w; x += 8) {
+    if (x >= gapStart && x <= gapEnd) continue;
+    // ponta triangular branca
+    ctx.fillStyle = '#f5f0e8';
+    ctx.fillRect(cx0 + x - stakeW / 2, y - 2, stakeW, stakeH);
+    // ponta superior (triangulinho)
+    ctx.beginPath();
+    ctx.moveTo(cx0 + x - stakeW / 2, y - 2);
+    ctx.lineTo(cx0 + x, y - 5);
+    ctx.lineTo(cx0 + x + stakeW / 2, y - 2);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+// Lampiões coloniais — postes pretos com globo amarelo brilhante.
+// 2 por cidade (esquerda + direita), com leve flicker no globo.
+function drawCityLamps(cx0, w) {
+  const t = performance.now() / 800;
+  const flicker = 0.85 + 0.15 * Math.sin(t * 3);
+  const lamps = [
+    { x: cx0 + 12, baseY: GROUND_Y },
+    { x: cx0 + w - 12, baseY: GROUND_Y },
+  ];
+  for (const l of lamps) drawLamp(l.x, l.baseY, flicker);
+}
+
+function drawLamp(x, baseY, flicker) {
+  // Sombra do poste
+  ctx.fillStyle = 'rgba(20,40,15,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(x + 2, baseY + 3, 5, 1.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Poste preto (vertical)
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(x - 1, baseY - 26, 2, 26);
+  // Base do poste (alargada)
+  ctx.fillRect(x - 3, baseY - 2, 6, 2);
+  // Braço horizontal pequeno (decorativo)
+  ctx.fillRect(x - 4, baseY - 26, 8, 2);
+  // Halo amarelo brilhante ao redor do globo
+  ctx.fillStyle = `rgba(255,230,130,${0.35 * flicker})`;
+  ctx.beginPath();
+  ctx.arc(x, baseY - 30, 10, 0, Math.PI * 2);
+  ctx.fill();
+  // Globo amarelo (vidro)
+  ctx.fillStyle = `rgba(255,240,150,${0.95 * flicker})`;
+  ctx.beginPath();
+  ctx.arc(x, baseY - 30, 4, 0, Math.PI * 2);
+  ctx.fill();
+  // Topo do lampião (pontinha preta)
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(x - 2, baseY - 36, 4, 2);
+  ctx.fillRect(x - 1, baseY - 39, 2, 3);
+}
+
 function drawCityGrowthBuildings(cx0, w) {
   const growth = state.cityGrowth || 0;
   const extras = Math.min(8, Math.floor(growth / 3)); // até 8 casas extras
@@ -919,12 +992,15 @@ function drawRoad() {
 }
 
 // ---- Sombra suave unificada sob prédios (estilo Township) ----
-// Chame ANTES de desenhar o prédio. Renderiza uma elipse escurecida sob
-// a base. r = quanto a sombra "vaza" pra fora dos lados.
+// Chame ANTES de desenhar o prédio. Renderiza uma elipse escurecida
+// PROJETADA em diagonal pra direita (combinando com a iluminação iso —
+// luz vem do canto superior-esquerdo, sombra cai pra direita-baixo).
+// r = quanto a sombra "vaza" pra fora dos lados.
 function drawBuildingShadow(cx, baseY, w, r = 8) {
   ctx.fillStyle = 'rgba(20,40,15,0.30)';
   ctx.beginPath();
-  ctx.ellipse(cx, baseY + 3, w / 2 + r, 6, 0, 0, Math.PI * 2);
+  // Centro deslocado pra direita e ligeiramente pra baixo (sombra iso)
+  ctx.ellipse(cx + w * 0.12, baseY + 4, w / 2 + r, 6, 0, 0, Math.PI * 2);
   ctx.fill();
 }
 
