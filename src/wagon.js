@@ -14,17 +14,21 @@ function ensureWagon(factory) {
   return factory.wagon;
 }
 
-// Rota de cada fábrica: do canto direito do prédio ao canto esquerdo da cidade
+// Rota de cada fábrica: da porta de carga (centro inferior) até o portão
+// da cidade (centro inferior). drawCurvedRoute em draw.js usa os mesmos
+// pontos pra renderizar uma curva Bezier; aqui só precisamos do
+// comprimento aproximado pra normalizar a velocidade do wagon (t = 0..1).
 function routeFor(idx) {
   const fr = factoryRect(idx);
   return {
-    src: { x: fr.x + fr.w, y: fr.y + fr.h / 2 },
-    dest: { x: CITY.x, y: CITY.y + CITY.h / 2 },
+    src: { x: fr.x + fr.w / 2, y: fr.y + fr.h - 2 },
+    dest: { x: CITY.x + CITY.w / 2, y: CITY.y + CITY.h },
   };
 }
 
 function routeLen(idx) {
   const r = routeFor(idx);
+  // Distância em linha reta (a curva é só visual; t parametriza linearmente)
   return Math.hypot(r.dest.x - r.src.x, r.dest.y - r.src.y);
 }
 

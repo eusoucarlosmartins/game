@@ -1066,13 +1066,163 @@ function drawCitySign(centerX, topY) {
 function drawRoad() {
   const tier = transportTier();
   for (let i = 0; i < state.factories.length; i++) {
-    const fr = factoryRect(i);
-    const sx = fr.x + fr.w;
-    const sy = fr.y + fr.h / 2;
-    const dx = CITY.x;
-    const dy = CITY.y + CITY.h / 2;
-    drawTieredRoute(sx, sy, dx, dy, tier);
+    const path = factoryRoutePath(i);
+    drawCurvedRoute(path, tier);
   }
+}
+
+// === Roteamento curvo (Bezier quadrático) saindo da porta da fábrica
+// até a porta da cidade. Offset perpendicular alterna por fábrica pra
+// caminhos não se sobreporem nem atravessarem outros prédios.
+
+function factoryDoor(idx) {
+  const r = factoryRect(idx);
+  // Porta de carga = centro inferior do prédio (onde a carruagem sai)
+  return { x: r.x + r.w / 2, y: r.y + r.h - 2 };
+}
+
+function cityDoor() {
+  // Portão da cidade = centro inferior (na altura do chão)
+  return { x: CITY.x + CITY.w / 2, y: CITY.y + CITY.h };
+}
+
+// Calcula o caminho curvo de uma fábrica até a cidade.
+// O ponto de controle desloca perpendicularmente pra criar arco.
+// Sinal alterna por idx pra fábricas adjacentes curvarem em lados opostos.
+function factoryRoutePath(idx) {
+  const p0 = factoryDoor(idx);
+  const p1 = cityDoor();
+  const dx = p1.x - p0.x, dy = p1.y - p0.y;
+  const len = Math.hypot(dx, dy) || 1;
+  // Perpendicular unitária (gira 90°)
+  const nx = -dy / len, ny = dx / len;
+  // Direção do offset: fábricas pares pra um lado, ímpares pro outro
+  const sign = (idx % 2 === 0) ? 1 : -1;
+  // Magnitude varia pra cada fábrica criar uma curva única
+  const mag = 70 + (idx % 4) * 25;
+  const mid = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
+  const c = { x: mid.x + nx * mag * sign, y: mid.y + ny * mag * sign };
+  return { p0, c, p1 };
+}
+
+function evalQuad(t, p0, c, p1) {
+  const u = 1 - t;
+  return {
+    x: u * u * p0.x + 2 * u * t * c.x + t * t * p1.x,
+    y: u * u * p0.y + 2 * u * t * c.y + t * t * p1.y,
+  };
+}
+
+function tangentQuad(t, p0, c, p1) {
+  const u = 1 - t;
+  return {
+    x: 2 * u * (c.x - p0.x) + 2 * t * (p1.x - c.x),
+    y: 2 * u * (c.y - p0.y) + 2 * t * (p1.y - c.y),
+  };
+}
+
+// Desenha uma curva paralela à bezier original, deslocada por `offset`
+// perpendicular em cada ponto. Usado pros 2 trilhos da ferrovia.
+function strokeParallelBezier(p0, c, p1, offset, color, lineWidth) {
+  const N = 40;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const p = evalQuad(t, p0, c, p1);
+    const tang = tangentQuad(t, p0, c, p1);
+    const len = Math.hypot(tang.x, tang.y) || 1;
+    const nx = -tang.y / len, ny = tang.x / len;
+    const px = p.x + nx * offset;
+    const py = p.y + ny * offset;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+}
+
+// Renderiza estrada curva (Bezier) com estilo dependente do tier de
+// transporte (trilha → cascalho → calçada → ferrovia).
+function drawCurvedRoute(path, tier) {
+  const { p0, c, p1 } = path;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (tier >= 6) {
+    // Ferrovia: lastro + dormentes + 2 trilhos paralelos
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.quadraticCurveTo(c.x, c.y, p1.x, p1.y);
+    ctx.strokeStyle = '#6a6058';
+    ctx.lineWidth = 14;
+    ctx.stroke();
+    // Dormentes: sample ao longo da curva
+    const N = 36;
+    for (let i = 1; i < N; i++) {
+      const t = i / N;
+      const p = evalQuad(t, p0, c, p1);
+      const tang = tangentQuad(t, p0, c, p1);
+      const ang = Math.atan2(tang.y, tang.x);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(ang);
+      ctx.fillStyle = '#5a3416';
+      ctx.fillRect(-3, -7, 6, 14);
+      ctx.restore();
+    }
+    // 2 trilhos pretos paralelos
+    strokeParallelBezier(p0, c, p1, -3.5, '#3a3a3a', 1.6);
+    strokeParallelBezier(p0, c, p1, 3.5, '#3a3a3a', 1.6);
+  } else if (tier >= 3) {
+    // Calçada de pedra cinza
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.quadraticCurveTo(c.x, c.y, p1.x, p1.y);
+    ctx.strokeStyle = '#7d7670';
+    ctx.lineWidth = 10;
+    ctx.stroke();
+    // Pedras claras espalhadas
+    const N = 24;
+    for (let i = 1; i < N; i++) {
+      const t = i / N;
+      const p = evalQuad(t, p0, c, p1);
+      const tang = tangentQuad(t, p0, c, p1);
+      const len = Math.hypot(tang.x, tang.y) || 1;
+      const nx = -tang.y / len, ny = tang.x / len;
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      // 2 risquinhos paralelos
+      ctx.fillRect(p.x + nx * 2 - 1.5, p.y + ny * 2 - 0.5, 3, 1);
+      ctx.fillRect(p.x - nx * 2 - 1.5, p.y - ny * 2 - 0.5, 3, 1);
+    }
+  } else if (tier >= 2) {
+    // Estrada de cascalho marrom
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.quadraticCurveTo(c.x, c.y, p1.x, p1.y);
+    ctx.strokeStyle = '#a07a4a';
+    ctx.lineWidth = 8;
+    ctx.stroke();
+    // pedrinhas escuras
+    const N = 32;
+    for (let i = 1; i < N; i++) {
+      const t = i / N;
+      const p = evalQuad(t, p0, c, p1);
+      ctx.fillStyle = 'rgba(0,0,0,0.20)';
+      ctx.fillRect(p.x - 1, p.y - 0.5, 1.5, 1);
+    }
+  } else {
+    // Trilha pontilhada (caminho de terra batida)
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.quadraticCurveTo(c.x, c.y, p1.x, p1.y);
+    ctx.setLineDash([5, 6]);
+    ctx.strokeStyle = '#7a4b25';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.lineCap = 'butt';
+  ctx.lineJoin = 'miter';
 }
 
 // ---- Sombra suave unificada sob prédios (estilo Township) ----
@@ -1203,20 +1353,18 @@ function adjustColor(hex, amt) {
 function drawAmbientNPCs() {
   const t = performance.now() / 1000;
   for (let i = 0; i < state.factories.length; i++) {
-    const fr = factoryRect(i);
-    const sx = fr.x + fr.w;
-    const sy = fr.y + fr.h / 2;
-    const dx = CITY.x;
-    const dy = CITY.y + CITY.h / 2;
-    // 1-2 walkers por rota com fase própria
+    const path = factoryRoutePath(i);
+    // 1-2 walkers por rota com fase própria, andando NA CURVA
     for (let n = 0; n < 2; n++) {
       const speed = 0.08 + (n * 0.02);
       const phase = (i * 0.37 + n * 0.5);
-      const u = (Math.sin((t + phase) * speed * Math.PI) + 1) / 2; // 0..1 ping-pong
-      const px = sx + (dx - sx) * u;
-      const py = sy + (dy - sy) * u;
-      const dir = Math.cos((t + phase) * speed * Math.PI) >= 0 ? 1 : -1;
-      drawNPC(px, py, dir, n === 0 ? 'citizen' : 'farmer', t * 1.5 + phase * 3);
+      const u = (Math.sin((t + phase) * speed * Math.PI) + 1) / 2;
+      const p = evalQuad(u, path.p0, path.c, path.p1);
+      const tang = tangentQuad(u, path.p0, path.c, path.p1);
+      const dir = (Math.cos((t + phase) * speed * Math.PI) >= 0)
+        ? (tang.x >= 0 ? 1 : -1)
+        : (tang.x >= 0 ? -1 : 1);
+      drawNPC(p.x, p.y, dir, n === 0 ? 'citizen' : 'farmer', t * 1.5 + phase * 3);
     }
   }
   // 4 cidadãos andando em loop ao redor da cidade
@@ -1341,16 +1489,14 @@ function drawOneWagon(idx) {
   const factory = state.factories[idx];
   const w = factory?.wagon;
   if (!w) return;
-  const fr = factoryRect(idx);
-  const sx = fr.x + fr.w;
-  const sy = fr.y + fr.h / 2;
-  const dx = CITY.x;
-  const dy = CITY.y + CITY.h / 2;
-  const wx = sx + (dx - sx) * w.pos;
-  const wy = sy + (dy - sy) * w.pos - 6;
-  const ang = Math.atan2(dy - sy, dx - sx);
+  // Posição segue a mesma curva da estrada
+  const path = factoryRoutePath(idx);
+  const p = evalQuad(w.pos, path.p0, path.c, path.p1);
+  const tang = tangentQuad(w.pos, path.p0, path.c, path.p1);
+  const wx = p.x;
+  const wy = p.y - 6;
+  const ang = Math.atan2(tang.y, tang.x);
   const tier = transportTier();
-  // Estilo do veículo varia por tier
   if (tier >= 6) drawTrainCar(wx, wy, ang, w);
   else if (tier >= 3) drawCoveredWagon(wx, wy, ang, w);
   else if (tier >= 2) drawHorseCart(wx, wy, ang, w);
