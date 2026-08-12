@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PDF → EPUB</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%F0%9F%93%9A%3C/text%3E%3C/svg%3E"
+    />
+    <meta
+      name="description"
+      content="Conversor de PDF para EPUB que roda inteiro no navegador — nenhum arquivo é enviado para servidor."
+    />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f4f5f7;
+        --panel: #ffffff;
+        --border: #d8dbe0;
+        --text: #16191d;
+        --muted: #61676f;
+        --accent: #2f6d4f;
+        --accent-text: #ffffff;
+        --warn-bg: #fdf3d8;
+        --warn-border: #e4c360;
+        --warn-text: #5c4406;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #14171a;
+          --panel: #1d2126;
+          --border: #333a42;
+          --text: #e8eaed;
+          --muted: #9aa2ab;
+          --accent: #4c9a72;
+          --accent-text: #0c1410;
+          --warn-bg: #3a3115;
+          --warn-border: #6d5c22;
+          --warn-text: #f0dda4;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 2rem 1rem 4rem;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          16px/1.55 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+
+      main {
+        max-width: 44rem;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin: 0 0 0.25rem;
+        font-size: 1.6rem;
+      }
+
+      .sub {
+        margin: 0 0 1.75rem;
+        color: var(--muted);
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1.25rem;
+      }
+
+      #drop {
+        border: 2px dashed var(--border);
+        border-radius: 12px;
+        padding: 2.5rem 1.25rem;
+        text-align: center;
+        cursor: pointer;
+        background: var(--panel);
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+      }
+
+      #drop:hover,
+      #drop.dragging {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+      }
+
+      #drop strong {
+        display: block;
+        font-size: 1.05rem;
+        margin-bottom: 0.35rem;
+      }
+
+      #drop span {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      input[type='file'] {
+        display: none;
+      }
+
+      label.field {
+        display: block;
+        margin-bottom: 0.9rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--muted);
+      }
+
+      label.field input,
+      label.field select {
+        display: block;
+        width: 100%;
+        margin-top: 0.3rem;
+        padding: 0.55rem 0.7rem;
+        font: inherit;
+        font-weight: 400;
+        color: var(--text);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 1rem;
+      }
+
+      @media (max-width: 34rem) {
+        .row {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        margin-bottom: 0.9rem;
+      }
+
+      button {
+        font: inherit;
+        font-weight: 600;
+        padding: 0.65rem 1.4rem;
+        border: 0;
+        border-radius: 8px;
+        background: var(--accent);
+        color: var(--accent-text);
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      button.ghost {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--border);
+      }
+
+      .actions {
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      progress {
+        width: 100%;
+        height: 0.5rem;
+      }
+
+      .status {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin-top: 0.6rem;
+      }
+
+      .warn {
+        background: var(--warn-bg);
+        border: 1px solid var(--warn-border);
+        color: var(--warn-text);
+        border-radius: 8px;
+        padding: 0.7rem 0.9rem;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+      }
+
+      .stats {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .stats b {
+        display: block;
+        font-size: 1.35rem;
+        color: var(--text);
+      }
+
+      ol.toc {
+        max-height: 15rem;
+        overflow-y: auto;
+        margin: 0;
+        padding-left: 1.4rem;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      ol.toc li {
+        margin-bottom: 0.2rem;
+      }
+
+      details summary {
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      footer {
+        color: var(--muted);
+        font-size: 0.85rem;
+        text-align: center;
+        margin-top: 2rem;
+      }
+
+      footer a {
+        color: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>PDF → EPUB</h1>
+      <p class="sub">
+        Conversão local, direto no navegador. O arquivo não é enviado para lugar nenhum.
+      </p>
+
+      <div id="drop" role="button" tabindex="0" aria-controls="file">
+        <strong>Solte um PDF aqui</strong>
+        <span>ou clique para escolher</span>
+        <input id="file" type="file" accept="application/pdf,.pdf" />
+      </div>
+
+      <section id="progress-panel" class="panel hidden" aria-live="polite">
+        <progress id="bar" max="100" value="0"></progress>
+        <p class="status" id="status">Lendo…</p>
+      </section>
+
+      <section id="result" class="panel hidden">
+        <div id="scanned" class="warn hidden">
+          <strong>Este PDF parece ser digitalizado.</strong> Quase não há texto selecionável — o
+          EPUB sairá vazio ou truncado. Passe um OCR antes (ex.: <code>ocrmypdf</code>).
+        </div>
+
+        <div class="stats">
+          <div><b id="stat-pages">0</b> páginas</div>
+          <div><b id="stat-chapters">0</b> capítulos</div>
+          <div><b id="stat-words">0</b> palavras</div>
+        </div>
+
+        <div class="row">
+          <label class="field">
+            Título
+            <input id="meta-title" type="text" />
+          </label>
+          <label class="field">
+            Autor
+            <input id="meta-author" type="text" placeholder="opcional" />
+          </label>
+        </div>
+
+        <label class="field" style="max-width: 12rem">
+          Idioma
+          <select id="meta-language">
+            <option value="pt-BR">Português (BR)</option>
+            <option value="pt-PT">Português (PT)</option>
+            <option value="en">Inglês</option>
+            <option value="es">Espanhol</option>
+            <option value="fr">Francês</option>
+            <option value="de">Alemão</option>
+            <option value="it">Italiano</option>
+          </select>
+        </label>
+
+        <details style="margin-bottom: 1rem">
+          <summary id="toc-summary">Capítulos detectados</summary>
+          <ol class="toc" id="toc"></ol>
+        </details>
+
+        <div class="actions">
+          <button id="download" type="button">Baixar EPUB</button>
+          <button id="reset" class="ghost" type="button">Escolher outro PDF</button>
+        </div>
+        <p class="status" id="result-status"></p>
+      </section>
+
+      <section class="panel">
+        <details>
+          <summary>Como funciona / limitações</summary>
+          <p class="status">
+            O PDF guarda posições absolutas, não parágrafos. A conversão reconstrói a estrutura por
+            heurística: agrupa fragmentos em linhas, linhas em parágrafos, descarta cabeçalhos e
+            números de página repetidos, desfaz hifenização de fim de linha e promove a título o que
+            está em corpo maior.
+          </p>
+          <p class="status">
+            Funciona bem em livros e relatórios de coluna única. Layouts de duas colunas, tabelas
+            complexas e PDFs digitalizados sem OCR não têm bom resultado — para esses, o
+            <a href="https://calibre-ebook.com/">Calibre</a> continua sendo a melhor ferramenta.
+          </p>
+        </details>
+      </section>
+
+      <footer>Parte do repositório <strong>Tapuia</strong> · roda 100% offline</footer>
+    </main>
+
+    <script type="module" src="/src/pdf2epub/main.js"></script>
+  </body>
+</html>

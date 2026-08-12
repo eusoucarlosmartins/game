@@ -1,4 +1,8 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   // raiz do projeto (onde está index.html)
@@ -12,6 +16,11 @@ export default defineConfig({
     target: 'es2022',
     minify: 'esbuild',
     rollupOptions: {
+      // multi-página: o jogo e a ferramenta PDF → EPUB são entradas separadas
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        pdf2epub: resolve(__dirname, 'pdf2epub.html'),
+      },
       output: {
         // mantém o bundle único pra prototipagem ficar simples de depurar
         manualChunks: undefined,

@@ -31,6 +31,7 @@ npm run preview      # serve o build localmente
 ```
 .
 ├── index.html                  # entry HTML, carrega src/main.js como module
+├── pdf2epub.html               # ferramenta PDF → EPUB (entry separada, estilos próprios)
 ├── style.css                   # estilos globais e sidebar
 ├── package.json                # scripts + deps
 ├── vite.config.js              # config do dev server / build / test
@@ -55,13 +56,21 @@ npm run preview      # serve o build localmente
 │   ├── ui.js                   # sidebar + modais
 │   ├── draw.js                 # render do canvas
 │   ├── types.js                # JSDoc typedefs compartilhados
-│   └── util.js                 # helpers
+│   ├── util.js                 # helpers
+│   └── pdf2epub/               # ferramenta PDF → EPUB (independente do jogo)
+│       ├── main.js             # UI da página
+│       ├── convert.js          # cola com o pdf.js
+│       ├── extract.js          # linhas → parágrafos → capítulos (puro)
+│       ├── epub.js             # empacota o EPUB 3
+│       ├── title.js            # descarta título-lixo dos metadados
+│       └── zip.js              # escritor de ZIP mínimo
 ├── tests/                      # testes Vitest
 │   ├── data.test.js
 │   ├── progression.test.js
 │   ├── save.test.js
 │   ├── mine.test.js
-│   └── market.test.js
+│   ├── market.test.js
+│   └── pdf2epub.test.js
 └── .github/workflows/ci.yml    # CI: test + build em cada push
 ```
 
@@ -101,3 +110,28 @@ A arquitetura está preparada para:
 
 Save automático a cada 15 segundos em `localStorage` sob a chave `tapuia_save_v2`.
 A versão muda quando o schema interno muda — saves antigos são ignorados (não corrompem).
+
+## Ferramenta PDF → EPUB
+
+Página independente do jogo, em `pdf2epub.html` (no dev server:
+<http://localhost:5173/pdf2epub.html>). Converte PDF em EPUB 3 inteiramente no
+navegador — o arquivo nunca é enviado a servidor nenhum.
+
+O PDF não armazena parágrafos, só fragmentos de texto com posição absoluta. A
+conversão reconstrói a estrutura por heurística:
+
+- agrupa fragmentos em linhas e linhas em parágrafos;
+- descarta cabeçalhos/rodapés recorrentes e números de página;
+- desfaz a hifenização de fim de linha;
+- promove a título o que está em corpo maior (ou casa com "Capítulo N");
+- sem títulos no documento, fatia em capítulos por faixa de páginas;
+- renderiza a página 1 como capa e avisa quando o PDF é digitalizado (sem OCR).
+
+A saída passa no [EPUBCheck](https://github.com/w3c/epubcheck) 5.2.1 sem erros
+nem avisos. Funciona bem em livros e relatórios de coluna única; layouts de duas
+colunas, tabelas complexas e digitalizações sem OCR não têm bom resultado — para
+esses o [Calibre](https://calibre-ebook.com/) continua sendo a melhor opção.
+
+Única dependência de runtime do repositório: `pdfjs-dist` (fixado na linha 4.x,
+que tem base de compatibilidade de navegador bem mais ampla que a 6.x). O
+empacotamento do EPUB — inclusive o escritor de ZIP — é próprio, sem dependências.
