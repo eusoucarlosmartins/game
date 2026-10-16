@@ -1,7 +1,7 @@
 // main.js — entry: loop, eventos, init
 import { state, log } from './state.js';
 import { $ } from './util.js';
-import { ROMAN, CFG, MINE } from './data.js';
+import { ROMAN, CFG, MINE, ACHIEVEMENTS, CIV_BY_ID } from './data.js';
 import { currentEra } from './progression.js';
 import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL } from './save.js';
 import { initMines, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine, regenerateMine, activeMine as getActiveMine } from './mine.js';
@@ -21,18 +21,64 @@ import { loadSprites } from './sprites.js';
 import { W, TOOLBAR, MINE_BACK_BTN, OVERWORLD, factoryRect } from './geometry.js';
 
 // ---------- Game over / vitória ----------
+function fmt(n) { return Math.floor(n).toLocaleString('pt-BR'); }
+
+function populateGameOverModal(victory) {
+  const card = document.querySelector('.gameover-card');
+  if (card) {
+    card.classList.remove('victory', 'defeat');
+    card.classList.add(victory ? 'victory' : 'defeat');
+  }
+  const emblem = $('gameover-emblem');
+  if (emblem) emblem.textContent = victory ? '🏆' : '💀';
+
+  const civ = state.civilization ? CIV_BY_ID[state.civilization] : null;
+  const completedProj = ((state.projects && state.projects.completed) || []).length;
+  const achUnlocked = Object.keys(state.achievements || {}).length;
+
+  const statsEl = $('gameover-stats');
+  if (statsEl) {
+    const rows = [
+      ['Civilização', civ ? `${civ.emoji} ${civ.name}` : '—'],
+      ['Era atual', ROMAN[(state.eraReached || 1) - 1]],
+      ['Dia', state.day],
+      ['Aprovação final', Math.round(state.approval) + '%'],
+      ['Contratos cumpridos', state.contractsCompleted],
+      ['Projetos concluídos', completedProj],
+      ['Dinheiro total ganho', '$' + fmt(state.totalEarnings || 0)],
+      ['Tiles cavados', fmt(state.tilesDug || 0)],
+      ['Mineradores contratados', state.workersTotal],
+      ['Conquistas', `${achUnlocked}/${ACHIEVEMENTS.length}`],
+    ];
+    statsEl.innerHTML = rows.map(([l, v]) =>
+      `<div class="row"><span class="label">${l}</span><span class="value">${v}</span></div>`
+    ).join('');
+  }
+  const achEl = $('gameover-achievements');
+  if (achEl) {
+    achEl.innerHTML = ACHIEVEMENTS.map((a) => {
+      const owned = (state.achievements || {})[a.id];
+      return `<li class="${owned ? 'unlocked' : 'locked'}" title="${a.name}: ${a.desc}">${a.emoji}</li>`;
+    }).join('');
+  }
+}
+
 function checkEnd() {
   if (state.over) return;
   if (state.approval <= 0) {
     state.over = true;
     $('end-title').textContent = 'A população te destituiu';
-    $('end-text').textContent = 'A aprovação caiu a zero. O governo central revogou seu mandato.';
+    $('end-text').textContent = 'Sua aprovação caiu a zero. O governo central revogou seu mandato.';
+    populateGameOverModal(false);
     $('game-over').classList.remove('hidden');
+    play('fail');
   } else if (state.approval >= CFG.approvalMax && state.day >= 21 && state.contractsCompleted >= 10) {
     state.over = true;
     $('end-title').textContent = 'Vitória política!';
     $('end-text').textContent = `Aprovação máxima após ${state.day} dias e ${state.contractsCompleted} contratos cumpridos. Santa Catarina prospera sob a Tapuia.`;
+    populateGameOverModal(true);
     $('game-over').classList.remove('hidden');
+    play('chime');
   }
 }
 
@@ -396,8 +442,14 @@ if (loaded) {
 }
 unlockOnFirstGesture();
 updateMuteBtn();
-// Carrega sprites em background (não bloqueia o render — fallback procedural segue)
-loadSprites();
+// Carrega sprites em background e esconde o loading splash quando pronto
+loadSprites().then(() => {
+  const splash = $('loading-splash');
+  if (splash) {
+    splash.classList.add('hide');
+    setTimeout(() => { splash.style.display = 'none'; }, 500);
+  }
+});
 
 // ---------- PWA: service worker + install prompt ----------
 // Registra o SW em qualquer ambiente que não seja localhost — permite

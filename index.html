@@ -14,6 +14,15 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- Loading splash enquanto sprites carregam -->
+  <div id="loading-splash">
+    <div class="loading-emblem">⛏</div>
+    <div class="loading-title">TAPUIA</div>
+    <div class="loading-sub">Companhia de Mineração &amp; Indústria</div>
+    <div class="loading-spinner"></div>
+    <div class="loading-tip">Carregando sprites e dados…</div>
+  </div>
+
   <!-- Aviso para girar o celular (só aparece em portrait via CSS) -->
   <div id="portrait-warning">
     <div class="icon">📱</div>
@@ -284,11 +293,17 @@
     </div>
   </div>
 
-  <!-- Modal: Game Over -->
+  <!-- Modal: Game Over (vitória ou derrota) -->
   <div id="game-over" class="modal hidden">
-    <div class="modal-card">
+    <div class="modal-card gameover-card">
+      <div id="gameover-emblem" class="gameover-emblem">🏆</div>
       <h2 id="end-title">A população te destituiu</h2>
       <p id="end-text">A aprovação caiu a zero.</p>
+      <div id="gameover-stats" class="gameover-stats"></div>
+      <div class="gameover-section">
+        <h3>Conquistas desta partida</h3>
+        <ul id="gameover-achievements" class="gameover-achievements"></ul>
+      </div>
       <button id="restart-btn">Recomeçar</button>
     </div>
   </div>
