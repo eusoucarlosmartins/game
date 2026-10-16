@@ -21,16 +21,9 @@ export const OVERWORLD = {
   city:         { x: 880, y: 200, w: 340, h: 420 },
   // Estrada por onde a carruagem vai/volta (entre fábricas e cidade)
   road:         { y: 490, x1: 770, x2: 880 },
-  // Linhas pontilhadas decorativas das minas até as fábricas (uma por slot)
-  dottedMineToFactory: [
-    { x1: 200, y1: 220, x2: 380, y2: 340 },
-    { x1: 200, y1: 380, x2: 380, y2: 380 },
-    { x1: 200, y1: 540, x2: 380, y2: 420 },
-    { x1: 200, y1: 660, x2: 380, y2: 450 },
-  ],
   // Nodos clicáveis (atalhos visíveis no mapa pra abas do sidebar)
   mercadoNode:  { x: 300, y: 540, w: 90,  h: 64 },
-  pesquisaNode: { x: 820, y: 540, w: 90,  h: 64 },
+  pesquisaNode: { x: 650, y: 540, w: 90,  h: 64 },
 };
 
 // Aliases pra manter compatibilidade com módulos existentes (wagon, draw)

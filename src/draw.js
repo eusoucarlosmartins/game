@@ -9,7 +9,11 @@ import { activeMine, regenCost } from './mine.js';
 import { ACH_BY_ID, CIV_BY_ID } from './data.js';
 import { getSprite } from './sprites.js';
 import {
-  W, H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
+  getTerrainCanvas, drawAmbientGround, drawAmbientSky, drawShroud,
+  drawSelectionEllipse, drawPennant, drawMinimap, BRIDGE, VILLAGES,
+} from './terrain.js';
+import {
+  W, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
   OVERWORLD, TOOLBAR, MINE_BACK_BTN, factoryRect,
 } from './geometry.js';
 
@@ -125,10 +129,14 @@ function drawFactories() {
     const rect = factoryRect(i);
     // sombra elíptica abaixo (AoE flavor)
     drawShadow(rect.x + rect.w / 2, rect.y + rect.h + 2, rect.w * 0.55, 5);
+    if (isHovering(rect.x, rect.y - 52, rect.w, rect.h + 52)) {
+      drawSelectionEllipse(ctx, rect.x + rect.w / 2, rect.y + rect.h, rect.w * 0.6, 14);
+    }
     if (factorySprite) {
       // Usa sprite estendendo um pouco acima do rect pra incluir chaminé
       const extraH = 30;
       ctx.drawImage(factorySprite, rect.x - 4, rect.y - extraH, rect.w + 8, rect.h + extraH);
+      drawPennant(ctx, rect.x + 12, rect.y - 4, civColor(), civAccent());
       // fumaça animada por cima quando produzindo
       if (f.brewing > 0) {
         const t = performance.now() / 500;
@@ -205,17 +213,40 @@ function drawFactories() {
   }
   for (let i = state.factories.length; i < CFG.factorySlotsMax; i++) {
     const rect = factoryRect(i);
-    ctx.strokeStyle = 'rgba(122,75,37,0.5)';
-    ctx.setLineDash([6, 4]);
-    ctx.lineWidth = 2;
-    ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
-    ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(90,52,22,0.7)';
+    drawFoundation(rect.x + 6, rect.y + 50, rect.w - 12, rect.h - 56);
+    const cx = rect.x + rect.w / 2, cy = rect.y + 50 + (rect.h - 56) / 2;
     ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('SLOT', rect.x + rect.w / 2, rect.y + rect.h / 2 - 6);
-    ctx.fillText(fmtMoney(CFG.factoryCosts[i]), rect.x + rect.w / 2, rect.y + rect.h / 2 + 10);
+    const label = fmtMoney(CFG.factoryCosts[i]);
+    const lw = Math.max(ctx.measureText('CONSTRUIR').width, ctx.measureText(label).width) + 14;
+    ctx.fillStyle = 'rgba(26,14,6,0.78)';
+    ctx.fillRect(cx - lw / 2, cy - 18, lw, 34);
+    ctx.fillStyle = '#c69042';
+    ctx.fillText('CONSTRUIR', cx, cy - 8);
+    ctx.fillStyle = '#f1e3c2';
+    ctx.fillText(label, cx, cy + 7);
+  }
+}
+
+// Fundação de obra (AoE): terra escavada, estacas nos cantos e corda
+/** @param {number} x @param {number} y @param {number} w @param {number} h */
+function drawFoundation(x, y, w, h) {
+  ctx.fillStyle = 'rgba(70,48,24,0.35)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = 'rgba(40,26,12,0.35)';
+  ctx.lineWidth = 1;
+  for (let yy = y + 6; yy < y + h; yy += 7) {
+    ctx.beginPath(); ctx.moveTo(x + 3, yy); ctx.lineTo(x + w - 3, yy + 2); ctx.stroke();
+  }
+  ctx.strokeStyle = '#e8dcb8';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 3]);
+  ctx.strokeRect(x, y, w, h);
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#5a3416';
+  for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
+    ctx.fillRect(px - 2, py - 7, 4, 9);
   }
 }
 
@@ -246,6 +277,8 @@ function drawCity() {
   else drawColonialCity(cx0, w);
 
   drawCitySign(cx0 + w / 2, CITY.y);
+  drawPennant(ctx, cx0 + 14, GROUND_Y - 2, civColor(), civAccent());
+  drawPennant(ctx, cx0 + w - 14, GROUND_Y - 2, civColor(), civAccent());
 }
 
 function drawColonialCity(cx0, w) {
@@ -580,25 +613,54 @@ function drawCitySign(centerX, topY) {
 }
 
 // ---------- Estrada + carruagem ----------
+// Estrada sobre o rio: ponte de madeira (tier < 2) ou de pedra; trilhos no tier 6+
 function drawRoad() {
   const tier = transportTier();
+  const y = ROAD.y;
+  const bw = BRIDGE.x2 - BRIDGE.x1;
+  if (tier >= 2) {
+    for (const [a, b] of [[ROAD.x1, BRIDGE.x1], [BRIDGE.x2, ROAD.x2]]) {
+      ctx.fillStyle = '#6e6a60';
+      ctx.fillRect(a, y - 7, b - a, 16);
+      ctx.fillStyle = 'rgba(30,26,20,0.35)';
+      for (let x = a + 2; x < b - 2; x += 6) ctx.fillRect(x, y - 5 + ((x / 6) % 2) * 6, 4, 4);
+    }
+  }
+  ctx.fillStyle = 'rgba(0,20,30,0.35)';
+  ctx.fillRect(BRIDGE.x1 + 4, y + 11, bw - 8, 6);
+  if (tier >= 2) {
+    ctx.fillStyle = '#9a9386';
+    ctx.fillRect(BRIDGE.x1, y - 9, bw, 20);
+    ctx.strokeStyle = 'rgba(50,44,36,0.45)';
+    ctx.lineWidth = 1;
+    for (let x = BRIDGE.x1 + 8; x < BRIDGE.x2; x += 9) {
+      ctx.beginPath(); ctx.moveTo(x, y - 9); ctx.lineTo(x, y + 11); ctx.stroke();
+    }
+    ctx.fillStyle = '#6a6458';
+    ctx.fillRect(BRIDGE.x1 - 2, y - 12, bw + 4, 4);
+    ctx.fillRect(BRIDGE.x1 - 2, y + 9, bw + 4, 4);
+  } else {
+    for (let x = BRIDGE.x1; x < BRIDGE.x2; x += 5) {
+      ctx.fillStyle = (x / 5) % 2 ? '#8a5a2e' : '#7a4e26';
+      ctx.fillRect(x, y - 8, 4.5, 18);
+    }
+    ctx.fillStyle = '#4a2a12';
+    ctx.fillRect(BRIDGE.x1 - 2, y - 11, bw + 4, 3);
+    ctx.fillRect(BRIDGE.x1 - 2, y + 9, bw + 4, 3);
+    for (let x = BRIDGE.x1; x <= BRIDGE.x2; x += 18) {
+      ctx.fillRect(x - 1.5, y - 15, 3, 7);
+      ctx.fillRect(x - 1.5, y + 9, 3, 7);
+    }
+  }
   if (tier >= 6) {
-    ctx.fillStyle = '#6b3f1a';
-    ctx.fillRect(ROAD.x1, ROAD.y - 6, ROAD.x2 - ROAD.x1, 14);
     ctx.fillStyle = '#3a1f0a';
-    for (let x = ROAD.x1; x < ROAD.x2; x += 14) ctx.fillRect(x, ROAD.y - 4, 8, 12);
-    ctx.strokeStyle = '#888';
+    for (let x = ROAD.x1; x < ROAD.x2; x += 10) ctx.fillRect(x, y - 5, 4, 12);
+    ctx.strokeStyle = '#9a9a9a';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(ROAD.x1, ROAD.y - 2); ctx.lineTo(ROAD.x2, ROAD.y - 2);
-    ctx.moveTo(ROAD.x1, ROAD.y + 6); ctx.lineTo(ROAD.x2, ROAD.y + 6);
+    ctx.moveTo(ROAD.x1, y - 2); ctx.lineTo(ROAD.x2, y - 2);
+    ctx.moveTo(ROAD.x1, y + 5); ctx.lineTo(ROAD.x2, y + 5);
     ctx.stroke();
-  } else if (tier >= 2) {
-    ctx.fillStyle = '#4a4a4a';
-    ctx.fillRect(ROAD.x1, ROAD.y - 6, ROAD.x2 - ROAD.x1, 14);
-  } else {
-    ctx.fillStyle = '#a07a4a';
-    ctx.fillRect(ROAD.x1, ROAD.y - 5, ROAD.x2 - ROAD.x1, 12);
   }
 }
 
@@ -1003,48 +1065,16 @@ function drawEventBanner() {
 
 // ---------- Cena OVERWORLD: mapa ----------
 function drawOverworldBg() {
-  // Fundo papel envelhecido com gradiente
-  const grd = ctx.createLinearGradient(0, 0, 0, H);
-  grd.addColorStop(0, '#d4b478');
-  grd.addColorStop(0.5, '#c9a76a');
-  grd.addColorStop(1, '#b89058');
-  ctx.fillStyle = grd;
-  ctx.fillRect(0, 0, W, H);
-  // Textura sutil (pontilhado)
-  ctx.fillStyle = 'rgba(80,50,20,0.08)';
-  for (let i = 0; i < 240; i++) {
-    const x = (i * 137) % W;
-    const y = (i * 89) % H;
-    ctx.fillRect(x, y, 2, 2);
-  }
-  // Linha de horizonte com montanhas longe
-  ctx.fillStyle = '#9a7a4a';
-  ctx.beginPath();
-  ctx.moveTo(0, 180);
-  ctx.lineTo(130, 80); ctx.lineTo(230, 170);
-  ctx.lineTo(340, 60); ctx.lineTo(480, 160);
-  ctx.lineTo(620, 90); ctx.lineTo(770, 170);
-  ctx.lineTo(900, 70); ctx.lineTo(1080, 160);
-  ctx.lineTo(1280, 90); ctx.lineTo(1280, 0);
-  ctx.lineTo(0, 0);
-  ctx.closePath();
-  ctx.fill();
-  // Sombras das montanhas
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
-  ctx.fillRect(0, 170, W, 14);
-  // Algumas árvores espalhadas (clusters verdes)
-  const trees = [
-    [60, 240], [110, 270], [160, 260],
-    [320, 250], [350, 230], [380, 250],
-    [620, 260], [660, 250], [700, 230],
-    [840, 250], [880, 230],
-    [80, 660], [140, 680], [200, 670],
-    [580, 660], [640, 670], [700, 660],
-    [990, 600], [1100, 620], [1200, 640],
-  ];
-  for (const [tx, ty] of trees) {
-    drawTree(tx, ty);
-  }
+  ctx.drawImage(getTerrainCanvas(), 0, 0);
+  drawAmbientGround(ctx, {
+    activeMines: OVERWORLD.mineEntrances.map((_, i) => !!state.mines[i] && !state.mines[i].exhausted),
+    playerColor: civColor(),
+  });
+}
+
+/** @param {number} x @param {number} y @param {number} w @param {number} h */
+function isHovering(x, y, w, h) {
+  return state.mouseX >= x && state.mouseX < x + w && state.mouseY >= y && state.mouseY < y + h;
 }
 
 function drawTree(x, y) {
@@ -1069,44 +1099,30 @@ function drawTree(x, y) {
 }
 
 function drawMineEntrances() {
-  for (let i = 0; i < OVERWORLD.mineEntrances.length; i++) {
-    const rect = OVERWORLD.mineEntrances[i];
+  // slots vazios primeiro: a névoa não pode cobrir a placa da mina vizinha
+  OVERWORLD.mineEntrances.forEach((rect, i) => { if (!state.mines[i]) drawEmptyMineSlot(rect, i); });
+  OVERWORLD.mineEntrances.forEach((rect, i) => {
     const mine = state.mines[i];
-    if (mine) {
-      drawMineEntrance(rect, mine, i);
-    } else {
-      drawEmptyMineSlot(rect, i);
-    }
-  }
+    if (mine) drawMineEntrance(rect, mine, i);
+  });
 }
 
+// Slot vazio = "terra inexplorada" coberta pela névoa negra do AoE
 function drawEmptyMineSlot(e, idx) {
-  // outline tracejado
-  ctx.strokeStyle = 'rgba(122,75,37,0.55)';
-  ctx.setLineDash([8, 6]);
-  ctx.lineWidth = 2;
-  ctx.strokeRect(e.x, e.y, e.w, e.h);
-  ctx.setLineDash([]);
-  // ícone "+" central
-  ctx.fillStyle = 'rgba(90,52,22,0.55)';
-  ctx.font = 'bold 38px "Segoe UI", Arial, sans-serif';
+  const hovering = isHovering(e.x, e.y, e.w, e.h);
+  drawShroud(ctx, e, hovering);
+  const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('+', e.x + e.w / 2, e.y + e.h / 2 - 10);
+  ctx.fillStyle = hovering ? '#ffe680' : '#c69042';
+  ctx.font = 'bold 30px Georgia, serif';
+  ctx.fillText('+', cx, cy - 12);
   ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
-  ctx.fillText('NOVA MINA', e.x + e.w / 2, e.y + e.h / 2 + 18);
-  ctx.font = '9px "Segoe UI"';
-  ctx.fillStyle = 'rgba(90,52,22,0.7)';
-  ctx.fillText(`SLOT ${idx + 1}`, e.x + e.w / 2, e.y + 14);
-  // hover destaca
-  const hovering =
-    state.mouseX >= e.x && state.mouseX < e.x + e.w &&
-    state.mouseY >= e.y && state.mouseY < e.y + e.h;
-  if (hovering) {
-    ctx.strokeStyle = 'rgba(255,220,80,0.7)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(e.x - 3, e.y - 3, e.w + 6, e.h + 6);
-  }
+  ctx.fillText('NOVA MINA', cx, cy + 12);
+  ctx.font = 'italic 9px Georgia, serif';
+  ctx.fillStyle = 'rgba(241,227,194,0.7)';
+  ctx.fillText(`terra inexplorada · slot ${idx + 1}`, cx, cy + 26);
+  if (hovering) drawSelectionEllipse(ctx, cx, e.y + e.h - 12, e.w * 0.42, 12);
 }
 
 function drawMineEntrance(e, mine, idx) {
@@ -1192,9 +1208,10 @@ function drawMineEntranceOverlay(e, mine, idx) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(txt, signCx, signCy);
-  const hovering =
-    state.mouseX >= e.x && state.mouseX < e.x + e.w &&
-    state.mouseY >= e.y && state.mouseY < e.y + e.h + 40;
+  const hovering = isHovering(e.x, e.y, e.w, e.h + 40);
+  if (hovering) drawSelectionEllipse(ctx, caveX, e.y + e.h + 2, e.w * 0.5, 14);
+  // pilha de ouro/pedra ao pé da mina (recurso AoE)
+  if (!exhausted) drawOrePile(e.x + e.w - 6, e.y + e.h - 4);
   const t = performance.now() / 600;
   let pulse = (Math.sin(t) + 1) / 2 * (exhausted ? 0.2 : 0.6);
   if (hovering) pulse = 1;
@@ -1209,15 +1226,19 @@ function drawMineEntranceOverlay(e, mine, idx) {
   }
 }
 
-function drawDottedRoute(x1, y1, x2, y2) {
-  ctx.strokeStyle = 'rgba(58,31,10,0.55)';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([4, 6]);
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
-  ctx.setLineDash([]);
+/** @param {number} x @param {number} y */
+function drawOrePile(x, y) {
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(x + 2, y + 3, 15, 4, 0, 0, Math.PI * 2); ctx.fill();
+  const nuggets = [[-8, 0, 5, '#8a8478'], [6, 1, 5, '#7d776c'], [-2, -3, 6, '#d4a520'], [4, -6, 4, '#e8c040'], [-6, -6, 3.5, '#f0d060']];
+  for (const [dx, dy, r, c] of nuggets) {
+    ctx.fillStyle = /** @type {string} */ (c);
+    ctx.beginPath(); ctx.ellipse(x + +dx, y + +dy, +r, +r * 0.75, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  const glint = (Math.sin(performance.now() / 400) + 1) / 2;
+  ctx.fillStyle = `rgba(255,255,220,${0.4 + 0.6 * glint})`;
+  ctx.fillRect(x + 2, y - 8, 2, 2);
+  ctx.fillRect(x - 4, y - 5, 1.5, 1.5);
 }
 
 // ---------- Identidade visual da civilização ----------
@@ -1262,28 +1283,41 @@ function drawCivFlag() {
 function drawOverworld() {
   drawOverworldBg();
   drawCivFlag(); // bandeira grande no canto superior esquerdo
-  // Vilarejos decorativos (entre as áreas principais)
-  drawVillage(480, 270, 'LAGES',         0.7);
-  drawVillage(680, 245, 'SÃO JOAQUIM',   0.6);
-  drawVillage(560, 660, 'CHAPECÓ',       0.7);
-  // Rotas pontilhadas decorativas para vilarejos
-  drawDottedRoute(280, 280, 470, 260);
-  drawDottedRoute(530, 270, 670, 250);
-  drawDottedRoute(380, 460, 540, 640);
-  // Rotas das minas até as fábricas (raw materials)
-  for (const d of OVERWORLD.dottedMineToFactory) {
-    drawDottedRoute(d.x1, d.y1, d.x2, d.y2);
-  }
+  for (const v of VILLAGES) drawVillage(v.x, v.y, v.name, v.scale);
   drawMineEntrances();
   drawMercadoNode();
   drawPesquisaNode();
   drawFactories();
-  drawFactoryRecipePanels();
   drawCity();
   drawRoad();
   drawWagon();
+  drawAmbientSky(ctx);
+  drawFactoryRecipePanels();
   drawActiveProjectPanel();
   drawContractPanelOverworld();
+  drawOverworldMinimap();
+}
+
+function drawOverworldMinimap() {
+  const cc = civColor();
+  /** @type {{x:number,y:number,w:number,h:number,color:string}[]} */
+  const markers = [];
+  OVERWORLD.mineEntrances.forEach((e, i) => {
+    const m = state.mines[i];
+    if (!m) return;
+    markers.push({ x: e.x + 50, y: e.y + 40, w: e.w - 100, h: e.h - 70, color: m.exhausted ? '#777' : cc });
+  });
+  for (let i = 0; i < state.factories.length; i++) {
+    const r = factoryRect(i);
+    markers.push({ x: r.x + 10, y: r.y + 40, w: r.w - 20, h: r.h - 60, color: cc });
+  }
+  markers.push({ x: CITY.x + 30, y: 440, w: CITY.w - 60, h: 140, color: cc });
+  for (const n of [OVERWORLD.mercadoNode, OVERWORLD.pesquisaNode]) {
+    markers.push({ x: n.x + 10, y: n.y + 10, w: n.w - 20, h: n.h - 20, color: '#e8c060' });
+  }
+  const wx = ROAD.x1 + (ROAD.x2 - ROAD.x1) * state.wagon.pos;
+  markers.push({ x: wx - 14, y: ROAD.y - 14, w: 28, h: 28, color: '#ffffff' });
+  drawMinimap(ctx, markers);
 }
 
 // Nodo do Mercado — clicável (abre aba Mercado)
@@ -1395,15 +1429,8 @@ function drawNodeLabel(x, y, w, text, scene) {
 }
 
 function drawNodeHoverHighlight(n) {
-  const hovering =
-    state.mouseX >= n.x && state.mouseX < n.x + n.w &&
-    state.mouseY >= n.y && state.mouseY < n.y + n.h + 22;
-  const t = performance.now() / 700;
-  const pulse = hovering ? 1 : (Math.sin(t) + 1) / 2 * 0.6;
-  if (pulse > 0.1) {
-    ctx.strokeStyle = `rgba(255,220,80,${0.25 + 0.55 * pulse})`;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(n.x - 4, n.y - 4, n.w + 8, n.h + 30);
+  if (isHovering(n.x, n.y, n.w, n.h + 22)) {
+    drawSelectionEllipse(ctx, n.x + n.w / 2, n.y + n.h - 2, n.w * 0.62, 13);
   }
 }
 
@@ -1577,15 +1604,10 @@ function drawFactoryRecipePanel(rect, factory) {
     ctx.fillStyle = '#c69042';
     ctx.fillRect(px + 4, py + ph - 5, (pw - 8) * pct, 3);
   }
-  // hover destaca o painel inteiro
-  const fullRect = { x: px, y: py, w: pw, h: ph + rect.h + 8 };
-  const hovering =
-    state.mouseX >= fullRect.x && state.mouseX < fullRect.x + fullRect.w &&
-    state.mouseY >= fullRect.y && state.mouseY < fullRect.y + fullRect.h;
-  if (hovering) {
-    ctx.strokeStyle = 'rgba(255,220,80,0.7)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(rect.x - 3, py - 3, pw + 6, ph + rect.h + 14);
+  if (isHovering(px, py, pw, ph + rect.h + 8)) {
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(px - 2, py - 2, pw + 4, ph + 4);
   }
   // suprime nome do produto: já fica na placa amarela do prédio
   product; // referenciada implicitamente via outHave/cap

@@ -4,46 +4,15 @@ import Phaser from 'phaser';
 import { state } from '../../state.js';
 import { OVERWORLD, factoryRect, ROAD, CITY } from '../../geometry.js';
 import { CIV_BY_ID } from '../../data.js';
+import { getTerrainCanvas } from '../../terrain.js';
 
 export default class OverworldScene extends Phaser.Scene {
   constructor() { super({ key: 'OverworldScene' }); }
 
   create() {
-    const { width, height } = this.cameras.main;
-    // Background parchment gradient
-    const bg = this.add.graphics();
-    bg.fillGradientStyle(0xd4b478, 0xd4b478, 0xb89058, 0xb89058, 1);
-    bg.fillRect(0, 0, width, height);
-    // Textura pontilhada
-    const tex = this.add.graphics();
-    tex.fillStyle(0x5a3410, 0.08);
-    for (let i = 0; i < 240; i++) {
-      const x = (i * 137) % width;
-      const y = (i * 89) % height;
-      tex.fillRect(x, y, 2, 2);
-    }
-    // Horizonte de montanhas distantes
-    const mt = this.add.graphics();
-    mt.fillStyle(0x9a7a4a, 1);
-    mt.fillPoints([
-      { x: 0, y: 180 }, { x: 130, y: 80 }, { x: 230, y: 170 },
-      { x: 340, y: 60 }, { x: 480, y: 160 }, { x: 620, y: 90 },
-      { x: 770, y: 170 }, { x: 900, y: 70 }, { x: 1080, y: 160 },
-      { x: 1280, y: 90 }, { x: 1280, y: 0 }, { x: 0, y: 0 },
-    ], true);
-
-    // Árvores decorativas
-    const treePositions = [
-      [60, 240], [110, 270], [160, 260],
-      [320, 250], [350, 230], [380, 250],
-      [620, 260], [660, 250], [700, 230],
-      [840, 250], [880, 230],
-      [580, 660], [640, 670], [700, 660],
-      [990, 600], [1100, 620], [1200, 640],
-    ];
-    for (const [x, y] of treePositions) {
-      this.add.image(x, y + 16, 'tree').setDisplaySize(28, 44).setOrigin(0.5, 1);
-    }
+    // Terreno AoE compartilhado com o renderer canvas (pré-renderizado uma vez)
+    if (!this.textures.exists('aoe-terrain')) this.textures.addCanvas('aoe-terrain', getTerrainCanvas());
+    this.add.image(0, 0, 'aoe-terrain').setOrigin(0, 0);
 
     // Mine entrances (até 4 slots)
     this.mineImages = [];
@@ -97,11 +66,6 @@ export default class OverworldScene extends Phaser.Scene {
 
     // Bandeira da civilização (overlay fixo no canto superior esquerdo)
     this.updateCivFlag();
-
-    // Legenda e stats compactos (overlay via DOM separado — ou tudo via graphics)
-    this.add.text(width / 2, 40, 'TAPUIA — MAPA (Phaser Edition)', {
-      fontFamily: 'Georgia, serif', fontSize: '20px', color: '#3a1f0a', fontStyle: 'bold',
-    }).setOrigin(0.5);
   }
 
   updateCivFlag() {
