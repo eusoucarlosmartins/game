@@ -2,7 +2,7 @@
 import { state } from './state.js';
 import { R, RECIPE_BY_ID, CFG, MINE, TOOLS, SILO_DEFAULT_CAP } from './data.js';
 import { fmtMoney, clamp } from './util.js';
-import { transportTier, wagonCapacity, currentEra, eraData } from './progression.js';
+import { transportTier, currentEra, eraData } from './progression.js';
 import { ingredientHave } from './factories.js';
 import { getProjectDef } from './projects.js';
 import { activeMine, regenCost } from './mine.js';
@@ -121,6 +121,8 @@ function drawFactories() {
   for (let i = 0; i < state.factories.length; i++) {
     const f = state.factories[i];
     const rect = factoryRect(i);
+    // sombra elíptica abaixo (AoE flavor)
+    drawShadow(rect.x + rect.w / 2, rect.y + rect.h + 2, rect.w * 0.55, 5);
     // base de madeira
     ctx.fillStyle = '#7a4b25';
     ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
@@ -539,22 +541,128 @@ function drawRoad() {
   }
 }
 
+// Sombra elíptica reutilizável (visual AoE-flavor)
+function drawShadow(cx, cy, w, h = 3) {
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, w, h, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function drawWagon() {
   const w = state.wagon;
   const wx = ROAD.x1 + (ROAD.x2 - ROAD.x1) * w.pos;
   const wy = ROAD.y - 12;
-  // versão compacta — só uma carruagem (sem progressão visual por tier neste layout)
+  const facingRight = w.dir >= 0;
+  // sombra sob a carruagem+cavalo
+  drawShadow(wx + (facingRight ? 6 : -6), wy + 20, 32, 4);
+  // ----- Cavalo puxando (galope animado) -----
+  const trot = Math.sin(performance.now() / 140) * 2;
+  const hx = wx + (facingRight ? 20 : -20);  // posição do cavalo na frente
+  // corpo
+  ctx.fillStyle = '#6a3f1a';
+  ctx.fillRect(hx - 7, wy + 2 + trot, 14, 9);
+  // crina
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(hx + (facingRight ? -7 : 3), wy + trot, 4, 4);
+  // cabeça
+  const headX = hx + (facingRight ? 6 : -10);
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(headX, wy + 1 + trot, 5, 6);
+  // olho
+  ctx.fillStyle = '#f1e3c2';
+  ctx.fillRect(headX + (facingRight ? 3 : 1), wy + 3 + trot, 1, 1);
+  // orelhas
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(headX + (facingRight ? 1 : 3), wy - 1 + trot, 1, 2);
+  // Pernas em galope (fase alterna)
+  ctx.fillStyle = '#3a1f0a';
+  const legPhase = Math.sin(performance.now() / 90);
+  const leftLegLen = 7 + Math.max(0, legPhase * 2);
+  const rightLegLen = 7 + Math.max(0, -legPhase * 2);
+  // perna frente esq
+  ctx.fillRect(hx + (facingRight ? 2 : -4), wy + 10 + trot, 2, leftLegLen);
+  // perna frente dir
+  ctx.fillRect(hx + (facingRight ? 4 : -2), wy + 10 + trot, 2, rightLegLen);
+  // perna tras esq
+  ctx.fillRect(hx - 5, wy + 10 + trot, 2, rightLegLen);
+  // perna tras dir
+  ctx.fillRect(hx - 3, wy + 10 + trot, 2, leftLegLen);
+  // Rédeas
+  ctx.strokeStyle = '#1a0e06';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(headX + (facingRight ? 5 : 0), wy + 3 + trot);
+  ctx.lineTo(wx + (facingRight ? 10 : -10), wy + 2);
+  ctx.stroke();
+  // ----- Carroça -----
+  // base da plataforma
   ctx.fillStyle = '#7a4b25';
   ctx.fillRect(wx - 14, wy, 28, 12);
+  // ripas verticais da carroça
+  ctx.strokeStyle = 'rgba(90,52,22,0.5)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 5; i++) {
+    const rx = wx - 14 + i * 7;
+    ctx.beginPath(); ctx.moveTo(rx, wy); ctx.lineTo(rx, wy + 10); ctx.stroke();
+  }
+  // beira inferior escura
   ctx.fillStyle = '#5a3416';
   ctx.fillRect(wx - 14, wy + 10, 28, 3);
-  ctx.fillStyle = '#222';
-  ctx.beginPath(); ctx.arc(wx - 10, wy + 14, 4, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(wx + 10, wy + 14, 4, 0, Math.PI * 2); ctx.fill();
+  // Cocheiro no banco (lado da direção)
+  const seatX = wx + (facingRight ? -8 : 8);
+  ctx.fillStyle = '#3a4a7a'; // casaco azul
+  ctx.fillRect(seatX - 2, wy - 7, 5, 6);
+  ctx.fillStyle = '#d8a878'; // cabeça
+  ctx.fillRect(seatX - 2, wy - 11, 5, 4);
+  ctx.fillStyle = civAccent(); // chapéu usa cor da civ
+  ctx.fillRect(seatX - 3, wy - 12, 7, 2);
+  // ----- Rodas com raios girando -----
+  const rotSpeed = (performance.now() / 100) * (facingRight ? 1 : -1) * (w.state === 'hauling' ? 1 : 0);
+  for (const rx of [wx - 10, wx + 10]) {
+    // roda circular preta
+    ctx.fillStyle = '#1a0e06';
+    ctx.beginPath();
+    ctx.arc(rx, wy + 14, 5, 0, Math.PI * 2);
+    ctx.fill();
+    // aro mais claro
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(rx, wy + 14, 4, 0, Math.PI * 2);
+    ctx.stroke();
+    // raios girando
+    ctx.save();
+    ctx.translate(rx, wy + 14);
+    ctx.rotate(rotSpeed);
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+      ctx.rotate(Math.PI / 4);
+      ctx.beginPath();
+      ctx.moveTo(0, 0); ctx.lineTo(3, 0);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // ----- Barris de carga quando com load -----
   if (w.load > 0 && w.product) {
-    ctx.fillStyle = R[w.product].color;
-    const barW = clamp(w.load / wagonCapacity(), 0, 1) * 24;
-    ctx.fillRect(wx - 12, wy + 2, barW, 6);
+    const nBarrels = Math.min(4, Math.max(1, Math.ceil(w.load / 2)));
+    const color = R[w.product].color;
+    for (let i = 0; i < nBarrels; i++) {
+      const bx = wx - 11 + i * 6;
+      // barril
+      ctx.fillStyle = color;
+      ctx.fillRect(bx, wy - 2, 4, 6);
+      // aros do barril
+      ctx.strokeStyle = '#3a1f0a';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(bx, wy - 2, 4, 6);
+      ctx.beginPath();
+      ctx.moveTo(bx, wy); ctx.lineTo(bx + 4, wy);
+      ctx.moveTo(bx, wy + 2); ctx.lineTo(bx + 4, wy + 2);
+      ctx.stroke();
+    }
   }
 }
 
@@ -735,39 +843,87 @@ function resAbbrev(id) {
 
 function drawMinerSprite(cx, by) {
   const t = performance.now() / 220;
-  const swing = Math.sin(t) * 3;
-  // pernas
+  const phase = Math.sin(t);          // -1..1 fase da picareta
+  const isStriking = phase > 0.75;    // bateu
+  const swingY = Math.max(0, phase);  // movimento vertical do cabo
+  // ----- Sombra elíptica no chão (AoE flavor) -----
+  drawShadow(cx, by - 1, 8, 2.2);
+  // pernas (alternam leve com o swing)
   ctx.fillStyle = '#2a1810';
   ctx.fillRect(cx - 4, by - 6, 3, 6);
   ctx.fillRect(cx + 1, by - 6, 3, 6);
-  // tronco azul
-  ctx.fillStyle = '#3a4a7a';
-  ctx.fillRect(cx - 4, by - 14, 8, 9);
-  // cinto
+  // botas pretas
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillRect(cx - 4, by - 2, 3, 2);
+  ctx.fillRect(cx + 1, by - 2, 3, 2);
+  // avental marrom em cima das pernas
   ctx.fillStyle = '#5a3416';
-  ctx.fillRect(cx - 4, by - 7, 8, 2);
+  ctx.fillRect(cx - 4, by - 10, 8, 4);
+  // tronco azul (camisa de minerador)
+  ctx.fillStyle = '#3a4a7a';
+  ctx.fillRect(cx - 4, by - 14, 8, 5);
+  // suspensórios do avental
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(cx - 3, by - 13, 1, 3);
+  ctx.fillRect(cx + 2, by - 13, 1, 3);
+  // cinto preto
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillRect(cx - 4, by - 10, 8, 1);
   // cabeça rosada
   ctx.fillStyle = '#d8a878';
   ctx.fillRect(cx - 3, by - 19, 6, 5);
-  // bigode
+  // bigode preto
   ctx.fillStyle = '#3a2a1a';
   ctx.fillRect(cx - 2, by - 16, 4, 1);
-  // chapéu dourado
+  // olhinho (ponto preto)
+  ctx.fillStyle = '#1a0e06';
+  ctx.fillRect(cx - 2, by - 18, 1, 1);
+  ctx.fillRect(cx + 1, by - 18, 1, 1);
+  // chapéu dourado (aba + topo)
   ctx.fillStyle = '#c69042';
   ctx.fillRect(cx - 5, by - 20, 10, 2);
   ctx.fillRect(cx - 3, by - 22, 6, 2);
-  // picareta com cabo de madeira + ponta de aço
+  // ----- Picareta com arco 3-fase + partículas -----
+  // Fases: cima (prep) -> topo -> bate (strike com poeira)
+  const hx = cx + 4, hy = by - 12;
+  // ângulo do cabo baseado em phase
+  // phase= 1 (prep topo): cabo bem alto; phase=-1 (bate): cabo baixo
+  const angle = (-Math.PI / 2.2) + phase * (Math.PI / 1.4);
+  const cabLen = 12;
+  const tipX = hx + Math.cos(angle) * cabLen;
+  const tipY = hy + Math.sin(angle) * cabLen;
+  // cabo
   ctx.strokeStyle = '#5a3416';
   ctx.lineWidth = 2;
-  const hx = cx + 4, hy = by - 12;
-  const px = hx + 8 + swing;
-  const py = hy - 6 - Math.abs(swing);
   ctx.beginPath();
   ctx.moveTo(hx, hy);
-  ctx.lineTo(px, py);
+  ctx.lineTo(tipX, tipY);
   ctx.stroke();
-  ctx.fillStyle = '#8c95a1';
-  ctx.fillRect(px - 2, py - 2, 5, 3);
+  // ponta de aço (perpendicular ao cabo)
+  const perpAng = angle + Math.PI / 2;
+  const steelX1 = tipX + Math.cos(perpAng) * 3;
+  const steelY1 = tipY + Math.sin(perpAng) * 3;
+  const steelX2 = tipX - Math.cos(perpAng) * 3;
+  const steelY2 = tipY - Math.sin(perpAng) * 3;
+  ctx.strokeStyle = '#8c95a1';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(steelX1, steelY1);
+  ctx.lineTo(steelX2, steelY2);
+  ctx.stroke();
+  // ----- Poeira ao bater -----
+  if (isStriking) {
+    ctx.fillStyle = 'rgba(200,160,100,0.55)';
+    for (let i = 0; i < 4; i++) {
+      const dx = (i - 1.5) * 2;
+      const dy = -i * 1.2;
+      ctx.beginPath();
+      ctx.arc(tipX + dx, tipY + dy + 2, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // suppress unused warning
+  void swingY;
 }
 
 // ---------- Toolbar ----------
@@ -1284,6 +1440,8 @@ function drawTutorial() {
 
 // Vilarejo decorativo (não interativo) — só pra dar densidade ao mapa
 function drawVillage(x, baseY, name, scale = 0.7) {
+  // sombra abaixo do vilarejo
+  drawShadow(x, baseY + 2, 26 * scale, 4);
   const houses = [
     { dx: -14, dy: 0, w: 18, h: 22, face: '#e8c87a', roof: '#a82e1c' },
     { dx: 6,   dy: -4, w: 14, h: 26, face: '#b8c8a8', roof: '#8a4a2a' },
