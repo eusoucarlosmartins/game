@@ -55,6 +55,10 @@ export const state = {
   totalEarnings: 0,        // soma de tudo que entrou em $ (contratos + mercado + impostos + passivo)
   oreMined: {},            // recurso -> quantidade total minerada
 
+  // Conquistas
+  achievements: {},        // id -> timestamp quando desbloqueou
+  tntUseCount: 0,          // contador pra conquista tnt_10
+
   // Preferências
   muted: false,
 
@@ -71,6 +75,7 @@ export const state = {
   nextEventIn: 45,
   eventMineMul: 1,
   eventContractBonus: 0,
+  activeAchievement: null,  // { id, timeLeft } — toast dourado no canvas
 };
 
 export function log(msg, kind = '') {

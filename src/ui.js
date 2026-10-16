@@ -1,7 +1,8 @@
 // ui.js — renderização da sidebar e modais (receita)
 import { state } from './state.js';
-import { R, RECIPE_BY_ID, RECIPES_BY_TIER, EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY_ID, RES_CATS, ERAS, ROMAN, CFG, TOOLS, WORKER_COST, MINE_CATALOG } from './data.js';
+import { R, RECIPE_BY_ID, RECIPES_BY_TIER, EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY_ID, RES_CATS, ERAS, ROMAN, CFG, TOOLS, WORKER_COST, MINE_CATALOG, ACHIEVEMENTS } from './data.js';
 import { isMineOwned } from './mine.js';
+import { getAchievementProgress } from './achievements.js';
 import { $, fmtMoney } from './util.js';
 import { currentEra, eraData, isRecipeUnlocked } from './progression.js';
 import { ingredientHave } from './factories.js';
@@ -400,6 +401,26 @@ function renderStats() {
       return `<li><span class="label">${m.name}</span>${status}</li>`;
     });
     minesEl.innerHTML = rows.length === 0 ? '<li><em>Nenhuma mina.</em></li>' : rows.join('');
+  }
+  // Conquistas
+  const achEl = $('achievements-list');
+  const achProg = $('achievements-progress');
+  if (achProg) {
+    const { unlocked, total } = getAchievementProgress();
+    achProg.textContent = `(${unlocked}/${total})`;
+  }
+  if (achEl) {
+    const unlockedMap = state.achievements || {};
+    achEl.innerHTML = ACHIEVEMENTS.map((a) => {
+      const owned = !!unlockedMap[a.id];
+      return `<li class="${owned ? 'unlocked' : 'locked'}">
+        <span class="emoji">${a.emoji}</span>
+        <span>
+          <span class="name">${a.name}</span>
+          <span class="desc">${a.desc}</span>
+        </span>
+      </li>`;
+    }).join('');
   }
 }
 

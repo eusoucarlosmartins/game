@@ -10,6 +10,7 @@ import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
 import { updateEvents } from './events.js';
 import { updateProjects, activateProject, cancelProject } from './projects.js';
+import { checkAchievements, updateAchievementToast } from './achievements.js';
 import { play, toggleMute, unlockOnFirstGesture } from './audio.js';
 import { draw } from './draw.js';
 import { syncUI, openRecipeModal, openBuyMineModal, closeModal } from './ui.js';
@@ -42,6 +43,8 @@ function tick(dt) {
   updateEvents(dt);
   updateProjects(dt);
   updateDay(dt);
+  checkAchievements();
+  updateAchievementToast(dt);
   // Auto-dismiss do último passo do tutorial
   if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 2) {
     state.tutorial.autoDismissIn = (state.tutorial.autoDismissIn ?? 12) - dt;

@@ -5,6 +5,7 @@ import { R, DEPOSIT_TYPES, MINE, TOOLS, SILO_DEFAULT_CAP, WORKER_COST, MINE_CATA
 import { irand, fmtMoney } from './util.js';
 import { mineRateMul, currentEra, eraData } from './progression.js';
 import { play } from './audio.js';
+import { unlockAchievement } from './achievements.js';
 
 export function isResourceUnlocked(resource) {
   return eraData(currentEra()).deposits.includes(resource);
@@ -238,6 +239,7 @@ export function tryTNT(r, c) {
   log(`Dinamite: ${dug} tiles. ${oreCollected > 0 ? '+' + oreCollected + ' de minério.' : ''}`, 'good');
   mine.tntFx = { r, c, t: 0.8 };
   play('boom');
+  state.tntUseCount = (state.tntUseCount || 0) + 1;
 }
 
 export function tryCompass(r, c) {
@@ -339,6 +341,7 @@ export function regenerateMine(idx) {
   mine.tntFx = null;
   log(`✨ ${mine.name} regenerada por ${fmtMoney(cost)}.`, 'good');
   play('success');
+  unlockAchievement('mine_regenerated');
 }
 
 // ----- Simulação por tick -----

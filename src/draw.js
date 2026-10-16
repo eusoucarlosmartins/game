@@ -6,6 +6,7 @@ import { transportTier, wagonCapacity, currentEra, eraData } from './progression
 import { ingredientHave } from './factories.js';
 import { getProjectDef } from './projects.js';
 import { activeMine, regenCost } from './mine.js';
+import { ACH_BY_ID } from './data.js';
 import {
   W, H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
   OVERWORLD, TOOLBAR, MINE_BACK_BTN, factoryRect,
@@ -1645,4 +1646,39 @@ export function draw() {
   }
   drawEventBanner();
   drawTutorial();
+  drawAchievementToast();
+}
+
+// Toast dourado quando conquista desbloqueia
+function drawAchievementToast() {
+  if (!state.activeAchievement) return;
+  const a = ACH_BY_ID[state.activeAchievement.id];
+  if (!a) return;
+  const w = 440, h = 72;
+  const x = (W - w) / 2;
+  const y = 56;
+  // moldura dourada vibrante
+  ctx.fillStyle = '#c69042';
+  ctx.fillRect(x - 4, y - 4, w + 8, h + 8);
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x, y, w, h);
+  // header
+  ctx.fillStyle = '#ffd44a';
+  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🏆 CONQUISTA DESBLOQUEADA', W / 2, y + 14);
+  // emoji + nome
+  ctx.fillStyle = '#f1e3c2';
+  ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+  ctx.fillText(`${a.emoji}  ${a.name}`, W / 2, y + 36);
+  // descrição
+  ctx.fillStyle = 'rgba(241,227,194,0.85)';
+  ctx.font = '11px "Segoe UI", Arial, sans-serif';
+  ctx.fillText(a.desc, W / 2, y + 56);
+  // barrinha de tempo
+  const total = 5; // TOAST_DURATION
+  const pct = Math.max(0, (state.activeAchievement.timeLeft || 0) / total);
+  ctx.fillStyle = '#c69042';
+  ctx.fillRect(x, y + h - 2, w * pct, 2);
 }
