@@ -386,7 +386,12 @@ unlockOnFirstGesture();
 updateMuteBtn();
 
 // ---------- PWA: service worker + install prompt ----------
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+// Registra o SW em qualquer ambiente que não seja localhost — permite
+// que o site funcione tanto bundlado (Vite) quanto servindo o source
+// direto (GitHub Pages sem build). Protege acesso ao import.meta.env.
+const _env = /** @type {any} */ (import.meta).env || {};
+const _isLocalhost = ['localhost', '127.0.0.1', '0.0.0.0'].includes(location.hostname);
+if ('serviceWorker' in navigator && !_isLocalhost && !_env.DEV) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch((err) => {
       console.warn('[PWA] SW falhou:', err);
