@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 90" shape-rendering="crispEdges">
+  <!-- Sombra -->
+  <ellipse cx="50" cy="88" rx="40" ry="2" fill="rgba(0,0,0,0.3)"/>
+
+  <!-- Base de pedra -->
+  <rect x="4" y="78" width="92" height="6" fill="#3a1f0a"/>
+
+  <!-- Corpo caiado branco -->
+  <rect x="6" y="22" width="88" height="58" fill="#f1e3c2"/>
+  <!-- Sombreamento lateral -->
+  <rect x="90" y="22" width="4" height="58" fill="#d8c498"/>
+  <!-- Textura de pedras na base -->
+  <line x1="6" y1="76" x2="94" y2="76" stroke="#8a6a4d" stroke-width="0.5"/>
+  <line x1="6" y1="78" x2="94" y2="78" stroke="#8a6a4d" stroke-width="0.5"/>
+
+  <!-- Telhado AZUL ACADÊMICO (triangular) -->
+  <polygon points="0,22 50,2 100,22" fill="#2a4a7a"/>
+  <!-- Shadow -->
+  <rect x="0" y="22" width="100" height="2" fill="rgba(0,0,0,0.3)"/>
+  <!-- Ripas do telhado -->
+  <line x1="10" y1="20" x2="30" y2="12" stroke="#1a0e06" stroke-width="0.5"/>
+  <line x1="30" y1="12" x2="50" y2="6" stroke="#1a0e06" stroke-width="0.5"/>
+  <line x1="50" y1="6" x2="70" y2="12" stroke="#1a0e06" stroke-width="0.5"/>
+  <line x1="70" y1="12" x2="90" y2="20" stroke="#1a0e06" stroke-width="0.5"/>
+
+  <!-- Mastro/antena com estrela no topo (universidade) -->
+  <line x1="50" y1="2" x2="50" y2="-8" stroke="#1a0e06" stroke-width="1"/>
+  <!-- Estrela -->
+  <polygon points="50,-14 51,-10 55,-10 52,-7 53,-3 50,-5 47,-3 48,-7 45,-10 49,-10" fill="#ffd44a"/>
+
+  <!-- LIVRO VERMELHO ABERTO na fachada (símbolo de conhecimento) -->
+  <rect x="30" y="38" width="40" height="26" fill="#a82e1c"/>
+  <!-- Páginas abertas branco -->
+  <rect x="33" y="41" width="34" height="20" fill="#f1e3c2"/>
+  <!-- Linha central do livro -->
+  <line x1="50" y1="41" x2="50" y2="61" stroke="#1a0e06" stroke-width="0.8"/>
+  <!-- Linhas de texto nas páginas -->
+  <line x1="36" y1="45" x2="46" y2="45" stroke="#5a3416" stroke-width="0.4"/>
+  <line x1="36" y1="48" x2="48" y2="48" stroke="#5a3416" stroke-width="0.4"/>
+  <line x1="36" y1="51" x2="45" y2="51" stroke="#5a3416" stroke-width="0.4"/>
+  <line x1="36" y1="54" x2="47" y2="54" stroke="#5a3416" stroke-width="0.4"/>
+  <line x1="36" y1="57" x2="46" y2="57" stroke="#5a3416" stroke-width="0.4"/>
+  <line x1="54" y1="45" x2="64" y2="45" stroke="#5a3416" stroke-width="0.4"/>
+  <line x1="54" y1="48" x2="63" y2="48" stroke="#5a3416" stroke-width="0.4"/>
+  <line x1="54" y1="51" x2="64" y2="51" stroke="#5a3416" stroke-width="0.4"/>
+  <line x1="54" y1="54" x2="62" y2="54" stroke="#5a3416" stroke-width="0.4"/>
+  <line x1="54" y1="57" x2="64" y2="57" stroke="#5a3416" stroke-width="0.4"/>
+
+  <!-- Estrelas douradas (PP) nas pontas -->
+  <text x="18" y="30" font-size="14" fill="#ffd44a" font-weight="bold">★</text>
+  <text x="76" y="30" font-size="14" fill="#ffd44a" font-weight="bold">★</text>
+
+  <!-- Pequena janela redonda no topo (óculo) -->
+  <circle cx="50" cy="28" r="4" fill="#a8c8d8"/>
+  <circle cx="50" cy="28" r="4" fill="none" stroke="#3a1f0a" stroke-width="0.6"/>
+  <line x1="50" y1="24" x2="50" y2="32" stroke="#3a1f0a" stroke-width="0.4"/>
+  <line x1="46" y1="28" x2="54" y2="28" stroke="#3a1f0a" stroke-width="0.4"/>
+
+  <!-- Porta na base -->
+  <rect x="42" y="66" width="16" height="14" fill="#5a3416"/>
+  <!-- Detalhe vertical -->
+  <line x1="50" y1="66" x2="50" y2="80" stroke="#3a1f0a" stroke-width="0.8"/>
+  <!-- Maçaneta -->
+  <circle cx="54" cy="73" r="0.8" fill="#c69042"/>
+
+  <!-- Pequenos degraus -->
+  <rect x="38" y="80" width="24" height="2" fill="#8a6a4d"/>
+  <rect x="35" y="82" width="30" height="2" fill="#7a5a3d"/>
+</svg>

@@ -13,6 +13,9 @@ const SPRITE_IDS = [
   'house-green',
   'factory',
   'tree',
+  'mine-entrance',
+  'mercado',
+  'pesquisa',
 ];
 
 /**

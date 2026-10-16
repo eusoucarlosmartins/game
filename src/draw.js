@@ -1099,6 +1099,15 @@ function drawEmptyMineSlot(e, idx) {
 }
 
 function drawMineEntrance(e, mine, idx) {
+  // Tenta sprite primeiro
+  const sprite = getSprite('mine-entrance');
+  if (sprite) {
+    ctx.drawImage(sprite, e.x - 10, e.y - 10, e.w + 20, e.h + 20);
+    // Pula pra lógica da placa/badge (seção procedural abaixo)
+    drawMineEntranceOverlay(e, mine, idx);
+    return;
+  }
+  // Fallback procedural (código original mantido)
   // Colina marrom com base maior
   ctx.fillStyle = '#8a5a30';
   ctx.beginPath();
@@ -1151,6 +1160,11 @@ function drawMineEntrance(e, mine, idx) {
   ctx.beginPath(); ctx.arc(caveX - 7, caveY + caveH + 20, 3, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(caveX + 7, caveY + caveH + 20, 3, 0, Math.PI * 2); ctx.fill();
   // Placa com nome da mina + status
+  drawMineEntranceOverlay(e, mine, idx);
+}
+
+function drawMineEntranceOverlay(e, mine, idx) {
+  const caveX = e.x + e.w / 2;
   const signCx = caveX;
   const signCy = e.y + e.h + 24;
   const exhausted = mine && mine.exhausted;
@@ -1167,7 +1181,6 @@ function drawMineEntrance(e, mine, idx) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(txt, signCx, signCy);
-  // Pulsa quando o mouse está em cima (mais forte se for a ativa)
   const hovering =
     state.mouseX >= e.x && state.mouseX < e.x + e.w &&
     state.mouseY >= e.y && state.mouseY < e.y + e.h + 40;
@@ -1179,7 +1192,6 @@ function drawMineEntrance(e, mine, idx) {
   ctx.strokeStyle = `rgba(${color},${0.25 + 0.55 * pulse})`;
   ctx.lineWidth = 2.5;
   ctx.strokeRect(signCx - sw / 2, signCy - 12, sw, 24);
-  // Aplica leve dim na entrada inteira se esgotada
   if (exhausted) {
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.fillRect(e.x - 14, e.y - 6, e.w + 28, e.h + 18);
@@ -1266,6 +1278,14 @@ function drawOverworld() {
 // Nodo do Mercado — clicável (abre aba Mercado)
 function drawMercadoNode() {
   const n = OVERWORLD.mercadoNode;
+  const sprite = getSprite('mercado');
+  if (sprite) {
+    ctx.drawImage(sprite, n.x, n.y - 10, n.w, n.h + 10);
+    drawNodeLabel(n.x, n.y + n.h, n.w, 'MERCADO', 'overworld');
+    drawNodeHoverHighlight(n);
+    return;
+  }
+  // Fallback procedural
   const { x, y, w, h } = n;
   // base / fundo de tijolo
   ctx.fillStyle = '#8a3a1a';
@@ -1304,6 +1324,14 @@ function drawMercadoNode() {
 // Nodo da Pesquisa — clicável (abre Upgrades)
 function drawPesquisaNode() {
   const n = OVERWORLD.pesquisaNode;
+  const sprite = getSprite('pesquisa');
+  if (sprite) {
+    ctx.drawImage(sprite, n.x, n.y - 10, n.w, n.h + 10);
+    drawNodeLabel(n.x, n.y + n.h, n.w, 'PESQUISA', 'overworld');
+    drawNodeHoverHighlight(n);
+    return;
+  }
+  // Fallback procedural
   const { x, y, w, h } = n;
   // corpo branco (estilo colonial caiado)
   ctx.fillStyle = '#f1e3c2';

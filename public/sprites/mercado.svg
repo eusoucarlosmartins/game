@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 90" shape-rendering="crispEdges">
+  <!-- Sombra -->
+  <ellipse cx="50" cy="88" rx="40" ry="2" fill="rgba(0,0,0,0.3)"/>
+
+  <!-- Base de pedra -->
+  <rect x="4" y="78" width="92" height="6" fill="#5a3416"/>
+
+  <!-- Corpo de tijolo -->
+  <rect x="6" y="30" width="88" height="50" fill="#8a3a1a"/>
+  <!-- Textura de tijolos -->
+  <line x1="6" y1="40" x2="94" y2="40" stroke="rgba(0,0,0,0.2)" stroke-width="0.6"/>
+  <line x1="6" y1="50" x2="94" y2="50" stroke="rgba(0,0,0,0.2)" stroke-width="0.6"/>
+  <line x1="6" y1="60" x2="94" y2="60" stroke="rgba(0,0,0,0.2)" stroke-width="0.6"/>
+  <line x1="6" y1="70" x2="94" y2="70" stroke="rgba(0,0,0,0.2)" stroke-width="0.6"/>
+  <!-- Lateral mais escura -->
+  <rect x="90" y="30" width="4" height="50" fill="#6a2a10"/>
+
+  <!-- Toldo listrado AMARELO + VERMELHO -->
+  <rect x="0" y="22" width="100" height="12" fill="#e8c060"/>
+  <!-- Listras verticais vermelhas -->
+  <rect x="0" y="22" width="10" height="12" fill="#a82e1c"/>
+  <rect x="20" y="22" width="10" height="12" fill="#a82e1c"/>
+  <rect x="40" y="22" width="10" height="12" fill="#a82e1c"/>
+  <rect x="60" y="22" width="10" height="12" fill="#a82e1c"/>
+  <rect x="80" y="22" width="10" height="12" fill="#a82e1c"/>
+  <!-- Beiral do toldo -->
+  <path d="M0 34 L10 38 L20 34 L30 38 L40 34 L50 38 L60 34 L70 38 L80 34 L90 38 L100 34 Z" fill="#8a2412"/>
+
+  <!-- Mercadorias (caixas de madeira) -->
+  <!-- Caixa 1 -->
+  <rect x="14" y="56" width="14" height="20" fill="#7a4b25"/>
+  <line x1="14" y1="56" x2="28" y2="56" stroke="#3a1f0a" stroke-width="0.5"/>
+  <line x1="14" y1="66" x2="28" y2="66" stroke="#3a1f0a" stroke-width="0.5"/>
+  <line x1="21" y1="56" x2="21" y2="76" stroke="#3a1f0a" stroke-width="0.5"/>
+
+  <!-- Caixa 2 -->
+  <rect x="32" y="56" width="14" height="20" fill="#8a5a2d"/>
+  <line x1="32" y1="56" x2="46" y2="56" stroke="#3a1f0a" stroke-width="0.5"/>
+  <line x1="32" y1="66" x2="46" y2="66" stroke="#3a1f0a" stroke-width="0.5"/>
+  <line x1="39" y1="56" x2="39" y2="76" stroke="#3a1f0a" stroke-width="0.5"/>
+
+  <!-- Caixa 3 -->
+  <rect x="50" y="56" width="14" height="20" fill="#7a4b25"/>
+  <line x1="50" y1="56" x2="64" y2="56" stroke="#3a1f0a" stroke-width="0.5"/>
+  <line x1="50" y1="66" x2="64" y2="66" stroke="#3a1f0a" stroke-width="0.5"/>
+  <line x1="57" y1="56" x2="57" y2="76" stroke="#3a1f0a" stroke-width="0.5"/>
+
+  <!-- Barril -->
+  <rect x="68" y="56" width="14" height="20" fill="#5a3416"/>
+  <ellipse cx="75" cy="57" rx="7" ry="2" fill="#7a4b25"/>
+  <line x1="68" y1="63" x2="82" y2="63" stroke="#1a0e06" stroke-width="1"/>
+  <line x1="68" y1="69" x2="82" y2="69" stroke="#1a0e06" stroke-width="1"/>
+
+  <!-- MOEDAS DOURADAS espalhadas (visual mercantil) -->
+  <circle cx="85" cy="65" r="3" fill="#ffd700"/>
+  <circle cx="85" cy="65" r="2" fill="none" stroke="#8a5e1f" stroke-width="0.5"/>
+  <text x="85" y="67" text-anchor="middle" font-size="4" fill="#8a5e1f" font-weight="bold">$</text>
+
+  <circle cx="90" cy="72" r="2.5" fill="#ffd700"/>
+  <circle cx="90" cy="72" r="1.5" fill="none" stroke="#8a5e1f" stroke-width="0.5"/>
+
+  <!-- Balança (ganchos) acima do toldo -->
+  <line x1="30" y1="18" x2="30" y2="24" stroke="#3a1f0a" stroke-width="1"/>
+  <path d="M26 18 L34 18" stroke="#3a1f0a" stroke-width="1"/>
+
+  <line x1="70" y1="18" x2="70" y2="24" stroke="#3a1f0a" stroke-width="1"/>
+  <path d="M66 18 L74 18" stroke="#3a1f0a" stroke-width="1"/>
+</svg>
