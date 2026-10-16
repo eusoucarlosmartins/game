@@ -254,6 +254,68 @@ export const ACHIEVEMENTS = [
 ];
 export const ACH_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]));
 
+// ---------- CIVILIZAÇÕES (estilo Age of Empires) ----------
+// Cada civ tem bônus permanentes acumulativos aplicados via progression.civMod.
+// Efeitos reconhecidos: mineRate, factSpd, wagonCap, wagonSpd, pileMax,
+// cartCap, cartSpd + especiais: 'start_money_delta', 'approval_start_bonus',
+// 'silo_cap_bonus' (aplicados no boot/initial state).
+export const CIVILIZATIONS = [
+  {
+    id: 'catarinense',
+    name: 'Catarinense',
+    emoji: '🌲',
+    flag: '🟢', // verde pinhão (araucária)
+    color: '#4a6a3a',       // verde pinhão
+    accentColor: '#e8c060', // amarelo bandeira
+    desc: 'Pioneiros do planalto. A tradição é equilíbrio e persistência.',
+    bonuses: [
+      { effect: 'mineRate',              mod: 0.10, text: '+10% velocidade de mineração' },
+      { effect: 'approval_start_bonus',  mod: 10,   text: '+10 aprovação inicial' },
+    ],
+  },
+  {
+    id: 'gaucho',
+    name: 'Gaúcho',
+    emoji: '🐎',
+    flag: '🔴',
+    color: '#a82e1c',       // vermelho da bandeira riograndense
+    accentColor: '#e8c060', // amarelo
+    desc: 'Cavalaria dos pampas. Logística rápida acima de tudo.',
+    bonuses: [
+      { effect: 'wagonSpd',              mod: 0.25, text: '+25% velocidade da carruagem' },
+      { effect: 'wagonCap',              mod: 0.15, text: '+15% capacidade da carruagem' },
+    ],
+  },
+  {
+    id: 'paulista',
+    name: 'Paulista',
+    emoji: '🏭',
+    flag: '⚫',
+    color: '#1a1a1a',       // preto da bandeira paulista
+    accentColor: '#a82e1c', // vermelho
+    desc: 'Terra da indústria. Fábricas aceleradas, começo apertado.',
+    bonuses: [
+      { effect: 'factSpd',               mod: 0.30, text: '+30% velocidade das fábricas' },
+      { effect: 'start_money_delta',     mod: -200, text: '−$200 de dinheiro inicial' },
+    ],
+  },
+  {
+    id: 'mineiro',
+    name: 'Mineiro',
+    emoji: '⛏',
+    flag: '🟤',
+    color: '#8a4a2a',       // marrom terra-de-minas
+    accentColor: '#c69042', // dourado
+    desc: 'Experts em subsolo. Silos gigantes, extração lenta.',
+    bonuses: [
+      { effect: 'pileMax',               mod: 0.30, text: '+30% capacidade das pilhas' },
+      { effect: 'silo_cap_bonus',        mod: 200,  text: '+200 em cada silo' },
+      { effect: 'mineRate',              mod: -0.10, text: '−10% velocidade de mineração' },
+    ],
+  },
+];
+export const CIV_BY_ID = Object.fromEntries(CIVILIZATIONS.map((c) => [c.id, c]));
+
 export const MINE_CATALOG = [
   {
     id: 'central',

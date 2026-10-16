@@ -3,6 +3,7 @@ import { state, log } from './state.js';
 import { rand, irand, clamp } from './util.js';
 import { CFG, MINE } from './data.js';
 import { play } from './audio.js';
+import { triggerRaid } from './civilizations.js';
 
 // Cada evento tem: id, name, desc, duration (segundos), kind (good/bad/neutral),
 // onStart(state) — efeito imediato; onTick(state, dt) — durante o evento;
@@ -78,6 +79,16 @@ export const EVENT_TYPES = [
     duration: 0,
     kind: 'bad',
     onStart() { state.approval = clamp(state.approval - 8, 0, CFG.approvalMax); },
+    onTick() { },
+    onEnd() { },
+  },
+  {
+    id: 'raid',
+    name: 'Raid de Bandidos',
+    desc: 'Perdeu recursos ou dinheiro para saqueadores.',
+    duration: 0,
+    kind: 'bad',
+    onStart() { triggerRaid(); },
     onTick() { },
     onEnd() { },
   },

@@ -6,7 +6,7 @@ import { transportTier, wagonCapacity, currentEra, eraData } from './progression
 import { ingredientHave } from './factories.js';
 import { getProjectDef } from './projects.js';
 import { activeMine, regenCost } from './mine.js';
-import { ACH_BY_ID } from './data.js';
+import { ACH_BY_ID, CIV_BY_ID } from './data.js';
 import {
   W, H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
   OVERWORLD, TOOLBAR, MINE_BACK_BTN, factoryRect,
@@ -417,8 +417,8 @@ function drawColonialChurch(x, baseY) {
   // rodapé
   ctx.fillStyle = '#3a1f0a';
   ctx.fillRect(x, baseY - 5, w, 5);
-  // telhado triangular (vermelho)
-  ctx.fillStyle = '#a82e1c';
+  // telhado triangular (cor da civ ou vermelho padrão)
+  ctx.fillStyle = civColor();
   ctx.beginPath();
   ctx.moveTo(x - 4, top);
   ctx.lineTo(x + w / 2, top - 14);
@@ -430,8 +430,8 @@ function drawColonialChurch(x, baseY) {
   const ty = top - 38;
   ctx.fillStyle = '#f1e3c2';
   ctx.fillRect(tx, ty, 12, 40);
-  // teto piramidal da torre
-  ctx.fillStyle = '#a82e1c';
+  // teto piramidal da torre (cor da civ)
+  ctx.fillStyle = civColor();
   ctx.beginPath();
   ctx.moveTo(tx - 3, ty);
   ctx.lineTo(tx + 6, ty - 14);
@@ -1045,7 +1045,7 @@ function drawMineEntrance(e, mine, idx) {
   const sw = ctx.measureText(txt).width + 22;
   ctx.fillStyle = '#3a1f0a';
   ctx.fillRect(signCx - sw / 2 - 2, signCy - 14, sw + 4, 28);
-  ctx.fillStyle = exhausted ? '#7a5a3a' : '#c69042';
+  ctx.fillStyle = exhausted ? '#7a5a3a' : civAccent();
   ctx.fillRect(signCx - sw / 2, signCy - 12, sw, 24);
   ctx.fillStyle = '#1a0e06';
   ctx.textAlign = 'center';
@@ -1081,8 +1081,48 @@ function drawDottedRoute(x1, y1, x2, y2) {
   ctx.setLineDash([]);
 }
 
+// ---------- Identidade visual da civilização ----------
+function civColor() {
+  const c = state.civilization ? CIV_BY_ID[state.civilization] : null;
+  return c ? c.color : '#5a3416';
+}
+function civAccent() {
+  const c = state.civilization ? CIV_BY_ID[state.civilization] : null;
+  return c ? c.accentColor : '#c69042';
+}
+
+function drawCivFlag() {
+  const civ = state.civilization ? CIV_BY_ID[state.civilization] : null;
+  if (!civ) return;
+  // Mastro no canto superior esquerdo do overworld (próximo ao topo da coluna de minas)
+  const mx = 220, my = 12;
+  // haste
+  ctx.fillStyle = '#5a3416';
+  ctx.fillRect(mx, my, 3, 48);
+  ctx.beginPath();
+  ctx.arc(mx + 1.5, my, 3, 0, Math.PI * 2);
+  ctx.fill();
+  // bandeira retangular
+  ctx.fillStyle = civ.color;
+  ctx.fillRect(mx + 3, my + 2, 54, 32);
+  // listra accent horizontal
+  ctx.fillStyle = civ.accentColor;
+  ctx.fillRect(mx + 3, my + 14, 54, 8);
+  // emoji centralizado
+  ctx.fillStyle = '#f1e3c2';
+  ctx.font = 'bold 16px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(civ.emoji, mx + 30, my + 18);
+  // nome embaixo
+  ctx.fillStyle = '#3a1f0a';
+  ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+  ctx.fillText(civ.name.toUpperCase(), mx + 30, my + 46);
+}
+
 function drawOverworld() {
   drawOverworldBg();
+  drawCivFlag(); // bandeira grande no canto superior esquerdo
   // Vilarejos decorativos (entre as áreas principais)
   drawVillage(480, 270, 'LAGES',         0.7);
   drawVillage(680, 245, 'SÃO JOAQUIM',   0.6);

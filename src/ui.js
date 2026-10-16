@@ -1,6 +1,6 @@
 // ui.js — renderização da sidebar e modais (receita)
 import { state } from './state.js';
-import { R, RECIPE_BY_ID, RECIPES_BY_TIER, EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY_ID, RES_CATS, ERAS, ROMAN, CFG, TOOLS, WORKER_COST, MINE_CATALOG, ACHIEVEMENTS } from './data.js';
+import { R, RECIPE_BY_ID, RECIPES_BY_TIER, EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY_ID, RES_CATS, ERAS, ROMAN, CFG, TOOLS, WORKER_COST, MINE_CATALOG, ACHIEVEMENTS, CIVILIZATIONS, CIV_BY_ID } from './data.js';
 import { isMineOwned } from './mine.js';
 import { getAchievementProgress } from './achievements.js';
 import { $, fmtMoney } from './util.js';
@@ -462,6 +462,21 @@ export function syncUI() {
   const pct = Math.round(state.approval);
   $('approval-fill').style.width = pct + '%';
   $('approval-text').textContent = pct + '%';
+  // Badge da civilização
+  const civWrap = $('civ-badge-wrap');
+  const civBadge = $('civ-badge');
+  if (civWrap && civBadge) {
+    const civ = state.civilization ? CIV_BY_ID[state.civilization] : null;
+    if (civ) {
+      civWrap.style.display = '';
+      civBadge.textContent = `${civ.emoji} ${civ.name}`;
+      civBadge.style.borderLeft = `4px solid ${civ.color}`;
+      civBadge.style.paddingLeft = '6px';
+      civBadge.title = civ.desc;
+    } else {
+      civWrap.style.display = 'none';
+    }
+  }
   const wagonEl = $('wagon-status');     if (wagonEl)  wagonEl.textContent  = statusWagon();
   const factEl  = $('factory-count');    if (factEl)   factEl.textContent   = state.factories.length;
   const wkEl    = $('footer-workers');   if (wkEl)     wkEl.textContent     = `${workersActive()}/${state.workersTotal}`;
@@ -492,6 +507,28 @@ export function syncUI() {
 }
 
 export { openModal, closeModal };
+
+export function openCivilizationModal() {
+  const opts = $('civ-options');
+  if (!opts) return;
+  opts.innerHTML = CIVILIZATIONS.map((c) => {
+    const bonuses = c.bonuses.map((b) => {
+      const positive = (typeof b.mod === 'number' && b.mod > 0) || b.effect === 'approval_start_bonus' || b.effect === 'silo_cap_bonus';
+      const neg = (typeof b.mod === 'number' && b.mod < 0);
+      const cls = positive ? 'good' : neg ? 'bad' : '';
+      return `<div class="civ-bonus ${cls}">${b.text}</div>`;
+    }).join('');
+    return `
+      <button class="grid-option civ-card" data-action="confirm-civ" data-id="${c.id}">
+        <div class="civ-emoji">${c.emoji}</div>
+        <div class="grid-option-title">${c.name}</div>
+        <div class="grid-option-detail">${c.desc}</div>
+        <div class="civ-bonuses">${bonuses}</div>
+      </button>
+    `;
+  }).join('');
+  openModal('modal-civilization');
+}
 
 export function openBuyMineModal() {
   const opts = $('buy-mine-options');

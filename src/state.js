@@ -62,6 +62,9 @@ export const state = {
   // Preferências
   muted: false,
 
+  // Civilização escolhida no Novo Jogo (bônus permanentes)
+  civilization: null,
+
   // Cena atual do canvas: 'overworld' (mapa) ou 'mine' (interior da mina)
   scene: 'overworld',
 

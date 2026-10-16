@@ -51,6 +51,10 @@
             <span class="approval-text" id="approval-text">50%</span>
           </div>
         </div>
+        <div class="stat civ-badge" id="civ-badge-wrap" style="display:none">
+          <span class="stat-label">Civilização</span>
+          <span class="stat-value" id="civ-badge" title="">—</span>
+        </div>
       </div>
       <div class="speed-controls">
         <button data-speed="0" class="speed-btn" title="Pausar">II</button>
@@ -221,6 +225,15 @@
       <span class="spacer"></span>
       <span class="tip">Cave para encontrar veios. Use "Minerador" pra alocar trabalhador num veio descoberto.</span>
     </footer>
+  </div>
+
+  <!-- Modal: Escolher Civilização (Novo Jogo) -->
+  <div id="modal-civilization" class="modal hidden">
+    <div class="modal-card wide">
+      <h2>Escolha sua Civilização</h2>
+      <p class="modal-sub">Age of Tapuia: cada região inicia com bônus únicos. A escolha é permanente para esta partida.</p>
+      <div id="civ-options" class="grid-options"></div>
+    </div>
   </div>
 
   <!-- Modal: Comprar Mina -->

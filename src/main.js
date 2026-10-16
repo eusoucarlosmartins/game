@@ -13,9 +13,10 @@ import { updateProjects, activateProject, cancelProject } from './projects.js';
 import { checkAchievements, updateAchievementToast } from './achievements.js';
 import { play, toggleMute, unlockOnFirstGesture } from './audio.js';
 import { draw } from './draw.js';
-import { syncUI, openRecipeModal, openBuyMineModal, closeModal } from './ui.js';
+import { syncUI, openRecipeModal, openBuyMineModal, openCivilizationModal, closeModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
 import { sellRaw, sellAllRaw, sellProduct, sellAllProduct } from './market.js';
+import { chooseCivilization } from './civilizations.js';
 import { W, TOOLBAR, MINE_BACK_BTN, OVERWORLD, factoryRect } from './geometry.js';
 
 // ---------- Game over / vitória ----------
@@ -315,6 +316,11 @@ document.addEventListener('click', (e) => {
       closeModal('modal-buy-mine');
       break;
     }
+    case 'confirm-civ': {
+      chooseCivilization(t.dataset.id || '');
+      closeModal('modal-civilization');
+      break;
+    }
   }
 });
 
@@ -384,6 +390,8 @@ if (loaded) {
   log('Bem-vindo, governador. Esta é a vista do mapa de Santa Catarina.');
   log('Clique em uma das MINAS à esquerda para descer e cavar. Você tem 2 minas iniciais.');
   log('Recursos esgotam com o tempo — pode explorar várias minas em paralelo.');
+  // Novo jogo: pede escolha de civilização (Age of Tapuia)
+  openCivilizationModal();
 }
 unlockOnFirstGesture();
 updateMuteBtn();

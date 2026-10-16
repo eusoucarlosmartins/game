@@ -1,6 +1,19 @@
 // progression.js — eras, modificadores de equipamento/pesquisa, e cálculos derivados
 import { state, log } from './state.js';
-import { ERAS, ROMAN, EQ_BY_ID, RES_BY_ID, CFG, R } from './data.js';
+import { ERAS, ROMAN, EQ_BY_ID, RES_BY_ID, CFG, R, CIV_BY_ID } from './data.js';
+
+/**
+ * Soma modificadores da civilização escolhida (Age of Tapuia).
+ * @param {string} effect
+ * @returns {number}
+ */
+export function civMod(effect) {
+  const civ = state.civilization ? CIV_BY_ID[state.civilization] : null;
+  if (!civ) return 0;
+  let total = 0;
+  for (const b of civ.bonuses) if (b.effect === effect) total += b.mod;
+  return total;
+}
 
 // Soma modificadores de equipamentos + pesquisas que afetam um effect específico
 export function eqMod(effect) {
@@ -62,11 +75,11 @@ export function transportTier() {
 }
 
 // Modificadores derivados
-export const cartCapacity   = () => Math.floor(CFG.cartCapacityBase * (1 + eqMod('cartCap')));
-export const cartSpeed      = () => CFG.cartSpeedBase * (1 + eqMod('cartSpd'));
-export const wagonCapacity  = () => Math.floor(CFG.wagonCapacityBase * (1 + eqMod('wagonCap')));
-export const wagonSpeed     = () => CFG.wagonSpeedBase * (1 + eqMod('wagonSpd'));
-export const mineRateMul    = () => (1 + eqMod('mineRate')) * (state.eventMineMul !== undefined ? state.eventMineMul : 1);
-export const factSpdMul     = () => 1 + eqMod('factSpd');
-export const pileMaxMul     = () => 1 + eqMod('pileMax');
+export const cartCapacity   = () => Math.floor(CFG.cartCapacityBase * (1 + eqMod('cartCap') + civMod('cartCap')));
+export const cartSpeed      = () => CFG.cartSpeedBase * (1 + eqMod('cartSpd') + civMod('cartSpd'));
+export const wagonCapacity  = () => Math.floor(CFG.wagonCapacityBase * (1 + eqMod('wagonCap') + civMod('wagonCap')));
+export const wagonSpeed     = () => CFG.wagonSpeedBase * (1 + eqMod('wagonSpd') + civMod('wagonSpd'));
+export const mineRateMul    = () => (1 + eqMod('mineRate') + civMod('mineRate')) * (state.eventMineMul !== undefined ? state.eventMineMul : 1);
+export const factSpdMul     = () => 1 + eqMod('factSpd') + civMod('factSpd');
+export const pileMaxMul     = () => 1 + eqMod('pileMax') + civMod('pileMax');
 export const pileMax        = () => Math.floor(CFG.minePileMaxBase * pileMaxMul());
