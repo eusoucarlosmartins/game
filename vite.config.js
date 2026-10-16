@@ -13,10 +13,13 @@ export default defineConfig({
     minify: 'esbuild',
     rollupOptions: {
       output: {
-        // mantém o bundle único pra prototipagem ficar simples de depurar
-        manualChunks: undefined,
+        manualChunks: {
+          // Phaser isolado: só baixa quando ?phaser=1 ativar o dynamic import
+          phaser: ['phaser'],
+        },
       },
     },
+    chunkSizeWarningLimit: 1500,
   },
   server: {
     port: 5173,

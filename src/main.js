@@ -490,4 +490,24 @@ window.addEventListener('appinstalled', () => {
   log('Tapuia instalado como app. Pode abrir do ícone na home.', 'good');
 });
 
+// ---------- PHASER RENDERER (opt-in via ?phaser=1) ----------
+const _usePhaser = new URLSearchParams(window.location.search).has('phaser');
+if (_usePhaser) {
+  // Esconde canvas, mostra container Phaser, inicia engine
+  const canvas = document.getElementById('game');
+  if (canvas) canvas.style.display = 'none';
+  const container = document.getElementById('phaser-container');
+  if (container) container.style.display = 'block';
+  // Boot do Phaser em background (dynamic import pra não penalizar o canvas)
+  import('./phaser/game.js').then((m) => {
+    m.startPhaserGame();
+    log('🎮 Modo Phaser.js ativado — renderer experimental.', 'good');
+  }).catch((err) => {
+    console.error('[phaser] Falha ao carregar:', err);
+    // Fallback: mostra canvas de novo
+    if (canvas) canvas.style.display = '';
+    if (container) container.style.display = 'none';
+  });
+}
+
 requestAnimationFrame((t) => { lastT = t; frame(t); });
