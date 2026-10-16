@@ -7,6 +7,7 @@ export const SPRITES = {};
 
 const SPRITE_IDS = [
   'miner',
+  'miner-anim',       // spritesheet 3 frames (96x44)
   'wagon-horse',
   'church',
   'house-yellow',

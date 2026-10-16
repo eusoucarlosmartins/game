@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 44" shape-rendering="crispEdges">
+  <!-- Spritesheet: 3 frames de 32x44 lado a lado -->
+  <!-- Frame 0: PREP (picareta no topo) -->
+  <!-- Frame 1: MID (picareta em movimento) -->
+  <!-- Frame 2: STRIKE (picareta bateu + poeira) -->
+
+  <!-- ================ FRAME 0 (x=0-32) PREP ================ -->
+  <g>
+    <ellipse cx="16" cy="42" rx="9" ry="2" fill="rgba(0,0,0,0.3)"/>
+    <rect x="10" y="37" width="4" height="4" fill="#1a0e06"/>
+    <rect x="18" y="37" width="4" height="4" fill="#1a0e06"/>
+    <rect x="10" y="30" width="4" height="7" fill="#2a1810"/>
+    <rect x="18" y="30" width="4" height="7" fill="#2a1810"/>
+    <path d="M9 24 L9 32 L23 32 L23 24 Z" fill="#5a3416"/>
+    <rect x="14" y="26" width="4" height="4" fill="#3a1f0a"/>
+    <rect x="9" y="18" width="14" height="7" fill="#3a4a7a"/>
+    <rect x="11" y="18" width="2" height="7" fill="#3a1f0a"/>
+    <rect x="19" y="18" width="2" height="7" fill="#3a1f0a"/>
+    <!-- Braços levantados preparando -->
+    <rect x="6" y="12" width="3" height="10" fill="#3a4a7a"/>
+    <rect x="23" y="12" width="3" height="10" fill="#3a4a7a"/>
+    <rect x="6" y="12" width="3" height="3" fill="#d8a878"/>
+    <rect x="23" y="12" width="3" height="3" fill="#d8a878"/>
+    <rect x="9" y="24" width="14" height="2" fill="#1a0e06"/>
+    <rect x="15" y="24" width="2" height="2" fill="#c69042"/>
+    <rect x="14" y="15" width="4" height="3" fill="#d8a878"/>
+    <rect x="11" y="9" width="10" height="7" fill="#d8a878"/>
+    <rect x="13" y="12" width="1" height="2" fill="#1a0e06"/>
+    <rect x="18" y="12" width="1" height="2" fill="#1a0e06"/>
+    <rect x="13" y="14" width="6" height="1" fill="#3a2a1a"/>
+    <rect x="8" y="7" width="16" height="2" fill="#c69042"/>
+    <rect x="11" y="3" width="10" height="5" fill="#c69042"/>
+    <rect x="11" y="6" width="10" height="1" fill="#8b5e1f"/>
+    <!-- PICARETA levantada ACIMA da cabeça -->
+    <line x1="8" y1="13" x2="8" y2="1" stroke="#5a3416" stroke-width="2"/>
+    <rect x="5" y="0" width="7" height="3" fill="#8c95a1"/>
+    <rect x="4" y="0" width="2" height="2" fill="#5a5a5a"/>
+    <rect x="11" y="0" width="2" height="2" fill="#5a5a5a"/>
+  </g>
+
+  <!-- ================ FRAME 1 (x=32-64) MID ================ -->
+  <g transform="translate(32 0)">
+    <ellipse cx="16" cy="42" rx="9" ry="2" fill="rgba(0,0,0,0.3)"/>
+    <rect x="10" y="37" width="4" height="4" fill="#1a0e06"/>
+    <rect x="18" y="37" width="4" height="4" fill="#1a0e06"/>
+    <rect x="10" y="30" width="4" height="7" fill="#2a1810"/>
+    <rect x="18" y="30" width="4" height="7" fill="#2a1810"/>
+    <path d="M9 24 L9 32 L23 32 L23 24 Z" fill="#5a3416"/>
+    <rect x="14" y="26" width="4" height="4" fill="#3a1f0a"/>
+    <rect x="9" y="18" width="14" height="7" fill="#3a4a7a"/>
+    <rect x="11" y="18" width="2" height="7" fill="#3a1f0a"/>
+    <rect x="19" y="18" width="2" height="7" fill="#3a1f0a"/>
+    <!-- Braços no meio -->
+    <rect x="6" y="17" width="3" height="7" fill="#3a4a7a"/>
+    <rect x="23" y="17" width="3" height="7" fill="#3a4a7a"/>
+    <rect x="6" y="22" width="3" height="3" fill="#d8a878"/>
+    <rect x="23" y="22" width="3" height="3" fill="#d8a878"/>
+    <rect x="9" y="24" width="14" height="2" fill="#1a0e06"/>
+    <rect x="15" y="24" width="2" height="2" fill="#c69042"/>
+    <rect x="14" y="15" width="4" height="3" fill="#d8a878"/>
+    <rect x="11" y="9" width="10" height="7" fill="#d8a878"/>
+    <rect x="13" y="12" width="1" height="2" fill="#1a0e06"/>
+    <rect x="18" y="12" width="1" height="2" fill="#1a0e06"/>
+    <rect x="13" y="14" width="6" height="1" fill="#3a2a1a"/>
+    <rect x="8" y="7" width="16" height="2" fill="#c69042"/>
+    <rect x="11" y="3" width="10" height="5" fill="#c69042"/>
+    <rect x="11" y="6" width="10" height="1" fill="#8b5e1f"/>
+    <!-- PICARETA no meio do movimento (diagonal) -->
+    <line x1="7" y1="22" x2="22" y2="18" stroke="#5a3416" stroke-width="2"/>
+    <rect x="22" y="15" width="4" height="3" fill="#8c95a1"/>
+    <rect x="23" y="18" width="4" height="3" fill="#8c95a1"/>
+  </g>
+
+  <!-- ================ FRAME 2 (x=64-96) STRIKE + POEIRA ================ -->
+  <g transform="translate(64 0)">
+    <ellipse cx="16" cy="42" rx="9" ry="2" fill="rgba(0,0,0,0.3)"/>
+    <rect x="10" y="37" width="4" height="4" fill="#1a0e06"/>
+    <rect x="18" y="37" width="4" height="4" fill="#1a0e06"/>
+    <rect x="10" y="30" width="4" height="7" fill="#2a1810"/>
+    <rect x="18" y="30" width="4" height="7" fill="#2a1810"/>
+    <path d="M9 24 L9 32 L23 32 L23 24 Z" fill="#5a3416"/>
+    <rect x="14" y="26" width="4" height="4" fill="#3a1f0a"/>
+    <!-- Corpo levemente inclinado pra frente (impacto) -->
+    <rect x="9" y="19" width="14" height="7" fill="#3a4a7a"/>
+    <rect x="11" y="19" width="2" height="7" fill="#3a1f0a"/>
+    <rect x="19" y="19" width="2" height="7" fill="#3a1f0a"/>
+    <!-- Braços esticados pra frente (strike posição) -->
+    <rect x="7" y="25" width="3" height="5" fill="#3a4a7a"/>
+    <rect x="22" y="25" width="3" height="5" fill="#3a4a7a"/>
+    <rect x="7" y="28" width="3" height="3" fill="#d8a878"/>
+    <rect x="22" y="28" width="3" height="3" fill="#d8a878"/>
+    <rect x="9" y="24" width="14" height="2" fill="#1a0e06"/>
+    <rect x="15" y="24" width="2" height="2" fill="#c69042"/>
+    <rect x="14" y="16" width="4" height="3" fill="#d8a878"/>
+    <rect x="11" y="10" width="10" height="7" fill="#d8a878"/>
+    <rect x="13" y="13" width="1" height="2" fill="#1a0e06"/>
+    <rect x="18" y="13" width="1" height="2" fill="#1a0e06"/>
+    <rect x="13" y="15" width="6" height="1" fill="#3a2a1a"/>
+    <rect x="8" y="8" width="16" height="2" fill="#c69042"/>
+    <rect x="11" y="4" width="10" height="5" fill="#c69042"/>
+    <rect x="11" y="7" width="10" height="1" fill="#8b5e1f"/>
+    <!-- PICARETA bateu horizontal -->
+    <line x1="8" y1="29" x2="25" y2="32" stroke="#5a3416" stroke-width="2"/>
+    <rect x="25" y="31" width="4" height="3" fill="#8c95a1"/>
+    <rect x="25" y="34" width="3" height="2" fill="#8c95a1"/>
+    <!-- POEIRA (3 nuvens amareladas) -->
+    <circle cx="27" cy="34" r="2.5" fill="rgba(200,160,100,0.6)"/>
+    <circle cx="30" cy="31" r="1.8" fill="rgba(200,160,100,0.55)"/>
+    <circle cx="29" cy="37" r="2" fill="rgba(200,160,100,0.5)"/>
+    <!-- Pequenas lascas voando -->
+    <circle cx="24" cy="37" r="0.6" fill="#8c95a1"/>
+    <circle cx="26" cy="38" r="0.6" fill="#8c95a1"/>
+  </g>
+</svg>

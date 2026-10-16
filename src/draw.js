@@ -842,7 +842,18 @@ function resAbbrev(id) {
 }
 
 function drawMinerSprite(cx, by) {
-  // Tenta sprite primeiro
+  // Prioridade: spritesheet animado 3-frames → sprite estático → procedural
+  const anim = getSprite('miner-anim');
+  if (anim) {
+    const frameW = 32, frameH = 44;
+    // Fase cíclica: cada mineiro tem offset leve pra não bater todos em sync
+    const t = performance.now() / 170 + (cx * 0.07);
+    const frame = Math.floor(t) % 3;
+    const w = 22;
+    const h = (frameH / frameW) * w;
+    ctx.drawImage(anim, frame * frameW, 0, frameW, frameH, cx - w / 2, by - h, w, h);
+    return;
+  }
   const sprite = getSprite('miner');
   if (sprite) {
     const w = 22;
