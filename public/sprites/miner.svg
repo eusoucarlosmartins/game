@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 44" shape-rendering="crispEdges">
+  <!-- Sombra elíptica no chão -->
+  <ellipse cx="16" cy="42" rx="9" ry="2" fill="rgba(0,0,0,0.3)"/>
+  <!-- Botas pretas -->
+  <rect x="10" y="37" width="4" height="4" fill="#1a0e06"/>
+  <rect x="18" y="37" width="4" height="4" fill="#1a0e06"/>
+  <!-- Pernas calça marrom -->
+  <rect x="10" y="30" width="4" height="7" fill="#2a1810"/>
+  <rect x="18" y="30" width="4" height="7" fill="#2a1810"/>
+  <!-- Avental marrom (overalls) -->
+  <path d="M9 24 L9 32 L23 32 L23 24 Z" fill="#5a3416"/>
+  <!-- Bolso central do avental -->
+  <rect x="14" y="26" width="4" height="4" fill="#3a1f0a"/>
+  <!-- Camisa azul -->
+  <rect x="9" y="18" width="14" height="7" fill="#3a4a7a"/>
+  <!-- Suspensórios -->
+  <rect x="11" y="18" width="2" height="7" fill="#3a1f0a"/>
+  <rect x="19" y="18" width="2" height="7" fill="#3a1f0a"/>
+  <!-- Braços -->
+  <rect x="6" y="20" width="3" height="7" fill="#3a4a7a"/>
+  <rect x="23" y="20" width="3" height="7" fill="#3a4a7a"/>
+  <!-- Mãos -->
+  <rect x="6" y="26" width="3" height="3" fill="#d8a878"/>
+  <rect x="23" y="26" width="3" height="3" fill="#d8a878"/>
+  <!-- Cinto preto -->
+  <rect x="9" y="24" width="14" height="2" fill="#1a0e06"/>
+  <!-- Fivela dourada -->
+  <rect x="15" y="24" width="2" height="2" fill="#c69042"/>
+  <!-- Pescoço -->
+  <rect x="14" y="15" width="4" height="3" fill="#d8a878"/>
+  <!-- Cabeça rosada -->
+  <rect x="11" y="9" width="10" height="7" fill="#d8a878"/>
+  <!-- Olhos -->
+  <rect x="13" y="12" width="1" height="2" fill="#1a0e06"/>
+  <rect x="18" y="12" width="1" height="2" fill="#1a0e06"/>
+  <!-- Bigode preto -->
+  <rect x="13" y="14" width="6" height="1" fill="#3a2a1a"/>
+  <!-- Chapéu dourado (aba larga + topo) -->
+  <rect x="8" y="7" width="16" height="2" fill="#c69042"/>
+  <rect x="11" y="3" width="10" height="5" fill="#c69042"/>
+  <!-- Faixa escura do chapéu -->
+  <rect x="11" y="6" width="10" height="1" fill="#8b5e1f"/>
+</svg>

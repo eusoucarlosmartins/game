@@ -17,6 +17,7 @@ import { syncUI, openRecipeModal, openBuyMineModal, openCivilizationModal, close
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
 import { sellRaw, sellAllRaw, sellProduct, sellAllProduct } from './market.js';
 import { chooseCivilization } from './civilizations.js';
+import { loadSprites } from './sprites.js';
 import { W, TOOLBAR, MINE_BACK_BTN, OVERWORLD, factoryRect } from './geometry.js';
 
 // ---------- Game over / vitória ----------
@@ -395,6 +396,8 @@ if (loaded) {
 }
 unlockOnFirstGesture();
 updateMuteBtn();
+// Carrega sprites em background (não bloqueia o render — fallback procedural segue)
+loadSprites();
 
 // ---------- PWA: service worker + install prompt ----------
 // Registra o SW em qualquer ambiente que não seja localhost — permite

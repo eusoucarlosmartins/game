@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 50" shape-rendering="crispEdges">
+  <!-- Sombra -->
+  <ellipse cx="16" cy="48" rx="10" ry="2" fill="rgba(0,0,0,0.3)"/>
+
+  <!-- Tronco marrom -->
+  <rect x="14" y="38" width="4" height="10" fill="#5a3416"/>
+  <rect x="13" y="42" width="6" height="2" fill="#3a1f0a"/>
+
+  <!-- Copa da árvore (araucária-ish — camadas horizontais) -->
+  <!-- Camada 3 (base, mais larga) -->
+  <path d="M2 38 L16 24 L30 38 Z" fill="#4a6a3a"/>
+  <path d="M2 38 L16 24 L30 38 Z" fill="none" stroke="#2a4a2a" stroke-width="0.5"/>
+
+  <!-- Camada 2 -->
+  <path d="M4 28 L16 16 L28 28 Z" fill="#5a7a4a"/>
+  <path d="M4 28 L16 16 L28 28 Z" fill="none" stroke="#2a4a2a" stroke-width="0.5"/>
+
+  <!-- Camada 1 (topo) -->
+  <path d="M8 18 L16 8 L24 18 Z" fill="#6a8a5a"/>
+  <path d="M8 18 L16 8 L24 18 Z" fill="none" stroke="#2a4a2a" stroke-width="0.5"/>
+
+  <!-- Textura de pontos escuros nas folhas -->
+  <circle cx="10" cy="34" r="1" fill="#3a5a2a"/>
+  <circle cx="20" cy="32" r="1" fill="#3a5a2a"/>
+  <circle cx="14" cy="26" r="1" fill="#3a5a2a"/>
+  <circle cx="18" cy="22" r="1" fill="#3a5a2a"/>
+</svg>

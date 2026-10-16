@@ -7,6 +7,7 @@ import { ingredientHave } from './factories.js';
 import { getProjectDef } from './projects.js';
 import { activeMine, regenCost } from './mine.js';
 import { ACH_BY_ID, CIV_BY_ID } from './data.js';
+import { getSprite } from './sprites.js';
 import {
   W, H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
   OVERWORLD, TOOLBAR, MINE_BACK_BTN, factoryRect,
@@ -118,12 +119,48 @@ function drawSilo(x, baseY, w, resourceId) {
 
 // ---------- Fábricas compactas ----------
 function drawFactories() {
+  const factorySprite = getSprite('factory');
   for (let i = 0; i < state.factories.length; i++) {
     const f = state.factories[i];
     const rect = factoryRect(i);
     // sombra elíptica abaixo (AoE flavor)
     drawShadow(rect.x + rect.w / 2, rect.y + rect.h + 2, rect.w * 0.55, 5);
-    // base de madeira
+    if (factorySprite) {
+      // Usa sprite estendendo um pouco acima do rect pra incluir chaminé
+      const extraH = 30;
+      ctx.drawImage(factorySprite, rect.x - 4, rect.y - extraH, rect.w + 8, rect.h + extraH);
+      // fumaça animada por cima quando produzindo
+      if (f.brewing > 0) {
+        const t = performance.now() / 500;
+        for (let k = 0; k < 3; k++) {
+          const yOff = (t * 12 + k * 8) % 32;
+          ctx.fillStyle = `rgba(80,60,40,${0.4 - k * 0.1})`;
+          ctx.beginPath();
+          ctx.arc(rect.x + rect.w - 11, rect.y - extraH - 2 - yOff, 4 + k, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      // placa com nome do produto (overlay)
+      const recipeName = R[f.recipeId]?.name || '—';
+      ctx.fillStyle = civAccent();
+      ctx.fillRect(rect.x + 4, rect.y + rect.h - 22, rect.w - 8, 16);
+      ctx.fillStyle = '#1a0e06';
+      ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(recipeName.length > 14 ? recipeName.slice(0, 13) + '…' : recipeName, rect.x + rect.w / 2, rect.y + rect.h - 14);
+      // barra de progresso
+      const recipe = RECIPE_BY_ID[f.recipeId];
+      if (recipe && f.brewing > 0) {
+        const pct = 1 - f.brewing / recipe.time;
+        ctx.fillStyle = '#1a0e06';
+        ctx.fillRect(rect.x + 4, rect.y - 8, rect.w - 8, 4);
+        ctx.fillStyle = '#c69042';
+        ctx.fillRect(rect.x + 4, rect.y - 8, (rect.w - 8) * pct, 4);
+      }
+      continue;
+    }
+    // Fallback procedural (código original)
     ctx.fillStyle = '#7a4b25';
     ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
     ctx.fillStyle = '#5a3416';
@@ -359,6 +396,22 @@ function drawIndustrialBlock(x, baseY, w, h) {
 }
 
 function drawColonialHouse(x, baseY, w, h, faceColor, roofColor) {
+  // Escolhe sprite baseado em cor (yellow vs green) ou cai pro procedural
+  const spriteId = faceColor === '#e8c87a' ? 'house-yellow'
+                 : faceColor === '#b8c8a8' ? 'house-green'
+                 : null;
+  if (spriteId) {
+    const sprite = getSprite(spriteId);
+    if (sprite) {
+      const aspect = sprite.height / sprite.width;
+      // escala pra manter altura h (visual original)
+      const sh = h + 10;
+      const sw = sh / aspect;
+      ctx.drawImage(sprite, x + w / 2 - sw / 2, baseY - sh, sw, sh);
+      return;
+    }
+  }
+  // Fallback procedural (original)
   const top = baseY - h;
   // paredes
   ctx.fillStyle = faceColor;
@@ -411,6 +464,14 @@ function drawColonialHouse(x, baseY, w, h, faceColor, roofColor) {
 }
 
 function drawColonialChurch(x, baseY) {
+  const sprite = getSprite('church');
+  if (sprite) {
+    const h = 160; // altura visual mais imponente que o fallback
+    const w = (sprite.width / sprite.height) * h;
+    ctx.drawImage(sprite, x + 20 - w / 2, baseY - h, w, h);
+    return;
+  }
+  // Fallback procedural (original)
   const w = 40, h = 110;
   const top = baseY - h;
   // corpo branco (caiado)
@@ -554,115 +615,54 @@ function drawWagon() {
   const wx = ROAD.x1 + (ROAD.x2 - ROAD.x1) * w.pos;
   const wy = ROAD.y - 12;
   const facingRight = w.dir >= 0;
-  // sombra sob a carruagem+cavalo
+  // Tenta sprite primeiro
+  const sprite = getSprite('wagon-horse');
+  if (sprite) {
+    const spriteW = 70;
+    const spriteH = (sprite.height / sprite.width) * spriteW;
+    if (facingRight) {
+      ctx.drawImage(sprite, wx - spriteW / 2, wy - spriteH + 32, spriteW, spriteH);
+    } else {
+      ctx.save();
+      ctx.translate(wx, wy - spriteH + 32);
+      ctx.scale(-1, 1);
+      ctx.drawImage(sprite, -spriteW / 2, 0, spriteW, spriteH);
+      ctx.restore();
+    }
+    // Overlay dos barris se com load (sobrepõe barris do sprite com cor do recurso)
+    if (w.load > 0 && w.product) {
+      ctx.fillStyle = R[w.product].color;
+      const nBarrels = Math.min(2, Math.ceil(w.load / 2));
+      const dir = facingRight ? -1 : 1;
+      for (let i = 0; i < nBarrels; i++) {
+        const bx = wx + dir * (8 + i * 5) - 2;
+        ctx.fillRect(bx, wy, 4, 6);
+        ctx.strokeStyle = '#3a1f0a';
+        ctx.lineWidth = 0.6;
+        ctx.strokeRect(bx, wy, 4, 6);
+      }
+    }
+    return;
+  }
+  // Fallback procedural (código original)
   drawShadow(wx + (facingRight ? 6 : -6), wy + 20, 32, 4);
-  // ----- Cavalo puxando (galope animado) -----
   const trot = Math.sin(performance.now() / 140) * 2;
-  const hx = wx + (facingRight ? 20 : -20);  // posição do cavalo na frente
-  // corpo
+  const hx = wx + (facingRight ? 20 : -20);
   ctx.fillStyle = '#6a3f1a';
   ctx.fillRect(hx - 7, wy + 2 + trot, 14, 9);
-  // crina
   ctx.fillStyle = '#3a1f0a';
   ctx.fillRect(hx + (facingRight ? -7 : 3), wy + trot, 4, 4);
-  // cabeça
-  const headX = hx + (facingRight ? 6 : -10);
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(headX, wy + 1 + trot, 5, 6);
-  // olho
-  ctx.fillStyle = '#f1e3c2';
-  ctx.fillRect(headX + (facingRight ? 3 : 1), wy + 3 + trot, 1, 1);
-  // orelhas
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(headX + (facingRight ? 1 : 3), wy - 1 + trot, 1, 2);
-  // Pernas em galope (fase alterna)
-  ctx.fillStyle = '#3a1f0a';
-  const legPhase = Math.sin(performance.now() / 90);
-  const leftLegLen = 7 + Math.max(0, legPhase * 2);
-  const rightLegLen = 7 + Math.max(0, -legPhase * 2);
-  // perna frente esq
-  ctx.fillRect(hx + (facingRight ? 2 : -4), wy + 10 + trot, 2, leftLegLen);
-  // perna frente dir
-  ctx.fillRect(hx + (facingRight ? 4 : -2), wy + 10 + trot, 2, rightLegLen);
-  // perna tras esq
-  ctx.fillRect(hx - 5, wy + 10 + trot, 2, rightLegLen);
-  // perna tras dir
-  ctx.fillRect(hx - 3, wy + 10 + trot, 2, leftLegLen);
-  // Rédeas
-  ctx.strokeStyle = '#1a0e06';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(headX + (facingRight ? 5 : 0), wy + 3 + trot);
-  ctx.lineTo(wx + (facingRight ? 10 : -10), wy + 2);
-  ctx.stroke();
-  // ----- Carroça -----
-  // base da plataforma
   ctx.fillStyle = '#7a4b25';
   ctx.fillRect(wx - 14, wy, 28, 12);
-  // ripas verticais da carroça
-  ctx.strokeStyle = 'rgba(90,52,22,0.5)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 5; i++) {
-    const rx = wx - 14 + i * 7;
-    ctx.beginPath(); ctx.moveTo(rx, wy); ctx.lineTo(rx, wy + 10); ctx.stroke();
-  }
-  // beira inferior escura
   ctx.fillStyle = '#5a3416';
   ctx.fillRect(wx - 14, wy + 10, 28, 3);
-  // Cocheiro no banco (lado da direção)
-  const seatX = wx + (facingRight ? -8 : 8);
-  ctx.fillStyle = '#3a4a7a'; // casaco azul
-  ctx.fillRect(seatX - 2, wy - 7, 5, 6);
-  ctx.fillStyle = '#d8a878'; // cabeça
-  ctx.fillRect(seatX - 2, wy - 11, 5, 4);
-  ctx.fillStyle = civAccent(); // chapéu usa cor da civ
-  ctx.fillRect(seatX - 3, wy - 12, 7, 2);
-  // ----- Rodas com raios girando -----
-  const rotSpeed = (performance.now() / 100) * (facingRight ? 1 : -1) * (w.state === 'hauling' ? 1 : 0);
-  for (const rx of [wx - 10, wx + 10]) {
-    // roda circular preta
-    ctx.fillStyle = '#1a0e06';
-    ctx.beginPath();
-    ctx.arc(rx, wy + 14, 5, 0, Math.PI * 2);
-    ctx.fill();
-    // aro mais claro
-    ctx.strokeStyle = '#555';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(rx, wy + 14, 4, 0, Math.PI * 2);
-    ctx.stroke();
-    // raios girando
-    ctx.save();
-    ctx.translate(rx, wy + 14);
-    ctx.rotate(rotSpeed);
-    ctx.strokeStyle = '#888';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 4; i++) {
-      ctx.rotate(Math.PI / 4);
-      ctx.beginPath();
-      ctx.moveTo(0, 0); ctx.lineTo(3, 0);
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-  // ----- Barris de carga quando com load -----
+  ctx.fillStyle = '#1a0e06';
+  ctx.beginPath(); ctx.arc(wx - 10, wy + 14, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(wx + 10, wy + 14, 4, 0, Math.PI * 2); ctx.fill();
   if (w.load > 0 && w.product) {
-    const nBarrels = Math.min(4, Math.max(1, Math.ceil(w.load / 2)));
-    const color = R[w.product].color;
-    for (let i = 0; i < nBarrels; i++) {
-      const bx = wx - 11 + i * 6;
-      // barril
-      ctx.fillStyle = color;
-      ctx.fillRect(bx, wy - 2, 4, 6);
-      // aros do barril
-      ctx.strokeStyle = '#3a1f0a';
-      ctx.lineWidth = 0.5;
-      ctx.strokeRect(bx, wy - 2, 4, 6);
-      ctx.beginPath();
-      ctx.moveTo(bx, wy); ctx.lineTo(bx + 4, wy);
-      ctx.moveTo(bx, wy + 2); ctx.lineTo(bx + 4, wy + 2);
-      ctx.stroke();
-    }
+    ctx.fillStyle = R[w.product].color;
+    const barW = clamp(w.load / 5, 0, 1) * 24;
+    ctx.fillRect(wx - 12, wy + 2, barW, 6);
   }
 }
 
@@ -842,88 +842,40 @@ function resAbbrev(id) {
 }
 
 function drawMinerSprite(cx, by) {
+  // Tenta sprite primeiro
+  const sprite = getSprite('miner');
+  if (sprite) {
+    const w = 22;
+    const h = (sprite.height / sprite.width) * w;
+    ctx.drawImage(sprite, cx - w / 2, by - h, w, h);
+    return;
+  }
+  // Fallback procedural (versão simplificada)
   const t = performance.now() / 220;
-  const phase = Math.sin(t);          // -1..1 fase da picareta
-  const isStriking = phase > 0.75;    // bateu
-  const swingY = Math.max(0, phase);  // movimento vertical do cabo
-  // ----- Sombra elíptica no chão (AoE flavor) -----
+  const phase = Math.sin(t);
   drawShadow(cx, by - 1, 8, 2.2);
-  // pernas (alternam leve com o swing)
   ctx.fillStyle = '#2a1810';
   ctx.fillRect(cx - 4, by - 6, 3, 6);
   ctx.fillRect(cx + 1, by - 6, 3, 6);
-  // botas pretas
-  ctx.fillStyle = '#1a0e06';
-  ctx.fillRect(cx - 4, by - 2, 3, 2);
-  ctx.fillRect(cx + 1, by - 2, 3, 2);
-  // avental marrom em cima das pernas
   ctx.fillStyle = '#5a3416';
   ctx.fillRect(cx - 4, by - 10, 8, 4);
-  // tronco azul (camisa de minerador)
   ctx.fillStyle = '#3a4a7a';
   ctx.fillRect(cx - 4, by - 14, 8, 5);
-  // suspensórios do avental
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(cx - 3, by - 13, 1, 3);
-  ctx.fillRect(cx + 2, by - 13, 1, 3);
-  // cinto preto
-  ctx.fillStyle = '#1a0e06';
-  ctx.fillRect(cx - 4, by - 10, 8, 1);
-  // cabeça rosada
   ctx.fillStyle = '#d8a878';
   ctx.fillRect(cx - 3, by - 19, 6, 5);
-  // bigode preto
-  ctx.fillStyle = '#3a2a1a';
-  ctx.fillRect(cx - 2, by - 16, 4, 1);
-  // olhinho (ponto preto)
-  ctx.fillStyle = '#1a0e06';
-  ctx.fillRect(cx - 2, by - 18, 1, 1);
-  ctx.fillRect(cx + 1, by - 18, 1, 1);
-  // chapéu dourado (aba + topo)
   ctx.fillStyle = '#c69042';
   ctx.fillRect(cx - 5, by - 20, 10, 2);
-  ctx.fillRect(cx - 3, by - 22, 6, 2);
-  // ----- Picareta com arco 3-fase + partículas -----
-  // Fases: cima (prep) -> topo -> bate (strike com poeira)
+  // picareta simples
   const hx = cx + 4, hy = by - 12;
-  // ângulo do cabo baseado em phase
-  // phase= 1 (prep topo): cabo bem alto; phase=-1 (bate): cabo baixo
   const angle = (-Math.PI / 2.2) + phase * (Math.PI / 1.4);
-  const cabLen = 12;
-  const tipX = hx + Math.cos(angle) * cabLen;
-  const tipY = hy + Math.sin(angle) * cabLen;
-  // cabo
+  const tipX = hx + Math.cos(angle) * 10;
+  const tipY = hy + Math.sin(angle) * 10;
   ctx.strokeStyle = '#5a3416';
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(hx, hy);
   ctx.lineTo(tipX, tipY);
   ctx.stroke();
-  // ponta de aço (perpendicular ao cabo)
-  const perpAng = angle + Math.PI / 2;
-  const steelX1 = tipX + Math.cos(perpAng) * 3;
-  const steelY1 = tipY + Math.sin(perpAng) * 3;
-  const steelX2 = tipX - Math.cos(perpAng) * 3;
-  const steelY2 = tipY - Math.sin(perpAng) * 3;
-  ctx.strokeStyle = '#8c95a1';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(steelX1, steelY1);
-  ctx.lineTo(steelX2, steelY2);
-  ctx.stroke();
-  // ----- Poeira ao bater -----
-  if (isStriking) {
-    ctx.fillStyle = 'rgba(200,160,100,0.55)';
-    for (let i = 0; i < 4; i++) {
-      const dx = (i - 1.5) * 2;
-      const dy = -i * 1.2;
-      ctx.beginPath();
-      ctx.arc(tipX + dx, tipY + dy + 2, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  // suppress unused warning
-  void swingY;
 }
 
 // ---------- Toolbar ----------
@@ -1085,6 +1037,14 @@ function drawOverworldBg() {
 }
 
 function drawTree(x, y) {
+  const sprite = getSprite('tree');
+  if (sprite) {
+    const w = 28;
+    const h = (sprite.height / sprite.width) * w;
+    ctx.drawImage(sprite, x - w / 2, y + 16 - h, w, h);
+    return;
+  }
+  // Fallback procedural
   ctx.fillStyle = '#4a6a3a';
   ctx.beginPath();
   ctx.arc(x, y, 14, 0, Math.PI * 2);

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 130" shape-rendering="crispEdges">
+  <!-- Sombra -->
+  <ellipse cx="30" cy="128" rx="26" ry="3" fill="rgba(0,0,0,0.3)"/>
+
+  <!-- Base/rodapé -->
+  <rect x="4" y="120" width="52" height="5" fill="#3a1f0a"/>
+
+  <!-- Corpo principal da nave (branco caiado) -->
+  <rect x="4" y="35" width="52" height="86" fill="#f1e3c2"/>
+  <!-- Sombreamento lateral -->
+  <rect x="4" y="35" width="4" height="86" fill="#d8c498"/>
+  <rect x="52" y="35" width="4" height="86" fill="#d8c498"/>
+
+  <!-- Telhado triangular vermelho da nave -->
+  <polygon points="0,35 30,20 60,35" fill="#a82e1c"/>
+  <!-- Linhas das telhas -->
+  <line x1="6" y1="33" x2="18" y2="26" stroke="#1a0e06" stroke-width="0.5"/>
+  <line x1="18" y1="26" x2="30" y2="22" stroke="#1a0e06" stroke-width="0.5"/>
+  <line x1="30" y1="22" x2="42" y2="26" stroke="#1a0e06" stroke-width="0.5"/>
+  <line x1="42" y1="26" x2="54" y2="33" stroke="#1a0e06" stroke-width="0.5"/>
+
+  <!-- TORRE central (sobe acima do telhado) -->
+  <rect x="23" y="2" width="14" height="40" fill="#f1e3c2"/>
+  <rect x="23" y="2" width="2" height="40" fill="#d8c498"/>
+  <!-- Sineira (arco aberto preto) -->
+  <path d="M24 15 Q24 10 30 10 Q36 10 36 15 L36 20 L24 20 Z" fill="#1a0e06"/>
+  <!-- Sino -->
+  <path d="M27 13 L33 13 L32 17 L28 17 Z" fill="#c69042"/>
+  <!-- Teto piramidal da torre -->
+  <polygon points="20,2 30,-5 40,2" fill="#a82e1c"/>
+  <!-- Cruz no topo -->
+  <rect x="29" y="-13" width="2" height="10" fill="#3a1f0a"/>
+  <rect x="27" y="-10" width="6" height="2" fill="#3a1f0a"/>
+
+  <!-- Janela arqueada principal -->
+  <path d="M25 60 Q25 52 30 52 Q35 52 35 60 L35 72 L25 72 Z" fill="#a8c8d8"/>
+  <path d="M25 60 Q25 52 30 52 Q35 52 35 60" fill="none" stroke="#3a1f0a" stroke-width="1"/>
+  <line x1="30" y1="52" x2="30" y2="72" stroke="#3a1f0a" stroke-width="0.5"/>
+  <line x1="25" y1="62" x2="35" y2="62" stroke="#3a1f0a" stroke-width="0.5"/>
+
+  <!-- Janela lateral esquerda -->
+  <rect x="10" y="55" width="8" height="12" fill="#a8c8d8"/>
+  <rect x="10" y="55" width="8" height="12" fill="none" stroke="#3a1f0a" stroke-width="0.5"/>
+  <line x1="14" y1="55" x2="14" y2="67" stroke="#3a1f0a" stroke-width="0.3"/>
+  <line x1="10" y1="61" x2="18" y2="61" stroke="#3a1f0a" stroke-width="0.3"/>
+
+  <!-- Janela lateral direita -->
+  <rect x="42" y="55" width="8" height="12" fill="#a8c8d8"/>
+  <rect x="42" y="55" width="8" height="12" fill="none" stroke="#3a1f0a" stroke-width="0.5"/>
+  <line x1="46" y1="55" x2="46" y2="67" stroke="#3a1f0a" stroke-width="0.3"/>
+  <line x1="42" y1="61" x2="50" y2="61" stroke="#3a1f0a" stroke-width="0.3"/>
+
+  <!-- Porta arqueada principal -->
+  <path d="M22 100 Q22 90 30 90 Q38 90 38 100 L38 118 L22 118 Z" fill="#5a3416"/>
+  <!-- Detalhe vertical na porta -->
+  <line x1="30" y1="92" x2="30" y2="118" stroke="#3a1f0a" stroke-width="1"/>
+  <!-- Maçaneta -->
+  <circle cx="34" cy="108" r="1" fill="#c69042"/>
+
+  <!-- Degraus na frente -->
+  <rect x="18" y="118" width="24" height="3" fill="#8a6a4d"/>
+  <rect x="14" y="121" width="32" height="3" fill="#7a5a3d"/>
+</svg>

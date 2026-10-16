@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 50" shape-rendering="crispEdges">
+  <!-- Sombra sob o conjunto -->
+  <ellipse cx="45" cy="48" rx="38" ry="3" fill="rgba(0,0,0,0.3)"/>
+
+  <!-- CAVALO (lado esquerdo, puxando pra direita) -->
+  <!-- Perna traseira esquerda -->
+  <rect x="20" y="30" width="3" height="11" fill="#3a1f0a"/>
+  <!-- Perna traseira direita -->
+  <rect x="26" y="30" width="3" height="10" fill="#3a1f0a"/>
+  <!-- Perna dianteira esquerda -->
+  <rect x="40" y="30" width="3" height="11" fill="#3a1f0a"/>
+  <!-- Perna dianteira direita -->
+  <rect x="46" y="30" width="3" height="10" fill="#3a1f0a"/>
+  <!-- Corpo do cavalo -->
+  <rect x="19" y="20" width="32" height="12" fill="#6a3f1a"/>
+  <!-- Linha ventre mais clara -->
+  <rect x="21" y="29" width="28" height="2" fill="#8a5f30"/>
+  <!-- Pescoço -->
+  <path d="M48 22 L48 16 L54 10 L58 10 L58 20 L52 22 Z" fill="#6a3f1a"/>
+  <!-- Cabeça -->
+  <rect x="55" y="12" width="8" height="7" fill="#5a3416"/>
+  <!-- Focinho mais escuro -->
+  <rect x="62" y="16" width="2" height="3" fill="#3a1f0a"/>
+  <!-- Olho -->
+  <rect x="59" y="14" width="1" height="1" fill="#1a0e06"/>
+  <!-- Orelhas -->
+  <rect x="55" y="10" width="2" height="3" fill="#3a1f0a"/>
+  <rect x="59" y="10" width="2" height="3" fill="#3a1f0a"/>
+  <!-- Crina -->
+  <rect x="46" y="12" width="4" height="10" fill="#3a1f0a"/>
+  <!-- Rabo -->
+  <rect x="15" y="18" width="3" height="12" fill="#3a1f0a"/>
+  <!-- Rédeas -->
+  <line x1="60" y1="18" x2="20" y2="24" stroke="#1a0e06" stroke-width="1"/>
+
+  <!-- CARROÇA (lado direito do cavalo, mas aqui carroça fica atrás do cavalo visualmente) -->
+  <!-- Nota: carroça desenhada à esquerda do cavalo na coord (atrás) -->
+  <!-- Chassi -->
+  <rect x="0" y="22" width="22" height="12" fill="#7a4b25"/>
+  <!-- Ripas verticais da madeira -->
+  <line x1="4" y1="22" x2="4" y2="33" stroke="#5a3416" stroke-width="1"/>
+  <line x1="8" y1="22" x2="8" y2="33" stroke="#5a3416" stroke-width="1"/>
+  <line x1="12" y1="22" x2="12" y2="33" stroke="#5a3416" stroke-width="1"/>
+  <line x1="16" y1="22" x2="16" y2="33" stroke="#5a3416" stroke-width="1"/>
+  <!-- Base inferior escura -->
+  <rect x="0" y="32" width="22" height="3" fill="#3a1f0a"/>
+  <!-- Barril 1 -->
+  <rect x="3" y="16" width="5" height="7" fill="#8a4a2a"/>
+  <ellipse cx="5.5" cy="17" rx="2.5" ry="1" fill="#a0612a"/>
+  <line x1="3" y1="19" x2="8" y2="19" stroke="#1a0e06" stroke-width="0.5"/>
+  <!-- Barril 2 -->
+  <rect x="10" y="17" width="5" height="6" fill="#5a3416"/>
+  <ellipse cx="12.5" cy="18" rx="2.5" ry="1" fill="#7a4b25"/>
+  <line x1="10" y1="19" x2="15" y2="19" stroke="#1a0e06" stroke-width="0.5"/>
+
+  <!-- RODAS -->
+  <!-- Roda esquerda -->
+  <circle cx="5" cy="37" r="5" fill="#1a0e06"/>
+  <circle cx="5" cy="37" r="3.5" fill="none" stroke="#888" stroke-width="0.8"/>
+  <circle cx="5" cy="37" r="1" fill="#555"/>
+  <!-- Raios -->
+  <line x1="5" y1="33.5" x2="5" y2="40.5" stroke="#666" stroke-width="0.6"/>
+  <line x1="1.5" y1="37" x2="8.5" y2="37" stroke="#666" stroke-width="0.6"/>
+  <line x1="2.5" y1="34.5" x2="7.5" y2="39.5" stroke="#666" stroke-width="0.6"/>
+  <line x1="7.5" y1="34.5" x2="2.5" y2="39.5" stroke="#666" stroke-width="0.6"/>
+  <!-- Roda direita -->
+  <circle cx="18" cy="37" r="5" fill="#1a0e06"/>
+  <circle cx="18" cy="37" r="3.5" fill="none" stroke="#888" stroke-width="0.8"/>
+  <circle cx="18" cy="37" r="1" fill="#555"/>
+  <line x1="18" y1="33.5" x2="18" y2="40.5" stroke="#666" stroke-width="0.6"/>
+  <line x1="14.5" y1="37" x2="21.5" y2="37" stroke="#666" stroke-width="0.6"/>
+  <line x1="15.5" y1="34.5" x2="20.5" y2="39.5" stroke="#666" stroke-width="0.6"/>
+  <line x1="20.5" y1="34.5" x2="15.5" y2="39.5" stroke="#666" stroke-width="0.6"/>
+</svg>
