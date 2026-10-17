@@ -4,7 +4,7 @@ import { $ } from './util.js';
 import { ROMAN, MINE, ACHIEVEMENTS, CIV_BY_ID } from './data.js';
 import { currentEra } from './progression.js';
 import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL } from './save.js';
-import { initMines, connectToShaft, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine, regenerateMine, activeMine as getActiveMine } from './mine.js';
+import { initMines, connectToShaft, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, tryUpgradeSilo, setTool, setActiveMine, buyMine, regenerateMine, activeMine as getActiveMine } from './mine.js';
 import { buyFactory, setRecipe, updateFactories } from './factories.js';
 import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
@@ -220,7 +220,9 @@ function handleWorldTap(x, y) {
       openPanel('factory');
       play('click');
     } else if (hit.kind === 'depot') {
-      openPanel('contract');
+      openPanel('mine');
+      const silos = document.getElementById('silos-list');
+      if (silos) silos.scrollIntoView({ block: 'center' });
       play('click');
     } else if (hit.kind === 'barracks') {
       openPanel('army');
@@ -342,6 +344,7 @@ document.addEventListener('click', (e) => {
     case 'project-start':  activateProject(t.dataset.id); break;
     case 'project-cancel': cancelProject(); break;
     case 'hire-staff':     if (hireOrPromote(t.dataset.id || '')) play('success'); break;
+    case 'upgrade-silo':   if (tryUpgradeSilo(t.dataset.id || '')) play('coin'); break;
     case 'army-reserve':   setReserveUnits(+(t.dataset.n || 0)); play('click'); break;
     case 'build-barracks': if (buildBarracks()) play('success'); break;
     case 'train-unit':     if (trainUnit(t.dataset.id || '')) play('click'); break;

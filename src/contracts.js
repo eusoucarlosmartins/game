@@ -34,6 +34,17 @@ export function generateContract() {
   log(`${city} pede ${need} ${R[productId].name} em ${Math.round(deadline)}s.`);
 }
 
+/**
+ * PP de um contrato: base + tamanho + valor do produto, crescendo 25% por era.
+ * @param {number} need @param {number} price
+ */
+export function contractRp(need, price) {
+  return Math.round((10 + need * 1.5 + price * 0.05) * (1 + (currentEra() - 1) * 0.25));
+}
+
+/** PP de pesquisa contínua por dia (cresce com a era). */
+export const dailyRp = () => 1 + currentEra();
+
 export function deliverProduct(amount) {
   if (!state.contract) return;
   state.contract.delivered += amount;
@@ -41,7 +52,7 @@ export function deliverProduct(amount) {
     const p = R[state.contract.product];
     const bonus = (state.eventContractBonus || 0) + (state.permContractBonus || 0) + staffMod('contractReward');
     const reward = Math.round((CFG.contractReward + p.price * state.contract.need) * (1 + bonus));
-    const rpGain = 5 + Math.floor(state.contract.need * 0.6 + p.price * 0.02);
+    const rpGain = contractRp(state.contract.need, p.price);
     state.money += reward;
     state.totalEarnings = (state.totalEarnings || 0) + reward;
     state.rp += rpGain;
@@ -82,7 +93,7 @@ export function updateDay(dt) {
   if (state.dayTimer >= CFG.dayLengthSec) {
     state.dayTimer = 0;
     state.day++;
-    state.rp += 2;
+    state.rp += dailyRp();
     // renda passiva diária (de projetos como Banco do Estado)
     const relicGold = relicIncome();
     if (relicGold > 0) {

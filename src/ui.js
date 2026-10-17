@@ -1,7 +1,7 @@
 // ui.js — renderização da sidebar e modais (receita)
 import { state } from './state.js';
 import { R, RECIPE_BY_ID, RECIPES_BY_TIER, EQUIPMENT, EQ_BY_ID, RESEARCH, RES_BY_ID, RES_CATS, ERAS, ROMAN, CFG, TOOLS, WORKER_COST, MINE_CATALOG, ACHIEVEMENTS, CIVILIZATIONS, CIV_BY_ID } from './data.js';
-import { isMineOwned } from './mine.js';
+import { isMineOwned, siloUpgradeCost, SILO_STEP } from './mine.js';
 import { getAchievementProgress } from './achievements.js';
 import { $, fmtMoney } from './util.js';
 import { currentEra, eraData, isRecipeUnlocked } from './progression.js';
@@ -68,6 +68,7 @@ function renderStockLists() {
     : whItems.map(it => `<li><span class="dot" style="background:${R[it.k].color}"></span>${R[it.k].name} <strong>${Math.floor(it.n)}</strong></li>`).join('');
 }
 
+let lastSiloSig = '';
 function renderMinePanel() {
   const total = state.workersTotal;
   const active = workersActive();
@@ -118,7 +119,9 @@ function renderMinePanel() {
   }
   items.sort((a, b) => b.n - a.n);
   const list = $('silos-list');
-  if (list) {
+  const siloSig = JSON.stringify([items.map((it) => [it.k, Math.floor(it.n), it.cap, state.money >= siloUpgradeCost(it.cap)])]);
+  if (list && siloSig !== lastSiloSig) {
+    lastSiloSig = siloSig;
     list.innerHTML = items.length === 0
       ? '<li><em>Nenhum silo em uso ainda.</em></li>'
       : items.map(it => {
@@ -128,6 +131,7 @@ function renderMinePanel() {
             <span class="dot" style="background:${R[it.k].color}"></span>
             <span style="flex:1">${R[it.k].name}</span>
             <span style="font-size:11px;${full ? 'color:var(--bad)' : ''}">${Math.floor(it.n)}/${it.cap}${full ? ' CHEIO' : ''}</span>
+            <button class="mini-btn" data-action="upgrade-silo" data-id="${it.k}" title="Ampliar o silo em +${SILO_STEP}" ${state.money >= siloUpgradeCost(it.cap) ? '' : 'disabled'}>+${SILO_STEP} · ${fmtMoney(siloUpgradeCost(it.cap))}</button>
           </li>`;
         }).join('');
   }

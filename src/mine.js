@@ -367,6 +367,26 @@ export function workersActive() {
   return n + siteWorkersTotal();
 }
 
+export const SILO_STEP = 200;
+/** Custo de ampliar o silo: metade da capacidade atual (mín. $200). @param {number} cap */
+export const siloUpgradeCost = (cap) => Math.max(200, Math.round(cap * 0.5));
+
+/** Amplia o silo de um recurso em +200. @param {string} resource */
+export function tryUpgradeSilo(resource) {
+  if (!R[resource] || R[resource].free) return false;
+  if (!state.silos[resource]) state.silos[resource] = { cap: SILO_DEFAULT_CAP };
+  const cur = state.silos[resource].cap || SILO_DEFAULT_CAP;
+  const cost = siloUpgradeCost(cur);
+  if (state.money < cost) {
+    log(`Sem dinheiro para ampliar o silo de ${R[resource].name} (${fmtMoney(cost)}).`, 'bad');
+    return false;
+  }
+  state.money -= cost;
+  state.silos[resource].cap = cur + SILO_STEP;
+  log(`Silo de ${R[resource].name} ampliado: ${cur} → ${cur + SILO_STEP} (−${fmtMoney(cost)}).`, 'good');
+  return true;
+}
+
 export function tryHireWorker() {
   if (state.money < WORKER_COST) return;
   state.money -= WORKER_COST;
