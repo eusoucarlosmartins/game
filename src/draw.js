@@ -1,18 +1,18 @@
 // draw.js — renderização do canvas (mina em grid + superfície compacta)
 import { state } from './state.js';
-import { R, MINE, SILO_DEFAULT_CAP } from './data.js';
+import { R, MINE } from './data.js';
 import { fmtMoney, clamp } from './util.js';
 import { currentEra, eraData } from './progression.js';
 import { getProjectDef } from './projects.js';
 import { activeMine, regenCost } from './mine.js';
 import { ACH_BY_ID } from './data.js';
-import { getSprite } from './sprites.js';
 import { drawMinimap, minimapLayout } from './terrain.js';
 import { applyWorldTransform, applyHudTransform, hudSize, visibleWorldRect, view } from './camera.js';
-import { W, MINE_GROUND_Y, ROAD } from './geometry.js';
+import { W, ROAD } from './geometry.js';
 import { drawOverworldIso } from './overworld.js';
+import { drawMineSurface, drawMineGridVol } from './mineview.js';
 import { MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_CENTER } from './layout.js';
-import { drawScrollPanel as paintScroll, drawResourceIcon as paintIcon, resAbbrev, civColor } from './paint.js';
+import { drawScrollPanel as paintScroll, drawResourceIcon as paintIcon, civColor } from './paint.js';
 
 /** @param {number} x @param {number} y @param {number} w @param {number} h */
 const drawScrollPanel = (x, y, w, h) => paintScroll(ctx, x, y, w, h);
@@ -23,330 +23,6 @@ const wideScreen = () => view.cw > 820 && view.ch > 520;
 
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game'));
 const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
-
-// ---------- Cena MINA: faixa de céu sobre a superfície + chão ----------
-function drawMineSky() {
-  const grd = ctx.createLinearGradient(0, 0, 0, MINE_GROUND_Y);
-  grd.addColorStop(0, '#e8c98a');
-  grd.addColorStop(1, '#d2a76a');
-  ctx.fillStyle = grd;
-  ctx.fillRect(0, 0, W, MINE_GROUND_Y);
-  // nuvens sutis
-  ctx.fillStyle = 'rgba(255,255,255,0.18)';
-  for (const c of [[280, 60, 50], [600, 50, 38], [950, 80, 55]]) {
-    ctx.beginPath();
-    ctx.ellipse(c[0], c[1], c[2], c[2] * 0.35, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  // título com nome da mina ativa
-  const mine = activeMine();
-  const nameTxt = mine ? `${mine.name.toUpperCase()} — SUPERFÍCIE` : 'SUPERFÍCIE';
-  ctx.fillStyle = 'rgba(58,31,10,0.7)';
-  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(nameTxt, 210, 70);
-  // chão
-  ctx.fillStyle = '#8a5a30';
-  ctx.fillRect(0, MINE_GROUND_Y, W, 8);
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(0, MINE_GROUND_Y + 8, W, 4);
-}
-
-// ---------- Silos por recurso ----------
-function drawSilos() {
-  const items = [];
-  for (const k in state.warehouse) {
-    if (R[k] && R[k].free) continue;
-    const stock = state.warehouse[k] || 0;
-    if (stock > 0) items.push({ k, n: stock });
-  }
-  items.sort((a, b) => b.n - a.n);
-  const visible = items.slice(0, 8);
-  if (visible.length === 0) {
-    ctx.fillStyle = '#5a3416';
-    ctx.font = 'italic 12px Georgia';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Aloque mineradores em veios expostos para começar a encher silos.', 200, 130);
-    return;
-  }
-  const startX = 200; // depois do botão "Voltar ao Mapa"
-  const maxW = W - 220;
-  const siloW = Math.min(100, maxW / visible.length);
-  const baseY = MINE_GROUND_Y; // base alinhada ao chão da mina
-  for (let i = 0; i < visible.length; i++) {
-    drawSilo(startX + i * siloW, baseY, siloW - 6, visible[i].k);
-  }
-}
-
-function drawSilo(x, baseY, w, resourceId) {
-  const res = R[resourceId];
-  const stock = state.warehouse[resourceId] || 0;
-  const cap = (state.silos[resourceId] && state.silos[resourceId].cap) || SILO_DEFAULT_CAP;
-  const fillPct = clamp(stock / cap, 0, 1);
-  const h = 110;
-  const top = baseY - h;
-  // base de madeira
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(x, top, w, h);
-  ctx.fillStyle = '#7a4b25';
-  ctx.fillRect(x + 3, top + 3, w - 6, h - 6);
-  // teto triangular
-  ctx.fillStyle = '#3a1f0a';
-  ctx.beginPath();
-  ctx.moveTo(x - 4, top);
-  ctx.lineTo(x + w / 2, top - 16);
-  ctx.lineTo(x + w + 4, top);
-  ctx.closePath();
-  ctx.fill();
-  // recheio (sobe da base)
-  const fillH = (h - 26) * fillPct;
-  ctx.fillStyle = res.color;
-  ctx.fillRect(x + 6, top + (h - 8) - fillH, w - 12, fillH);
-  // moldura
-  ctx.strokeStyle = '#1a0e06';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x + 3, top + 3, w - 6, h - 6);
-  // placa com nome (curto)
-  ctx.fillStyle = '#c69042';
-  ctx.fillRect(x + 4, top + 6, w - 8, 16);
-  ctx.fillStyle = '#1a0e06';
-  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  const short = res.name.length > 12 ? res.name.slice(0, 11) + '…' : res.name;
-  ctx.fillText(short, x + w / 2, top + 14);
-  // contador
-  ctx.fillStyle = '#1a0e06';
-  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
-  ctx.textBaseline = 'top';
-  const cheio = fillPct >= 0.99;
-  ctx.fillText(`${Math.floor(stock)}/${cap}${cheio ? ' ★' : ''}`, x + w / 2, baseY + 2);
-}
-
-// Sombra elíptica reutilizável (visual AoE-flavor)
-function drawShadow(cx, cy, w, h = 3) {
-  ctx.fillStyle = 'rgba(0,0,0,0.22)';
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, w, h, 0, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-// ---------- Grid da mina ----------
-function drawMineGrid() {
-  const { cols, rows, cell, x: gx, y: gy } = MINE;
-  const mine = activeMine();
-  if (!mine || !mine.grid) return;
-  // moldura
-  ctx.fillStyle = '#6b3f1a';
-  ctx.fillRect(gx, gy, cols * cell, rows * cell);
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      drawTile(gx + c * cell, gy + r * cell, cell, mine.grid[r][c]);
-    }
-  }
-  // FX da dinamite (anéis + estilhaços)
-  if (mine.tntFx) {
-    const fx = mine.tntFx;
-    const px = gx + (fx.c + 0.5) * cell;
-    const py = gy + (fx.r + 0.5) * cell;
-    const progress = Math.min(1, (0.8 - fx.t) / 0.8); // 0 → 1
-    const alpha = Math.max(0, fx.t / 0.8);
-    // anel externo laranja
-    ctx.strokeStyle = `rgba(255,140,40,${alpha})`;
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.arc(px, py, cell * 2.2 * progress, 0, Math.PI * 2);
-    ctx.stroke();
-    // anel interno amarelo
-    ctx.strokeStyle = `rgba(255,220,80,${alpha * 0.9})`;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(px, py, cell * 1.4 * progress, 0, Math.PI * 2);
-    ctx.stroke();
-    // estilhaços
-    ctx.fillStyle = `rgba(80,40,20,${alpha})`;
-    for (let i = 0; i < 16; i++) {
-      const ang = (i / 16) * Math.PI * 2;
-      const dist = cell * 2.6 * progress;
-      const sx = px + Math.cos(ang) * dist;
-      const sy = py + Math.sin(ang) * dist;
-      ctx.fillRect(sx - 2, sy - 2, 4, 4);
-    }
-  }
-  // grade sutil
-  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-  ctx.lineWidth = 1;
-  for (let r = 0; r <= rows; r++) {
-    ctx.beginPath();
-    ctx.moveTo(gx, gy + r * cell);
-    ctx.lineTo(gx + cols * cell, gy + r * cell);
-    ctx.stroke();
-  }
-  for (let c = 0; c <= cols; c++) {
-    ctx.beginPath();
-    ctx.moveTo(gx + c * cell, gy);
-    ctx.lineTo(gx + c * cell, gy + rows * cell);
-    ctx.stroke();
-  }
-}
-
-function drawTile(px, py, cell, t) {
-  if (!t) return;
-  if (!t.revealed) {
-    // neblina
-    ctx.fillStyle = '#0a0604';
-    ctx.fillRect(px, py, cell, cell);
-    return;
-  }
-  if (t.type === 'shaft') {
-    // Poço do elevador (fundo preto + 2 trilhos verticais)
-    ctx.fillStyle = '#0a0604';
-    ctx.fillRect(px, py, cell, cell);
-    ctx.fillStyle = '#3a3a3a';
-    ctx.fillRect(px + 6, py, 3, cell);
-    ctx.fillRect(px + cell - 9, py, 3, cell);
-    // vigas horizontais a cada 2 tiles
-    ctx.fillStyle = '#5a3416';
-    ctx.fillRect(px, py + cell - 3, cell, 3);
-    return;
-  }
-  if (t.type === 'air') {
-    ctx.fillStyle = '#1a0e06';
-    ctx.fillRect(px, py, cell, cell);
-    // vigas decorativas
-    ctx.fillStyle = '#5a3416';
-    ctx.fillRect(px, py, cell, 3);
-    ctx.fillRect(px, py + cell - 3, cell, 3);
-    return;
-  }
-  if (t.type === 'dirt') {
-    ctx.fillStyle = '#8a5a30';
-    ctx.fillRect(px, py, cell, cell);
-    ctx.fillStyle = 'rgba(0,0,0,0.18)';
-    for (let i = 0; i < 5; i++) {
-      const dx = ((px * 13 + i * 7) % (cell - 3));
-      const dy = ((py * 17 + i * 11) % (cell - 3));
-      ctx.fillRect(px + dx, py + dy, 3, 2);
-    }
-    return;
-  }
-  if (t.type === 'stone') {
-    ctx.fillStyle = '#7d7d7d';
-    ctx.fillRect(px, py, cell, cell);
-    ctx.fillStyle = '#5a5a5a';
-    ctx.fillRect(px + 4, py + 4, cell - 8, cell - 8);
-    ctx.fillStyle = '#a0a0a0';
-    ctx.fillRect(px + 8, py + 6, 6, 4);
-    ctx.fillRect(px + 18, py + 14, 5, 5);
-    return;
-  }
-  if (t.type === 'ore') {
-    const res = R[t.resource];
-    // fundo levemente mais escuro pra destacar chips coloridos
-    ctx.fillStyle = '#4a3020';
-    ctx.fillRect(px, py, cell, cell);
-    // chips coloridos do minério
-    ctx.fillStyle = res.color;
-    const n = Math.max(4, Math.floor(t.amount / 4));
-    for (let i = 0; i < n; i++) {
-      const dx = (px * 7 + i * 5) % (cell - 10);
-      const dy = (py * 11 + i * 7) % (cell - 14);
-      ctx.fillRect(px + 4 + dx, py + 14 + dy, 6, 5);
-    }
-    const era = eraData(currentEra());
-    const locked = !era.deposits.includes(t.resource);
-    // moldura amarela quando minerador alocado
-    if (t.worker) {
-      ctx.strokeStyle = '#ffd44a';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(px + 2, py + 2, cell - 4, cell - 4);
-    }
-    // === Label de identificação (pílula escura + texto dourado) ===
-    const label = resAbbrev(t.resource);
-    ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
-    const labelW = Math.max(22, ctx.measureText(label).width + 8);
-    ctx.fillStyle = 'rgba(20,10,5,0.88)';
-    ctx.fillRect(px + cell / 2 - labelW / 2, py + 1, labelW, 14);
-    ctx.fillStyle = locked ? '#9a8a6a' : '#ffd44a';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, px + cell / 2, py + 8);
-    // === Quantidade restante (canto inferior direito, pequeno) ===
-    if (!locked) {
-      const amt = Math.ceil(t.amount);
-      ctx.font = 'bold 10px Arial, sans-serif';
-      const amtTxt = amt + '';
-      const amtW = ctx.measureText(amtTxt).width + 4;
-      ctx.fillStyle = 'rgba(20,10,5,0.75)';
-      ctx.fillRect(px + cell - amtW - 1, py + cell - 12, amtW, 11);
-      ctx.fillStyle = '#f1e3c2';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(amtTxt, px + cell - 3, py + cell - 6);
-    }
-    if (t.worker) drawMinerSprite(px + 8, py + cell - 4);
-    // === Cadeado se bloqueado pela era ===
-    if (locked) {
-      ctx.fillStyle = 'rgba(0,0,0,0.45)';
-      ctx.fillRect(px, py + 16, cell, cell - 16);
-      ctx.fillStyle = '#ffd44a';
-      ctx.font = 'bold 18px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('🔒', px + cell / 2, py + cell / 2 + 8);
-    }
-  }
-}
-
-function drawMinerSprite(cx, by) {
-  // Prioridade: spritesheet animado 3-frames → sprite estático → procedural
-  const anim = getSprite('miner-anim');
-  if (anim) {
-    const frameW = 32, frameH = 44;
-    // Fase cíclica: cada mineiro tem offset leve pra não bater todos em sync
-    const t = performance.now() / 170 + (cx * 0.07);
-    const frame = Math.floor(t) % 3;
-    const w = 22;
-    const h = (frameH / frameW) * w;
-    ctx.drawImage(anim, frame * frameW, 0, frameW, frameH, cx - w / 2, by - h, w, h);
-    return;
-  }
-  const sprite = getSprite('miner');
-  if (sprite) {
-    const w = 22;
-    const h = (sprite.height / sprite.width) * w;
-    ctx.drawImage(sprite, cx - w / 2, by - h, w, h);
-    return;
-  }
-  // Fallback procedural (versão simplificada)
-  const t = performance.now() / 220;
-  const phase = Math.sin(t);
-  drawShadow(cx, by - 1, 8, 2.2);
-  ctx.fillStyle = '#2a1810';
-  ctx.fillRect(cx - 4, by - 6, 3, 6);
-  ctx.fillRect(cx + 1, by - 6, 3, 6);
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(cx - 4, by - 10, 8, 4);
-  ctx.fillStyle = '#3a4a7a';
-  ctx.fillRect(cx - 4, by - 14, 8, 5);
-  ctx.fillStyle = '#d8a878';
-  ctx.fillRect(cx - 3, by - 19, 6, 5);
-  ctx.fillStyle = '#c69042';
-  ctx.fillRect(cx - 5, by - 20, 10, 2);
-  // picareta simples
-  const hx = cx + 4, hy = by - 12;
-  const angle = (-Math.PI / 2.2) + phase * (Math.PI / 1.4);
-  const tipX = hx + Math.cos(angle) * 10;
-  const tipY = hy + Math.sin(angle) * 10;
-  ctx.strokeStyle = '#5a3416';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(hx, hy);
-  ctx.lineTo(tipX, tipY);
-  ctx.stroke();
-}
 
 // ---------- Tooltip do tile sob o mouse ----------
 function drawTileTooltip() {
@@ -585,6 +261,7 @@ function drawContractPanelOverworld() {
   ctx.fillText(`📜 PEDIDO DE ${k.city.toUpperCase()}`, x + 8, y + 6);
   // ícone do produto + nome + quantidade
   drawResourceIcon(x + 8, y + 28, 28, k.product);
+  ctx.textAlign = 'left';
   ctx.fillStyle = '#1a0e06';
   ctx.font = 'bold 14px "Segoe UI"';
   ctx.textBaseline = 'top';
@@ -615,10 +292,45 @@ function drawContractPanelOverworld() {
 
 // ---------- Cena MINA: grid + silos + tools + botão voltar ----------
 
+/** Anéis + estilhaços da dinamite. @param {any} mine */
+function drawTntFx(mine) {
+  const { cell, x: gx, y: gy } = MINE;
+  // FX da dinamite (anéis + estilhaços)
+  if (mine.tntFx) {
+    const fx = mine.tntFx;
+    const px = gx + (fx.c + 0.5) * cell;
+    const py = gy + (fx.r + 0.5) * cell;
+    const progress = Math.min(1, (0.8 - fx.t) / 0.8); // 0 → 1
+    const alpha = Math.max(0, fx.t / 0.8);
+    // anel externo laranja
+    ctx.strokeStyle = `rgba(255,140,40,${alpha})`;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(px, py, cell * 2.2 * progress, 0, Math.PI * 2);
+    ctx.stroke();
+    // anel interno amarelo
+    ctx.strokeStyle = `rgba(255,220,80,${alpha * 0.9})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(px, py, cell * 1.4 * progress, 0, Math.PI * 2);
+    ctx.stroke();
+    // estilhaços
+    ctx.fillStyle = `rgba(80,40,20,${alpha})`;
+    for (let i = 0; i < 16; i++) {
+      const ang = (i / 16) * Math.PI * 2;
+      const dist = cell * 2.6 * progress;
+      const sx = px + Math.cos(ang) * dist;
+      const sy = py + Math.sin(ang) * dist;
+      ctx.fillRect(sx - 2, sy - 2, 4, 4);
+    }
+  }
+}
+
 function drawMineScene() {
-  drawMineSky();
-  drawSilos();
-  drawMineGrid();
+  const mine = activeMine();
+  drawMineSurface(ctx, mine);
+  drawMineGridVol(ctx, mine);
+  if (mine) drawTntFx(mine);
   drawElevator();
   drawExhaustedOverlay();
 }

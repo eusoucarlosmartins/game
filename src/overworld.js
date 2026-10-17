@@ -2,20 +2,20 @@
 // em volume (caixas + telhados), árvores/unidades em pé ordenadas por profundidade,
 // placas e painéis sempre legíveis por cima. Também resolve "o que está sob o dedo".
 import { state } from './state.js';
-import { R, RECIPE_BY_ID, CFG, CIV_BY_ID } from './data.js';
+import { R, RECIPE_BY_ID, CFG, CIV_BY_ID, ERAS } from './data.js';
 import { fmtMoney } from './util.js';
-import { transportTier } from './progression.js';
+import { transportTier, currentEra } from './progression.js';
 import { ingredientHave } from './factories.js';
 import { ROAD } from './geometry.js';
 import {
-  proj, unproj, box, gableRoof, pyramidRoof, facePatch, castShadow, selectFootprint, poly,
+  proj, unproj, box, gableRoof, pyramidRoof, facePatch, castShadow, selectFootprint, poly, groundTransform,
 } from './iso.js';
 import {
-  MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_SIGN, CIV_FLAG, centerOf,
+  MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_CENTER, CITY_SIGN, CIV_FLAG, centerOf,
 } from './layout.js';
 import {
   drawIsoTerrain, drawAmbientFlat, ambientObjects, drawAmbientSky, treeObjects, drawShroud,
-  VILLAGES, BRIDGE, CLIFF_H,
+  VILLAGES, BRIDGE, CLIFF_H, drawVillager,
 } from './terrain.js';
 import { drawScrollPanel, drawResourceIcon, plate, civColor, civAccent, UI_FONT } from './paint.js';
 
@@ -367,23 +367,279 @@ const CITY_STYLES = /** @type {Record<string, 'port'|'industrial'>} */ ({
   'Criciúma': 'industrial',
 });
 
+// A cidade cresce com os contratos cumpridos: lotes ocupados do centro para fora,
+// cada casa no estilo da era em que foi erguida, e marcos novos a cada era.
+/** @typedef {{x:number,y:number,w:number,d:number,minEra:number,kind:string}} Landmark */
+/** @type {Landmark[]} */
+const LANDMARKS = [
+  { kind: 'fountain', x: 1028, y: 488, w: 34, d: 34, minEra: 2 },
+  { kind: 'windmill', x: 1178, y: 196, w: 34, d: 34, minEra: 3 },
+  { kind: 'hall', x: 900, y: 352, w: 54, d: 76, minEra: 4 },
+  { kind: 'works', x: 1160, y: 556, w: 60, d: 54, minEra: 5 },
+  { kind: 'clock', x: 1112, y: 470, w: 30, d: 30, minEra: 6 },
+];
+
+const CITY_LOTS = (() => {
+  let seed = 4242;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  /** @type {Footprint[]} */
+  const lots = [];
+  for (let gy = 196; gy <= 676; gy += 58) {
+    for (let gx = 892; gx <= 1222; gx += 64) {
+      const w = 38 + rnd() * 14, d = 32 + rnd() * 10;
+      const x = gx + (rnd() - 0.5) * 10, y = gy + (rnd() - 0.5) * 10;
+      const cx = x + w / 2, cy = y + d / 2;
+      if (cx > 965 && cx < 1120 && cy > 335 && cy < 470) continue; // marco central
+      if (cx > 990 && cx < 1100 && cy > 470 && cy < 640) continue; // praça + placa
+      const hitsLandmark = LANDMARKS.some((l) => cx > l.x - 26 && cx < l.x + l.w + 26 && cy > l.y - 22 && cy < l.y + l.d + 22);
+      if (hitsLandmark) continue;
+      lots.push({ x, y, w, d });
+    }
+  }
+  const dist = (/** @type {Footprint} */ f) => Math.hypot(f.x + f.w / 2 - CITY_CENTER.x, (f.y + f.d / 2 - CITY_CENTER.y) * 1.15);
+  return lots.sort((p, q) => dist(p) - dist(q));
+})();
+
+/** Quantas casas existem com c contratos cumpridos. @param {number} c */
+const housesFor = (c) => Math.min(CITY_LOTS.length, 4 + Math.floor(c * 0.75));
+/** Contratos necessários para o lote i existir. @param {number} i */
+const contractsForLot = (i) => (i < 4 ? 0 : Math.ceil((i - 3) / 0.75));
+/** Era vigente com c contratos. @param {number} c */
+function eraAt(c) {
+  let era = 1;
+  for (let i = 0; i < ERAS.length - 1; i++) if (ERAS[i].nextAt != null && c >= ERAS[i].nextAt) era = ERAS[i + 1].id;
+  return era;
+}
+
+/** @param {number} c */
+export function cityTitle(c) {
+  if (c < 3) return 'ARRAIAL';
+  if (c < 8) return 'VILA';
+  if (c < 15) return 'CIDADE';
+  if (c < 25) return 'CIDADE PRÓSPERA';
+  return 'METRÓPOLE';
+}
+
+/** Momento (ms) em que cada lote/marco apareceu — anima a construção dos novos. */
+/** @type {Map<string, number>} */
+const bornAt = new Map();
+let cityPrimed = false;
+
+/** @param {string} key */
+function riseFactor(key) {
+  let t0 = bornAt.get(key);
+  if (t0 === undefined) {
+    t0 = cityPrimed ? performance.now() : -1e9;
+    bornAt.set(key, t0);
+  }
+  return Math.min(1, (performance.now() - t0) / 1600);
+}
+
+/**
+ * Desenha fn "crescendo" do chão (escala vertical a partir da base) + andaime e poeira.
+ * @param {CanvasRenderingContext2D} ctx @param {Footprint} f @param {number} k @param {(ctx:CanvasRenderingContext2D)=>void} fn
+ */
+function rising(ctx, f, k, fn) {
+  if (k >= 1) { fn(ctx); return; }
+  const base = proj(f.x + f.w / 2, f.y + f.d / 2);
+  const e = 1 - Math.pow(1 - k, 3);
+  ctx.save();
+  ctx.translate(base.x, base.y);
+  ctx.scale(1, Math.max(0.02, e));
+  ctx.translate(-base.x, -base.y);
+  fn(ctx);
+  ctx.restore();
+  ctx.strokeStyle = '#8a6a3a';
+  ctx.lineWidth = 1.2;
+  for (const [gx, gy] of [[f.x, f.y + f.d], [f.x + f.w, f.y + f.d], [f.x + f.w, f.y]]) {
+    const a = proj(gx, gy), t = proj(gx, gy, 46);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(t.x, t.y); ctx.stroke();
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + k * 3;
+    ctx.fillStyle = `rgba(200,180,140,${0.5 * (1 - k)})`;
+    ctx.beginPath();
+    ctx.ellipse(base.x + Math.cos(a) * (18 + k * 20), base.y + Math.sin(a) * (8 + k * 8), 8 + k * 10, 4 + k * 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** @param {'port'|'industrial'|'colonial'} style @param {number} i */
+function lotPalette(style, i) {
+  const P = style === 'port'
+    ? [['#a8c8d8', '#5a3416'], ['#f1e3c2', '#2f5f8a'], ['#d8e8ee', '#8a4a2a'], ['#f4d9a0', '#2f5f8a'], ['#c8dde6', '#a83a22']]
+    : style === 'industrial'
+      ? [['#b8865a', '#3e3a38'], ['#c8a07a', '#4a4440'], ['#a8806a', '#3e3a38'], ['#d0b090', '#5a3a2a'], ['#c09a7a', '#3e3a38']]
+      : [['#e8c87a', '#a82e1c'], ['#b8c8a8', '#8a4a2a'], ['#e0b0a0', '#7a3a1a'], ['#f1e3c2', '#a83a22'], ['#d8c8a0', '#6a4a2a']];
+  return P[i % P.length];
+}
+
+/** Prédio de um lote no estilo da era em que foi construído. @param {CanvasRenderingContext2D} ctx @param {Footprint} f @param {number} era @param {string[]} pal @param {number} i */
+function lotBuilding(ctx, f, era, pal, i) {
+  const axis = i % 2 ? 'y' : 'x';
+  if (era <= 2) {
+    house(ctx, f, 24 + (i % 3) * 3, pal[0], pal[1], axis);
+  } else if (era <= 4) {
+    // sobrado: dois andares, sacada
+    box(ctx, f.x, f.y, f.w, f.d, 44, pal[0]);
+    for (const u of [0.25, 0.5, 0.75]) {
+      facePatch(ctx, f, 'L', u, 8, 5, 10, '#9cc0d0');
+      facePatch(ctx, f, 'L', u, 28, 5, 10, '#9cc0d0');
+    }
+    facePatch(ctx, f, 'R', 0.5, 28, 5, 10, '#86a8b8');
+    facePatch(ctx, f, 'L', 0.5, 23, f.w * 0.8, 2.5, '#4a2a14');
+    gableRoof(ctx, f.x, f.y, f.w, f.d, 44, 16, pal[1], axis, pal[0]);
+  } else {
+    // prédio de tijolo, platibanda e janelas acesas
+    const h = 58 + (i % 3) * 10;
+    box(ctx, f.x, f.y, f.w, f.d, h, i % 2 ? '#8a4a2e' : '#9a6a4a');
+    for (let z = 8; z < h - 8; z += 14) {
+      for (const u of [0.22, 0.5, 0.78]) {
+        facePatch(ctx, f, 'L', u, z, 5, 8, (i + z) % 3 ? '#ffd27a' : '#6a8aa0');
+        facePatch(ctx, f, 'R', u, z, 5, 8, (i + z) % 4 ? '#e8b860' : '#5a7a90');
+      }
+    }
+    box(ctx, f.x - 1, f.y - 1, f.w + 2, f.d + 2, 4, '#5a3020', h);
+  }
+}
+
+/** @param {CanvasRenderingContext2D} ctx @param {Landmark} l */
+function drawLandmark(ctx, l) {
+  const t = performance.now() / 1000;
+  if (l.kind === 'fountain') {
+    const c = proj(l.x + l.w / 2, l.y + l.d / 2);
+    ctx.fillStyle = '#8a8478';
+    ctx.beginPath(); ctx.ellipse(c.x, c.y, 24, 12, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#a8a294';
+    ctx.beginPath(); ctx.ellipse(c.x, c.y - 4, 24, 12, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4a8aa8';
+    ctx.beginPath(); ctx.ellipse(c.x, c.y - 5, 19, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8a8478';
+    ctx.fillRect(c.x - 2.5, c.y - 22, 5, 17);
+    for (let k = 0; k < 8; k++) {
+      const ph = (t * 1.2 + k / 8) % 1;
+      const a = (k / 8) * Math.PI * 2;
+      ctx.fillStyle = `rgba(220,240,250,${0.8 * (1 - ph)})`;
+      ctx.beginPath();
+      ctx.arc(c.x + Math.cos(a) * ph * 14, c.y - 22 + ph * ph * 18 - Math.sin(ph * Math.PI) * 6 + Math.sin(a) * ph * 6, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (l.kind === 'windmill') {
+    box(ctx, l.x + 6, l.y + 6, l.w - 12, l.d - 12, 52, '#e8dcc0');
+    pyramidRoof(ctx, l.x + 4, l.y + 4, l.w - 8, l.d - 8, 52, 18, '#8a4a2a');
+    facePatch(ctx, { x: l.x + 6, y: l.y + 6, w: l.w - 12, d: l.d - 12 }, 'L', 0.5, 0, 8, 14, '#5a3416');
+    const hub = proj(l.x + l.w / 2, l.y + l.d - 6, 48);
+    const ang = t * 0.9;
+    ctx.save();
+    ctx.translate(hub.x, hub.y);
+    for (let k = 0; k < 4; k++) {
+      ctx.rotate(Math.PI / 2);
+      ctx.save();
+      ctx.rotate(ang);
+      ctx.fillStyle = '#f3ead2';
+      ctx.strokeStyle = '#5a3416';
+      ctx.lineWidth = 1;
+      ctx.fillRect(2, -3, 30, 6);
+      ctx.strokeRect(2, -3, 30, 6);
+      ctx.restore();
+    }
+    ctx.fillStyle = '#3a2410';
+    ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  } else if (l.kind === 'hall') {
+    box(ctx, l.x, l.y, l.w, l.d, 40, '#d8c8a0');
+    for (const u of [0.2, 0.4, 0.6, 0.8]) facePatch(ctx, l, 'R', u, 4, 8, 22, '#6a4a2a');
+    gableRoof(ctx, l.x, l.y, l.w, l.d, 40, 24, '#2f5f8a', 'y', '#d8c8a0');
+  } else if (l.kind === 'works') {
+    box(ctx, l.x + 44, l.y + 4, 10, 10, 120, '#5e3020');
+    box(ctx, l.x + 8, l.y + 30, 10, 10, 100, '#5e3020');
+    box(ctx, l.x, l.y, l.w, l.d, 46, '#7a3a1e');
+    for (const u of [0.2, 0.4, 0.6, 0.8]) facePatch(ctx, l, 'L', u, 12, 7, 14, '#ffd27a');
+    gableRoof(ctx, l.x, l.y, l.w, l.d, 46, 14, '#3e3a38', 'x', '#7a3a1e');
+    box(ctx, l.x + 44, l.y + 4, 10, 10, 60, '#5e3020', 60);
+    box(ctx, l.x + 8, l.y + 30, 10, 10, 40, '#5e3020', 60);
+    const a = proj(l.x + 49, l.y + 9, 120), b = proj(l.x + 13, l.y + 35, 100);
+    smoke(ctx, a.x, a.y);
+    smoke(ctx, b.x, b.y);
+  } else if (l.kind === 'clock') {
+    box(ctx, l.x, l.y, l.w, l.d, 150, '#c8b896');
+    pyramidRoof(ctx, l.x, l.y, l.w, l.d, 150, 26, '#2f5f8a');
+    const c = proj(l.x + l.w / 2, l.y + l.d, 128);
+    ctx.fillStyle = '#f3ead2';
+    ctx.beginPath(); ctx.ellipse(c.x - 4, c.y, 8, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#2a1a10'; ctx.lineWidth = 1.4;
+    const now = new Date();
+    for (const [len, ang] of [[6, (now.getMinutes() / 60) * Math.PI * 2], [4, ((now.getHours() % 12) / 12) * Math.PI * 2]]) {
+      ctx.beginPath(); ctx.moveTo(c.x - 4, c.y); ctx.lineTo(c.x - 4 + Math.sin(ang) * len, c.y - Math.cos(ang) * len); ctx.stroke();
+    }
+  }
+}
+
+/** Praça calçada que cresce com a cidade (deitada no chão). @param {CanvasRenderingContext2D} ctx */
+function drawPlaza(ctx) {
+  const era = currentEra();
+  if (era < 2) return;
+  const n = housesFor(state.contractsCompleted || 0);
+  const rx = 70 + Math.min(n, 30) * 3.2;
+  ctx.save();
+  groundTransform(ctx);
+  ctx.fillStyle = 'rgba(150,142,126,0.85)';
+  ctx.beginPath(); ctx.ellipse(CITY_CENTER.x, CITY_CENTER.y + 70, rx, rx * 0.75, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(90,84,72,0.35)';
+  ctx.lineWidth = 1;
+  for (let r = 14; r < rx; r += 14) {
+    ctx.beginPath(); ctx.ellipse(CITY_CENTER.x, CITY_CENTER.y + 70, r, r * 0.75, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** Bandeirolas de festa sobre a praça quando a aprovação está alta. @param {CanvasRenderingContext2D} ctx */
+function drawBunting(ctx) {
+  if ((state.approval || 0) < 75) return;
+  const a = proj(985, 520, 34), b = proj(1105, 520, 34);
+  const t = performance.now() / 1000;
+  ctx.strokeStyle = '#3a2410';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo((a.x + b.x) / 2, (a.y + b.y) / 2 + 14, b.x, b.y); ctx.stroke();
+  const cols = ['#d83a2a', '#f0c040', '#2f8a4a', '#2f5f8a', civColor()];
+  for (let i = 1; i < 12; i++) {
+    const u = i / 12;
+    const x = (1 - u) * (1 - u) * a.x + 2 * u * (1 - u) * (a.x + b.x) / 2 + u * u * b.x;
+    const y = (1 - u) * (1 - u) * a.y + 2 * u * (1 - u) * ((a.y + b.y) / 2 + 14) + u * u * b.y;
+    const sw = Math.sin(t * 3 + i) * 1.2;
+    ctx.fillStyle = cols[i % cols.length];
+    ctx.beginPath(); ctx.moveTo(x - 3, y); ctx.lineTo(x + 3, y); ctx.lineTo(x + sw, y + 7); ctx.closePath(); ctx.fill();
+  }
+  for (const p of [a, b]) {
+    const g = { x: p.x, y: p.y + 34 };
+    ctx.fillStyle = '#4a2a14';
+    ctx.fillRect(g.x - 1, p.y, 2, 34);
+  }
+}
+
 /** @returns {SceneObj[]} */
 function cityObjects() {
   const style = CITY_STYLES[state.currentCity] || 'colonial';
+  const contracts = state.contractsCompleted || 0;
+  const era = currentEra();
   /** @type {SceneObj[]} */
   const out = [];
   /** @param {Footprint} f @param {(ctx:CanvasRenderingContext2D)=>void} fn */
   const add = (f, fn) => out.push({ depth: f.x + f.w / 2 + f.y + f.d / 2, draw: fn });
-  const palette = style === 'port'
-    ? [['#a8c8d8', '#5a3416'], ['#f1e3c2', '#2f5f8a'], ['#d8e8ee', '#8a4a2a'], ['#f4d9a0', '#2f5f8a'], ['#c8dde6', '#a83a22']]
-    : style === 'industrial'
-      ? [['#9a5a3a', '#3e3a38'], ['#b07a50', '#4a4440'], ['#8a6a5a', '#3e3a38'], ['#a8806a', '#5a3a2a'], ['#c09a7a', '#3e3a38']]
-      : [['#e8c87a', '#a82e1c'], ['#b8c8a8', '#8a4a2a'], ['#e0b0a0', '#7a3a1a'], ['#f1e3c2', '#a83a22'], ['#d8c8a0', '#6a4a2a']];
-  const houses = [
-    { x: 905, y: 290, w: 52, d: 40 }, { x: 1150, y: 285, w: 52, d: 42 },
-    { x: 905, y: 470, w: 56, d: 44 }, { x: 1150, y: 465, w: 56, d: 44 }, { x: 1035, y: 535, w: 62, d: 40 },
-  ];
-  houses.forEach((f, i) => add(f, (ctx) => house(ctx, f, 26 + (i % 2) * 6, palette[i][0], palette[i][1], i % 2 ? 'y' : 'x')));
+
+  const n = housesFor(contracts);
+  for (let i = 0; i < n; i++) {
+    const f = CITY_LOTS[i];
+    const lotEra = eraAt(contractsForLot(i));
+    const pal = lotPalette(style, i);
+    const k = riseFactor(`lot${i}`);
+    add(f, (ctx) => rising(ctx, f, k, (c) => lotBuilding(c, f, lotEra, pal, i)));
+  }
+  for (const l of LANDMARKS) {
+    if (era < l.minEra) continue;
+    const k = riseFactor(l.kind);
+    add(l, (ctx) => rising(ctx, l, k, (c) => drawLandmark(c, l)));
+  }
   if (style === 'port') {
     const f = { x: 1060, y: 365, w: 34, d: 34 };
     add(f, (ctx) => lighthouse(ctx, f));
@@ -400,18 +656,26 @@ function cityObjects() {
       const top = proj(f.x + 76, f.y + 12, 110);
       smoke(ctx, top.x, top.y);
     });
-    const o = { x: 1100, y: 380, w: 40, d: 40 };
-    add(o, (ctx) => {
-      box(ctx, o.x, o.y, o.w, o.d, 96, '#6a6a6a');
-      for (let z = 10; z < 90; z += 14) for (const u of [0.25, 0.5, 0.75]) {
-        facePatch(ctx, o, 'L', u, z, 6, 7, '#ffd44a');
-        facePatch(ctx, o, 'R', u, z, 6, 7, '#d8b040');
-      }
-    });
   } else {
     const nave = { x: 1012, y: 350, w: 70, d: 92 };
     add(nave, (ctx) => church(ctx, nave));
   }
+
+  // moradores passeando pela praça (mais gente conforme a cidade cresce)
+  const t = performance.now() / 1000;
+  const people = Math.min(14, 2 + Math.floor(n / 3));
+  const tunics = ['#8a3a2a', '#2f5f8a', '#4a7a3a', '#a8862a', '#6a4a8a', '#8a6a4a'];
+  for (let i = 0; i < people; i++) {
+    const r = 46 + (i % 4) * 16;
+    const dirn = i % 2 ? 1 : -1;
+    const ang = t * (0.12 + (i % 3) * 0.03) * dirn + i * 1.9;
+    const gx = CITY_CENTER.x + Math.cos(ang) * r;
+    const gy = CITY_CENTER.y + 90 + Math.sin(ang) * r * 0.7;
+    const p = proj(gx, gy);
+    const sdx = -Math.sin(ang) * dirn - Math.cos(ang) * 0.7 * dirn;
+    out.push({ depth: gx + gy, draw: (ctx) => drawVillager(ctx, p.x, p.y, sdx >= 0 ? 1 : -1, t * 7 + i, tunics[i % tunics.length], false) });
+  }
+  cityPrimed = true;
   return out;
 }
 
@@ -560,6 +824,7 @@ export function drawOverworldIso(ctx, viewIso, hoverX, hoverY) {
 
   drawIsoTerrain(ctx);
   drawRoadAndBridge(ctx);
+  drawPlaza(ctx);
   drawAmbientFlat(ctx);
 
   // sombras + seleção (no chão, por baixo dos prédios)
@@ -602,6 +867,7 @@ export function drawOverworldIso(ctx, viewIso, hoverX, hoverY) {
     drawShroud(ctx, { x: c.x - 80, y: c.y - 60, w: 160, h: 110 }, isTarget(hover, 'mineSlot', i));
   });
 
+  drawBunting(ctx);
   drawAmbientSky(ctx);
   drawLabels(ctx, hover);
   lastRects = frameRects;
@@ -662,7 +928,7 @@ function drawLabels(ctx, hover) {
   const pp = proj(pc.x, PESQUISA_FP.y + PESQUISA_FP.d + 10);
   addRect('pesquisa', 0, plate(ctx, pp.x, pp.y, '📚 PESQUISA', { bg: isTarget(hover, 'pesquisa', 0) ? '#ffe680' : '#e2b765' }));
   const cs = proj(CITY_SIGN.x, CITY_SIGN.y);
-  plate(ctx, cs.x, cs.y, (state.currentCity || 'Florianópolis').toUpperCase(), { bg: '#c69042', size: 13 });
+  plate(ctx, cs.x, cs.y, `${(state.currentCity || 'Florianópolis').toUpperCase()} · ${cityTitle(state.contractsCompleted || 0)}`, { bg: '#c69042', size: 13 });
   const civ = state.civilization ? CIV_BY_ID[state.civilization] : null;
   if (civ) {
     const p = proj(CIV_FLAG.x, CIV_FLAG.y, CLIFF_H);

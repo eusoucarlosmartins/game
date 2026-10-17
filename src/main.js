@@ -4,7 +4,7 @@ import { $ } from './util.js';
 import { ROMAN, CFG, MINE, ACHIEVEMENTS, CIV_BY_ID } from './data.js';
 import { currentEra } from './progression.js';
 import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL } from './save.js';
-import { initMines, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine, regenerateMine, activeMine as getActiveMine } from './mine.js';
+import { initMines, connectToShaft, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine, regenerateMine, activeMine as getActiveMine } from './mine.js';
 import { buyFactory, setRecipe, updateFactories } from './factories.js';
 import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
@@ -368,6 +368,7 @@ if (loaded) {
   state.eraReached = Math.max(state.eraReached || 1, currentEra());
   // Garante array de minas válido após carregar (migração já feita em save.js)
   if (!state.mines || state.mines.length === 0) initMines();
+  for (const m of state.mines) connectToShaft(m);
   // Saves antigos sem campo tutorial: marca como dismissed (não atrapalha)
   if (!state.tutorial) state.tutorial = { step: 0, dismissed: true, autoDismissIn: 0 };
   log(`Partida carregada (dia ${state.day}, ${state.contractsCompleted} contratos, Era ${ROMAN[state.eraReached - 1]}).`, 'good');

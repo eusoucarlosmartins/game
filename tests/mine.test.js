@@ -1,7 +1,7 @@
 // mine.test.js — múltiplas minas, geração de grid, workers globais
 import { describe, it, expect, beforeEach } from 'vitest';
 import { state } from '../src/state.js';
-import { initMines, tryHireWorker, workersAvailable, workersActive, activeMine, buyMine, isMineOwned, canBuyMine } from '../src/mine.js';
+import { initMines, connectToShaft, tryHireWorker, workersAvailable, workersActive, activeMine, buyMine, isMineOwned, canBuyMine } from '../src/mine.js';
 import { MINE } from '../src/data.js';
 
 beforeEach(() => {
@@ -62,11 +62,31 @@ describe('initMines', () => {
 
   it('coloca veio de coal e iron_ore no túnel inicial de cada mina', () => {
     initMines();
-    const cc = Math.floor(MINE.cols / 2);
+    const cc = 3;
     for (const m of state.mines) {
       expect(m.grid[1][cc - 1].resource).toBe('coal');
       expect(m.grid[1][cc + 1].resource).toBe('iron_ore');
     }
+  });
+
+  it('o túnel inicial nasce ligado ao poço do elevador', () => {
+    initMines();
+    for (const m of state.mines) {
+      expect(m.grid[0][0].type).toBe('shaft');
+      for (let c = 1; c <= 5; c++) expect(m.grid[0][c].type).toBe('air');
+    }
+  });
+
+  it('connectToShaft liga minas antigas (túnel no meio) ao elevador sem custo', () => {
+    initMines();
+    const m = state.mines[0];
+    for (let c = 1; c < MINE.cols; c++) m.grid[0][c] = { type: 'dirt', resource: null, amount: 0, revealed: false, worker: false };
+    for (let c = 13; c <= 17; c++) m.grid[0][c] = { type: 'air', resource: null, amount: 0, revealed: true, worker: false };
+    const money = state.money;
+    expect(connectToShaft(m)).toBe(true);
+    for (let c = 1; c <= 17; c++) expect(m.grid[0][c].type).toBe('air');
+    expect(state.money).toBe(money);
+    expect(connectToShaft(m)).toBe(false);
   });
 
   it('cada mina distribui veios de vários recursos', () => {

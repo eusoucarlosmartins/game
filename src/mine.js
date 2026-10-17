@@ -83,14 +83,35 @@ function buildMineGrid(mine, oreBias) {
     mine.grid.push(row);
   }
   placeOreVeins(mine.grid, oreBias);
-  // Túnel inicial: 5 colunas no topo central já cavadas + 2 veios expostos
-  const cc = Math.floor(MINE.cols / 2);
-  for (let c = cc - 2; c <= cc + 2; c++) mine.grid[0][c] = airTile(true);
+  // Túnel inicial colado ao poço do elevador (coluna 0) + 2 veios expostos ao lado
+  const cc = 3;
+  for (let c = 1; c <= 5; c++) mine.grid[0][c] = airTile(true);
   mine.grid[1][cc] = airTile(true);
   mine.grid[1][cc - 1] = oreTile('coal', 25, true);
   mine.grid[1][cc + 1] = oreTile('iron_ore', 25, true);
   revealAround(mine.grid, 0, cc, 2);
   revealAround(mine.grid, 1, cc, 1);
+}
+
+/**
+ * Minas criadas antes do túnel nascer junto ao elevador: abre (de graça) a linha
+ * do topo entre o poço e o primeiro túnel, para não parecer que é preciso cavar até lá.
+ * @param {any} mine
+ * @returns {boolean} true se abriu algo
+ */
+export function connectToShaft(mine) {
+  if (!mine || !mine.grid) return false;
+  const top = mine.grid[0];
+  if (top[1] && top[1].type === 'air') return false;
+  let first = -1;
+  for (let c = 1; c < MINE.cols; c++) if (top[c].type === 'air') { first = c; break; }
+  if (first < 0) return false;
+  for (let c = 1; c < first; c++) {
+    if (top[c].type === 'ore') continue;
+    top[c] = airTile(true);
+    revealAround(mine.grid, 0, c, 1);
+  }
+  return true;
 }
 
 function airTile(revealed) {
