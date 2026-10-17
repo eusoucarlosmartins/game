@@ -1480,5 +1480,9 @@ html, body {
   .sidebar.open { transform: translateX(0); }
   .sheet-handle { display: none; }
   .dock-btn { width: 60px; height: 50px; }
+  /* zoom no canto esquerdo: a direita fica para o minimapa */
+  .zoom-ctl { right: auto; left: 10px; bottom: 10px; }
+  .zoom-ctl button { width: 38px; height: 38px; font-size: 18px; }
+  .stage.scene-mine .zoom-ctl { left: 10px; right: auto; top: auto; bottom: 10px; transform: none; }
   .dock-ico { font-size: 20px; }
 }

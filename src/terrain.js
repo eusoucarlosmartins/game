@@ -917,7 +917,9 @@ export function drawPennant(ctx, x, y, color, accent) {
 
 /** Minimapa no canto inferior direito do HUD. @param {number} hudW @param {number} hudH @returns {MinimapLayout} */
 export function minimapLayout(hudW, hudH) {
-  const hw = 80, hh = 44;
+  // telas baixas (celular deitado): minimapa menor para não cobrir o mapa
+  const k = hudH < 460 ? 0.68 : 1;
+  const hw = 80 * k, hh = 44 * k;
   return { cx: hudW - hw - 18, cy: hudH - hh - 14, hw, hh };
 }
 
