@@ -1,6 +1,6 @@
 // draw.js — renderização do canvas (mina em grid + superfície compacta)
 import { state } from './state.js';
-import { R, RECIPE_BY_ID, CFG, MINE, TOOLS, SILO_DEFAULT_CAP } from './data.js';
+import { R, RECIPE_BY_ID, CFG, MINE, SILO_DEFAULT_CAP } from './data.js';
 import { fmtMoney, clamp } from './util.js';
 import { transportTier, currentEra, eraData } from './progression.js';
 import { ingredientHave } from './factories.js';
@@ -10,11 +10,12 @@ import { ACH_BY_ID, CIV_BY_ID } from './data.js';
 import { getSprite } from './sprites.js';
 import {
   getTerrainCanvas, drawAmbientGround, drawAmbientSky, drawShroud,
-  drawSelectionEllipse, drawPennant, drawMinimap, BRIDGE, VILLAGES,
+  drawSelectionEllipse, drawPennant, drawMinimap, minimapLayout, BRIDGE, VILLAGES,
 } from './terrain.js';
+import { applyWorldTransform, applyHudTransform, hudSize, visibleWorldRect, view } from './camera.js';
 import {
-  W, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
-  OVERWORLD, TOOLBAR, MINE_BACK_BTN, factoryRect,
+  W, H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
+  OVERWORLD, factoryRect,
 } from './geometry.js';
 
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game'));
@@ -951,31 +952,6 @@ function drawMinerSprite(cx, by) {
   ctx.stroke();
 }
 
-// ---------- Toolbar ----------
-function drawToolbar() {
-  const order = ['pick', 'tnt', 'compass', 'miner'];
-  const icons = { pick: '⛏', tnt: 'TNT', compass: '◇', miner: '👤' };
-  for (let i = 0; i < order.length; i++) {
-    const id = order[i];
-    const x = TOOLBAR.x;
-    const y = TOOLBAR.y + i * TOOLBAR.slotH;
-    const selected = state.tool === id;
-    ctx.fillStyle = selected ? '#c69042' : '#5a3416';
-    ctx.fillRect(x - 3, y - 3, TOOLBAR.w + 6, TOOLBAR.w + 6);
-    ctx.fillStyle = '#1a0e06';
-    ctx.fillRect(x, y, TOOLBAR.w, TOOLBAR.w);
-    ctx.fillStyle = selected ? '#ffd44a' : '#f1e3c2';
-    ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(icons[id], x + TOOLBAR.w / 2, y + TOOLBAR.w / 2);
-    ctx.fillStyle = '#f1e3c2';
-    ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
-    ctx.textBaseline = 'top';
-    ctx.fillText(TOOLS[id].name, x + TOOLBAR.w / 2, y + TOOLBAR.w + 3);
-  }
-}
-
 // ---------- Tooltip do tile sob o mouse ----------
 function drawTileTooltip() {
   if (state.mouseX < 0 || state.mouseY < 0) return;
@@ -1033,9 +1009,10 @@ function drawTileTooltip() {
 function drawEventBanner() {
   if (!state.activeEvent) return;
   const e = state.activeEvent;
-  const cx = W / 2;
-  const baseY = 0;
-  const bw = 360, bh = 36;
+  const hw = hudSize().w;
+  const cx = hw / 2;
+  const baseY = view.hudTopInset;
+  const bw = Math.min(360, hw - 16), bh = 36;
   // moldura
   const bg = e.kind === 'bad' ? 'rgba(120,40,30,0.92)'
             : e.kind === 'good' ? 'rgba(40,80,50,0.92)'
@@ -1065,7 +1042,7 @@ function drawEventBanner() {
 
 // ---------- Cena OVERWORLD: mapa ----------
 function drawOverworldBg() {
-  ctx.drawImage(getTerrainCanvas(), 0, 0);
+  ctx.drawImage(getTerrainCanvas(), 0, 0, W, H);
   drawAmbientGround(ctx, {
     activeMines: OVERWORLD.mineEntrances.map((_, i) => !!state.mines[i] && !state.mines[i].exhausted),
     playerColor: civColor(),
@@ -1295,7 +1272,6 @@ function drawOverworld() {
   drawFactoryRecipePanels();
   drawActiveProjectPanel();
   drawContractPanelOverworld();
-  drawOverworldMinimap();
 }
 
 function drawOverworldMinimap() {
@@ -1317,7 +1293,8 @@ function drawOverworldMinimap() {
   }
   const wx = ROAD.x1 + (ROAD.x2 - ROAD.x1) * state.wagon.pos;
   markers.push({ x: wx - 14, y: ROAD.y - 14, w: 28, h: 28, color: '#ffffff' });
-  drawMinimap(ctx, markers);
+  const hs = hudSize();
+  drawMinimap(ctx, markers, minimapLayout(hs.w, hs.h), visibleWorldRect('overworld'));
 }
 
 // Nodo do Mercado — clicável (abre aba Mercado)
@@ -1435,32 +1412,61 @@ function drawNodeHoverHighlight(n) {
 }
 
 // ---------- Tutorial inicial (auto-avança baseado em ações) ----------
+const IS_TOUCH = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 const TUTORIAL_STEPS = [
-  { scene: 'overworld', msg: '👋 Clique na ENTRADA DA MINA à esquerda para começar a cavar.' },
-  { scene: 'mine', msg: '⛏ Selecione a ferramenta MINERADOR (👤 ou tecla 4) e clique num veio descoberto (Fe ou C).' },
+  { scene: 'overworld', msg: IS_TOUCH
+    ? '👋 Toque na ENTRADA DA MINA (à esquerda) para começar a cavar. Arraste para mover o mapa e use dois dedos para zoom.'
+    : '👋 Clique na ENTRADA DA MINA à esquerda para começar a cavar.' },
+  { scene: 'mine', msg: IS_TOUCH
+    ? '⛏ Escolha 👤 Minerador na barra de ferramentas e toque num veio descoberto (Fe ou C).'
+    : '⛏ Selecione a ferramenta MINERADOR (👤 ou tecla 4) e clique num veio descoberto (Fe ou C).' },
   { scene: 'mine', msg: '✅ Boa! Minério já flui para os silos. Volte ao mapa para acompanhar contratos e fábricas.' },
 ];
+
+/** Quebra o texto em linhas que cabem em maxW (com a fonte atual do ctx). @param {string} text @param {number} maxW */
+function wrapLines(text, maxW) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxW && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
 
 function drawTutorial() {
   if (!state.tutorial || state.tutorial.dismissed) return;
   const step = state.tutorial.step ?? 0;
   const t = TUTORIAL_STEPS[step];
   if (!t || t.scene !== state.scene) return;
-  const w = 560;
-  const h = 56;
-  const tx = (W - w) / 2;
-  const ty = state.scene === 'overworld' ? 200 : 90;
+  const hw = hudSize().w;
+  const w = Math.min(600, hw - 16);
+  ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
+  const lines = wrapLines(t.msg, w - 24);
+  const lineH = 18;
+  const h = 18 + lines.length * lineH + (step === 2 ? 12 : 0);
+  const tx = (hw - w) / 2;
+  // na mina em tela compacta o topo é onde estão os veios: o tutorial desce para cima da barra de ferramentas
+  const ty = view.hudBottomInset > 0
+    ? hudSize().h - view.hudBottomInset - h
+    : view.hudTopInset + (state.activeEvent ? 44 : 8);
   drawScrollPanel(tx, ty, w, h);
   ctx.fillStyle = '#3a1f0a';
-  ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(t.msg, tx + w / 2, ty + h / 2 - 4);
+  lines.forEach((ln, i) => ctx.fillText(ln, tx + w / 2, ty + 9 + lineH / 2 + i * lineH));
   if (step === 2) {
     const left = Math.max(0, state.tutorial.autoDismissIn ?? 0);
     ctx.fillStyle = '#5a3416';
     ctx.font = '10px "Segoe UI"';
-    ctx.fillText(`Fecha sozinho em ${Math.ceil(left)}s`, tx + w / 2, ty + h - 8);
+    ctx.fillText(`Fecha sozinho em ${Math.ceil(left)}s`, tx + w / 2, ty + h - 9);
   }
 }
 
@@ -1709,31 +1715,12 @@ function drawContractPanelOverworld() {
 }
 
 // ---------- Cena MINA: grid + silos + tools + botão voltar ----------
-function drawBackBtn() {
-  const b = MINE_BACK_BTN;
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(b.x - 2, b.y - 2, b.w + 4, b.h + 4);
-  // hover effect
-  const hovering =
-    state.mouseX >= b.x && state.mouseX < b.x + b.w &&
-    state.mouseY >= b.y && state.mouseY < b.y + b.h;
-  ctx.fillStyle = hovering ? '#d8a056' : '#c69042';
-  ctx.fillRect(b.x, b.y, b.w, b.h);
-  ctx.fillStyle = '#1a0e06';
-  ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('← Voltar ao Mapa', b.x + b.w / 2, b.y + b.h / 2);
-}
 
 function drawMineScene() {
   drawMineSky();
   drawSilos();
   drawMineGrid();
   drawElevator();
-  drawToolbar();
-  drawBackBtn();
-  drawMineSwitcher();
   drawExhaustedOverlay();
 }
 
@@ -1787,34 +1774,6 @@ function drawElevator() {
   }
 }
 
-// Botões pra alternar entre as minas (canto superior direito, acima da toolbar)
-function drawMineSwitcher() {
-  if (!state.mines || state.mines.length < 2) return;
-  const btnW = 110;
-  const btnH = 28;
-  const startY = 56;
-  for (let i = 0; i < state.mines.length; i++) {
-    const m = state.mines[i];
-    const x = W - btnW - 14;
-    const y = startY + i * (btnH + 6);
-    const isActive = i === state.activeMineIdx;
-    const exhausted = m.exhausted;
-    // moldura
-    ctx.fillStyle = '#3a1f0a';
-    ctx.fillRect(x - 2, y - 2, btnW + 4, btnH + 4);
-    ctx.fillStyle = isActive ? '#c69042' : (exhausted ? '#5a4a3a' : '#a88b56');
-    ctx.fillRect(x, y, btnW, btnH);
-    ctx.fillStyle = '#1a0e06';
-    ctx.font = `bold 11px "Segoe UI", Arial, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(
-      exhausted ? `🚫 ${m.name}` : (isActive ? `● ${m.name}` : m.name),
-      x + btnW / 2,
-      y + btnH / 2,
-    );
-  }
-}
 
 function drawExhaustedOverlay() {
   const mine = activeMine();
@@ -1857,15 +1816,33 @@ function drawExhaustedOverlay() {
 
 // ---------- Entry ----------
 export function draw() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#140d07';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  applyWorldTransform(ctx, state.scene);
   if (state.scene === 'mine') {
     drawMineScene();
     drawTileTooltip();
   } else {
     drawOverworld();
   }
+  applyHudTransform(ctx);
+  if (state.scene !== 'mine') drawOverworldMinimap();
   drawEventBanner();
   drawTutorial();
   drawAchievementToast();
+}
+
+/** Texto centralizado que encolhe a fonte até caber em maxW. */
+/** @param {string} text @param {number} x @param {number} y @param {number} maxW */
+function fillTextFit(text, x, y, maxW) {
+  const m = /(\d+)px/.exec(ctx.font);
+  let size = m ? +m[1] : 12;
+  while (size > 8 && ctx.measureText(text).width > maxW) {
+    size -= 1;
+    ctx.font = ctx.font.replace(/\d+px/, `${size}px`);
+  }
+  ctx.fillText(text, x, y);
 }
 
 // Toast dourado quando conquista desbloqueia
@@ -1873,9 +1850,10 @@ function drawAchievementToast() {
   if (!state.activeAchievement) return;
   const a = ACH_BY_ID[state.activeAchievement.id];
   if (!a) return;
-  const w = 440, h = 72;
-  const x = (W - w) / 2;
-  const y = 56;
+  const hw = hudSize().w;
+  const w = Math.min(440, hw - 16), h = 72;
+  const x = (hw - w) / 2;
+  const y = view.hudTopInset + 56;
   // moldura dourada vibrante
   ctx.fillStyle = '#c69042';
   ctx.fillRect(x - 4, y - 4, w + 8, h + 8);
@@ -1886,15 +1864,15 @@ function drawAchievementToast() {
   ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🏆 CONQUISTA DESBLOQUEADA', W / 2, y + 14);
+  ctx.fillText('🏆 CONQUISTA DESBLOQUEADA', hw / 2, y + 14);
   // emoji + nome
   ctx.fillStyle = '#f1e3c2';
   ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
-  ctx.fillText(`${a.emoji}  ${a.name}`, W / 2, y + 36);
+  ctx.fillText(`${a.emoji}  ${a.name}`, hw / 2, y + 36);
   // descrição
   ctx.fillStyle = 'rgba(241,227,194,0.85)';
   ctx.font = '11px "Segoe UI", Arial, sans-serif';
-  ctx.fillText(a.desc, W / 2, y + 56);
+  fillTextFit(a.desc, hw / 2, y + 56, w - 16);
   // barrinha de tempo
   const total = 5; // TOAST_DURATION
   const pct = Math.max(0, (state.activeAchievement.timeLeft || 0) / total);

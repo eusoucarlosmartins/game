@@ -12,7 +12,7 @@ export default class OverworldScene extends Phaser.Scene {
   create() {
     // Terreno AoE compartilhado com o renderer canvas (pré-renderizado uma vez)
     if (!this.textures.exists('aoe-terrain')) this.textures.addCanvas('aoe-terrain', getTerrainCanvas());
-    this.add.image(0, 0, 'aoe-terrain').setOrigin(0, 0);
+    this.add.image(0, 0, 'aoe-terrain').setOrigin(0, 0).setDisplaySize(1280, 720);
 
     // Mine entrances (até 4 slots)
     this.mineImages = [];

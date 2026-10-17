@@ -439,17 +439,20 @@ function paintEdgeFog(g) {
   }
 }
 
+// 2x: continua nítido com zoom e em telas retina
+export const TERRAIN_RES = 2;
 /** @type {HTMLCanvasElement | null} */
 let terrainCache = null;
 
-/** Canvas 1280x720 com todo o terreno estático (gerado uma vez, determinístico). */
+/** Canvas (1280x720 lógicos × TERRAIN_RES) com todo o terreno estático (gerado uma vez, determinístico). */
 export function getTerrainCanvas() {
   if (terrainCache) return terrainCache;
   const c = document.createElement('canvas');
-  c.width = W;
-  c.height = H;
+  c.width = W * TERRAIN_RES;
+  c.height = H * TERRAIN_RES;
   const g = c.getContext('2d');
   if (!g) return c;
+  g.scale(TERRAIN_RES, TERRAIN_RES);
   const rnd = mulberry32(1500);
   paintGrass(g, rnd);
   // fundações de terra batida
@@ -702,13 +705,38 @@ export function drawPennant(ctx, x, y, color, accent) {
   ctx.stroke();
 }
 
+/** @typedef {{ cx: number, cy: number, hw: number, hh: number }} MinimapLayout */
+
+/** Minimapa no canto inferior direito do HUD. @param {number} hudW @param {number} hudH @returns {MinimapLayout} */
+export function minimapLayout(hudW, hudH) {
+  const hw = 80, hh = 44;
+  return { cx: hudW - hw - 18, cy: hudH - hh - 14, hw, hh };
+}
+
+/** @param {MinimapLayout} L @param {number} x @param {number} y mundo → HUD */
+function mmPoint(L, x, y) {
+  const u = x / W, v = y / H;
+  return { x: L.cx + (u - v) * L.hw, y: L.cy - L.hh + (u + v) * L.hh };
+}
+
+/** Ponto do HUD → mundo, ou null se fora do losango. @param {MinimapLayout} L @param {number} hx @param {number} hy */
+export function minimapToWorld(L, hx, hy) {
+  const a = (hx - L.cx) / L.hw;          // u - v
+  const b = (hy - (L.cy - L.hh)) / L.hh; // u + v
+  const u = (a + b) / 2, v = (b - a) / 2;
+  if (u < -0.03 || u > 1.03 || v < -0.03 || v > 1.03) return null;
+  return { x: Math.min(W, Math.max(0, u * W)), y: Math.min(H, Math.max(0, v * H)) };
+}
+
 /**
- * Minimapa em losango (canto inferior direito), como no AoE II.
+ * Minimapa em losango, como no AoE II, com o retângulo da área visível.
  * @param {CanvasRenderingContext2D} ctx
  * @param {{x:number,y:number,w:number,h:number,color:string}[]} markers
+ * @param {MinimapLayout} L
+ * @param {{x:number,y:number,w:number,h:number}} viewRect
  */
-export function drawMinimap(ctx, markers) {
-  const cx = 1192, cy = 668, hw = 80, hh = 44;
+export function drawMinimap(ctx, markers, L, viewRect) {
+  const { cx, cy, hw, hh } = L;
   const diamond = () => {
     ctx.beginPath();
     ctx.moveTo(cx, cy - hh); ctx.lineTo(cx + hw, cy); ctx.lineTo(cx, cy + hh); ctx.lineTo(cx - hw, cy);
@@ -722,7 +750,10 @@ export function drawMinimap(ctx, markers) {
   plate.addColorStop(0, '#8a7a5e');
   plate.addColorStop(1, '#4e4232');
   ctx.fillStyle = plate;
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 8;
   ctx.fill();
+  ctx.shadowBlur = 0;
   ctx.strokeStyle = '#1a0e06';
   ctx.lineWidth = 2;
   ctx.stroke();
@@ -739,6 +770,18 @@ export function drawMinimap(ctx, markers) {
     ctx.fillRect(m.x, m.y, m.w, m.h);
   }
   ctx.restore();
+  // área visível na tela
+  const x1 = Math.max(0, viewRect.x), y1 = Math.max(0, viewRect.y);
+  const x2 = Math.min(W, viewRect.x + viewRect.w), y2 = Math.min(H, viewRect.y + viewRect.h);
+  if (x2 - x1 < W - 1 || y2 - y1 < H - 1) {
+    const pts = [mmPoint(L, x1, y1), mmPoint(L, x2, y1), mmPoint(L, x2, y2), mmPoint(L, x1, y2)];
+    ctx.beginPath();
+    pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+    ctx.closePath();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
   diamond();
   ctx.strokeStyle = '#c69042';
   ctx.lineWidth = 2;

@@ -23,15 +23,6 @@
     <div class="loading-tip">Carregando sprites e dados…</div>
   </div>
 
-  <!-- Aviso para girar o celular (só aparece em portrait via CSS) -->
-  <div id="portrait-warning">
-    <div class="icon">📱</div>
-    <div class="msg">Gire o celular para a horizontal</div>
-    <div class="sub">Este jogo é otimizado para tela 16:9</div>
-  </div>
-
-  <!-- Botão flutuante de menu (só aparece em mobile via CSS) -->
-  <button id="sidebar-toggle" type="button" aria-label="Abrir menu">☰</button>
   <div id="sidebar-backdrop"></div>
 
   <div id="app">
@@ -65,6 +56,8 @@
           <span class="stat-value" id="civ-badge" title="">—</span>
         </div>
       </div>
+      <button id="speed-cycle" class="compact-only icon-btn" type="button" aria-label="Velocidade do jogo">1x</button>
+      <button id="menu-btn" class="compact-only icon-btn" type="button" aria-label="Menu" aria-expanded="false">⚙</button>
       <div class="speed-controls">
         <button data-speed="0" class="speed-btn" title="Pausar">II</button>
         <button data-speed="1" class="speed-btn active" title="Normal">1x</button>
@@ -82,10 +75,31 @@
     </header>
 
     <main class="play-area">
-      <canvas id="game" width="1280" height="720"></canvas>
-      <div id="phaser-container" style="display:none; width:100%; height:100%; grid-column: 1;"></div>
+      <div class="stage">
+        <canvas id="game" width="1280" height="720" aria-label="Mapa do jogo"></canvas>
+        <div id="phaser-container" style="display:none; width:100%; height:100%;"></div>
+        <div id="scene-hud">
+          <div class="hud-top" id="hud-top">
+            <button id="mine-back" class="hud-btn" type="button" hidden>← Mapa</button>
+            <button id="contract-chip" class="hud-chip compact-only" type="button" hidden></button>
+            <div id="mine-switcher" class="hud-switcher" hidden></div>
+          </div>
+          <div id="tool-dock" class="tool-dock" hidden>
+            <button data-action="tool-select" data-tool="pick" class="dock-btn" type="button"><span class="dock-ico">⛏</span><span class="dock-lbl">Picareta</span></button>
+            <button data-action="tool-select" data-tool="tnt" class="dock-btn" type="button"><span class="dock-ico">💥</span><span class="dock-lbl">TNT</span></button>
+            <button data-action="tool-select" data-tool="compass" class="dock-btn" type="button"><span class="dock-ico">🧭</span><span class="dock-lbl">Bússola</span></button>
+            <button data-action="tool-select" data-tool="miner" class="dock-btn" type="button"><span class="dock-ico">👤</span><span class="dock-lbl">Minerador</span></button>
+          </div>
+          <div id="zoom-ctl" class="zoom-ctl">
+            <button type="button" data-zoom="in" aria-label="Aproximar">+</button>
+            <button type="button" data-zoom="out" aria-label="Afastar">−</button>
+            <button type="button" data-zoom="fit" aria-label="Ver tudo">⤢</button>
+          </div>
+        </div>
+      </div>
 
       <aside class="sidebar">
+        <div class="sheet-handle" aria-hidden="true"></div>
         <nav class="tabs" id="tabs">
           <button data-tab="contract" class="tab active">Contrato</button>
           <button data-tab="mine" class="tab">Mina</button>
@@ -235,6 +249,14 @@
       <span class="spacer"></span>
       <span class="tip">Cave para encontrar veios. Use "Minerador" pra alocar trabalhador num veio descoberto.</span>
     </footer>
+
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Painéis">
+      <button type="button" data-sheet="contract"><span class="nav-ico">📜</span><span class="nav-lbl">Contrato</span></button>
+      <button type="button" data-sheet="mine"><span class="nav-ico">⛏</span><span class="nav-lbl">Mina</span></button>
+      <button type="button" data-sheet="factory"><span class="nav-ico">🏭</span><span class="nav-lbl">Fábricas</span></button>
+      <button type="button" data-sheet="market"><span class="nav-ico">💰</span><span class="nav-lbl">Mercado</span></button>
+      <button type="button" data-sheet="more"><span class="nav-ico">☰</span><span class="nav-lbl">Mais</span></button>
+    </nav>
   </div>
 
   <!-- Modal: Escolher Civilização (Novo Jogo) -->

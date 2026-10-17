@@ -20,7 +20,7 @@ export default class MineScene extends Phaser.Scene {
   constructor() { super({ key: 'MineScene' }); }
 
   create() {
-    const { width, height } = this.cameras.main;
+    const { width } = this.cameras.main;
 
     // Céu
     const sky = this.add.graphics();
@@ -46,7 +46,7 @@ export default class MineScene extends Phaser.Scene {
     backBg.fillRect(b.x - 2, b.y - 2, b.w + 4, b.h + 4);
     backBg.fillStyle(0xc69042, 1);
     backBg.fillRect(b.x, b.y, b.w, b.h);
-    const backTxt = this.add.text(b.x + b.w / 2, b.y + b.h / 2, '← Voltar ao Mapa', {
+    this.add.text(b.x + b.w / 2, b.y + b.h / 2, '← Voltar ao Mapa', {
       fontFamily: 'Segoe UI, Arial', fontSize: '14px', color: '#1a0e06', fontStyle: 'bold',
     }).setOrigin(0.5);
     const backHit = this.add.rectangle(b.x + b.w / 2, b.y + b.h / 2, b.w, b.h, 0, 0);

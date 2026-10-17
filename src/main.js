@@ -18,7 +18,11 @@ import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgr
 import { sellRaw, sellAllRaw, sellProduct, sellAllProduct } from './market.js';
 import { chooseCivilization } from './civilizations.js';
 import { loadSprites } from './sprites.js';
-import { W, TOOLBAR, MINE_BACK_BTN, OVERWORLD, factoryRect } from './geometry.js';
+import { W, OVERWORLD, factoryRect } from './geometry.js';
+import { resizeCanvas, screenToWorld, screenToHud, hudSize, centerOn } from './camera.js';
+import { attachInput } from './input.js';
+import { initHud, syncHud, openPanel, haptic } from './hud.js';
+import { minimapLayout, minimapToWorld } from './terrain.js';
 
 // ---------- Game over / vitória ----------
 function fmt(n) { return Math.floor(n).toLocaleString('pt-BR'); }
@@ -130,57 +134,50 @@ function frame(now) {
   }
   try {
     syncUI();
+    syncHud();
   } catch (err) {
     console.error('[syncUI]', err);
   }
   requestAnimationFrame(frame);
 }
 
-// ---------- Canvas: mouse + click handler (tools + grid) ----------
+// ---------- Canvas: gestos (toque/mouse) → câmera ou ação no mundo ----------
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game'));
-/**
- * Converte coords da página → coords do canvas (1280x720 logical).
- * @param {MouseEvent} e
- * @returns {{x: number, y: number}}
- */
-function canvasCoords(e) {
-  const rect = canvas.getBoundingClientRect();
-  return {
-    x: (e.clientX - rect.left) * (canvas.width / rect.width),
-    y: (e.clientY - rect.top) * (canvas.height / rect.height),
-  };
-}
-canvas.addEventListener('mousemove', (e) => {
-  const p = canvasCoords(e);
-  state.mouseX = p.x;
-  state.mouseY = p.y;
-});
-canvas.addEventListener('mouseleave', () => {
-  state.mouseX = -1;
-  state.mouseY = -1;
-});
+resizeCanvas(canvas);
+new ResizeObserver(() => resizeCanvas(canvas)).observe(canvas);
+window.addEventListener('orientationchange', () => setTimeout(() => resizeCanvas(canvas), 250));
+
+/** @param {number} x @param {number} y @param {{x:number,y:number,w:number,h:number}} r */
 function hitTest(x, y, r) {
   return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 }
 
-/** @param {string} name */
-function switchTab(name) {
-  const btn = /** @type {HTMLElement|null} */ (document.querySelector(`.tab[data-tab="${name}"]`));
-  if (btn) btn.click();
-  // Em mobile, abre o drawer pra ver a aba imediatamente
-  const sb = document.querySelector('.sidebar');
-  const bd = document.getElementById('sidebar-backdrop');
-  if (sb && window.matchMedia('(max-width: 900px)').matches) {
-    sb.classList.add('open');
-    if (bd) bd.classList.add('show');
-  }
-}
+attachInput(canvas, {
+  onTap(sx, sy, pointerType) {
+    // Minimapa (HUD): toque centraliza a câmera naquele ponto
+    if (state.scene !== 'mine') {
+      const hs = hudSize();
+      const h = screenToHud(sx, sy);
+      const target = minimapToWorld(minimapLayout(hs.w, hs.h), h.x, h.y);
+      if (target) {
+        centerOn('overworld', target.x, target.y);
+        if (pointerType !== 'mouse') haptic(6);
+        return;
+      }
+    }
+    const { x, y } = screenToWorld(state.scene, sx, sy);
+    const acted = handleWorldTap(x, y);
+    if (acted && pointerType !== 'mouse') haptic();
+  },
+});
 
-canvas.addEventListener('click', (e) => {
-  const { x, y } = canvasCoords(e);
-
+/**
+ * Ação de um toque/clique em coordenadas do mundo. Retorna true se algo aconteceu.
+ * @param {number} x @param {number} y
+ */
+function handleWorldTap(x, y) {
   if (state.scene === 'overworld') {
-    // Click em entrada de mina (ocupada → entra; vazia → abre catálogo)
+    // Toque em entrada de mina (ocupada → entra; vazia → abre catálogo)
     for (let i = 0; i < OVERWORLD.mineEntrances.length; i++) {
       if (hitTest(x, y, OVERWORLD.mineEntrances[i])) {
         const m = state.mines[i];
@@ -196,42 +193,33 @@ canvas.addEventListener('click', (e) => {
           openBuyMineModal();
           play('click');
         }
-        return;
+        return true;
       }
     }
-    // Mercado node → abre aba Mercado
     if (hitTest(x, y, OVERWORLD.mercadoNode)) {
-      switchTab('market');
+      openPanel('market');
       play('click');
-      return;
+      return true;
     }
-    // Pesquisa node → abre modal de Upgrades
     if (hitTest(x, y, OVERWORLD.pesquisaNode)) {
       openUpgradesModal();
       play('click');
-      return;
+      return true;
     }
-    // Click numa fábrica (prédio ou painel acima) → abre modal de receita
+    // Fábrica (prédio ou painel de receita acima) → modal de receita
     for (let i = 0; i < state.factories.length; i++) {
       const r = factoryRect(i);
-      // painel mini de receita acima (44px + 8px gap)
       const panelArea = { x: r.x, y: r.y - 52, w: r.w, h: 52 };
       if (hitTest(x, y, r) || hitTest(x, y, panelArea)) {
         openRecipeModal(i);
         play('click');
-        return;
+        return true;
       }
     }
-    return;
+    return false;
   }
 
   // ----- Cena MINA -----
-  // Botão "← Voltar ao Mapa"
-  if (hitTest(x, y, MINE_BACK_BTN)) {
-    state.scene = 'overworld';
-    play('whoosh');
-    return;
-  }
   // Botão "Regenerar" no banner de mina esgotada
   {
     const m = getActiveMine();
@@ -241,39 +229,14 @@ canvas.addEventListener('click', (e) => {
       const by = MINE.y + (MINE.rows * MINE.cell) / 2 - 50 + 60 + 12;
       if (hitTest(x, y, { x: bx, y: by, w: bw, h: bh })) {
         regenerateMine(state.activeMineIdx);
-        return;
+        return true;
       }
     }
   }
-  // Botões de troca de mina (canto superior direito)
-  if (state.mines && state.mines.length >= 2) {
-    const btnW = 110, btnH = 28, startY = 56;
-    for (let i = 0; i < state.mines.length; i++) {
-      const r = { x: W - btnW - 14, y: startY + i * (btnH + 6), w: btnW, h: btnH };
-      if (hitTest(x, y, r)) {
-        setActiveMine(i);
-        play('click');
-        return;
-      }
-    }
-  }
-  // Click em qualquer lugar fecha o último passo do tutorial
+  // Toque em qualquer lugar fecha o último passo do tutorial
   if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 2) {
     state.tutorial.dismissed = true;
   }
-
-  // Toolbar lateral
-  if (x >= TOOLBAR.x && x < TOOLBAR.x + TOOLBAR.w && y >= TOOLBAR.y) {
-    const idx = Math.floor((y - TOOLBAR.y) / TOOLBAR.slotH);
-    const order = ['pick', 'tnt', 'compass', 'miner'];
-    if (idx >= 0 && idx < order.length) {
-      const slotY = TOOLBAR.y + idx * TOOLBAR.slotH;
-      if (y < slotY + TOOLBAR.w) setTool(order[idx]);
-    }
-    return;
-  }
-
-  // Grid da mina
   if (x >= MINE.x && x < MINE.x + MINE.cols * MINE.cell &&
       y >= MINE.y && y < MINE.y + MINE.rows * MINE.cell) {
     const c = Math.floor((x - MINE.x) / MINE.cell);
@@ -283,8 +246,10 @@ canvas.addEventListener('click', (e) => {
     else if (tool === 'tnt') tryTNT(r, c);
     else if (tool === 'compass') tryCompass(r, c);
     else if (tool === 'miner') tryPlaceWorker(r, c);
+    return true;
   }
-});
+  return false;
+}
 
 // ---------- Atalhos de teclado ----------
 document.addEventListener('keydown', (e) => {
@@ -371,25 +336,7 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// ---------- Sidebar drawer (mobile) ----------
-const sidebar = document.querySelector('.sidebar');
-const sidebarToggle = $('sidebar-toggle');
-const sidebarBackdrop = $('sidebar-backdrop');
-function setSidebarOpen(open) {
-  if (!sidebar) return;
-  sidebar.classList.toggle('open', open);
-  if (sidebarBackdrop) sidebarBackdrop.classList.toggle('show', open);
-}
-if (sidebarToggle && sidebar) {
-  sidebarToggle.addEventListener('click', (e) => {
-    e.stopPropagation();
-    setSidebarOpen(!sidebar.classList.contains('open'));
-    play('click');
-  });
-  if (sidebarBackdrop) {
-    sidebarBackdrop.addEventListener('click', () => setSidebarOpen(false));
-  }
-}
+initHud();
 
 $('buy-factory-btn').addEventListener('click', buyFactory);
 $('upgrades-btn').addEventListener('click', openUpgradesModal);
