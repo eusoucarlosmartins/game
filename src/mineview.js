@@ -306,6 +306,31 @@ export function drawMineGridVol(ctx, mine) {
 
   const t = performance.now() / 1000;
   const era = eraData(currentEra());
+  // marcador do geólogo sobre a névoa (some quando o tile é revelado)
+  const hint = state.hintTile;
+  if (hint && hint.mineIdx === state.activeMineIdx) {
+    const ht = mine.grid[hint.r] && mine.grid[hint.r][hint.c];
+    if (!ht || ht.revealed) {
+      state.hintTile = null;
+    } else {
+      const hx = gx + (hint.c + 0.5) * cell, hy = gy + (hint.r + 0.5) * cell;
+      const pulse = (Math.sin(t * 4) + 1) / 2;
+      ctx.strokeStyle = `rgba(255,212,74,${0.5 + 0.5 * pulse})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(hx, hy, 14 + pulse * 6, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(hx, hy, 4 * 40 / 2 + 8, 0, Math.PI * 2);
+      ctx.setLineDash([6, 6]);
+      ctx.strokeStyle = 'rgba(255,212,74,0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ffd44a';
+      ctx.font = `bold 20px ${UI_FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('?', hx, hy + 1);
+    }
+  }
   // luz das lanternas
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';

@@ -6,6 +6,7 @@ import { R, MINE } from './data.js';
 import { setActiveMine, activeMine, setTool } from './mine.js';
 import { setRecipe } from './factories.js';
 import { adviseContract } from './advisor.js';
+import { openBuyMineModal } from './ui.js';
 import { play } from './audio.js';
 import { zoomCenter, toggleFit, view, centerOn } from './camera.js';
 
@@ -166,8 +167,16 @@ function wireStage() {
     } else if ((a.kind === 'mine' || a.kind === 'explore') && a.mineIdx !== undefined) {
       setActiveMine(a.mineIdx);
       state.scene = 'mine';
-      setTool(a.kind === 'mine' ? 'miner' : 'pick');
+      setTool(a.kind === 'mine' ? 'miner' : a.r !== undefined ? 'compass' : 'pick');
+      if (a.kind === 'explore' && a.r !== undefined && a.c !== undefined) {
+        state.hintTile = { mineIdx: a.mineIdx, r: a.r, c: a.c };
+        lastFocusKey = `mine:${a.mineIdx}`;
+        centerOn('mine', MINE.x + (a.c + 0.5) * MINE.cell, MINE.y + (a.r + 0.5) * MINE.cell);
+      }
       play('whoosh');
+    } else if (a.kind === 'buyMine') {
+      openBuyMineModal();
+      play('click');
     } else if (a.kind === 'buyFactory') {
       openPanel('factory');
       play('click');

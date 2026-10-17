@@ -79,6 +79,8 @@ export const state = {
   eventMineMul: 1,
   eventContractBonus: 0,
   activeAchievement: null,  // { id, timeLeft } — toast dourado no canvas
+  /** @type {{mineIdx:number, r:number, c:number} | null} veio escondido apontado pelo geólogo */
+  hintTile: null,
 };
 
 export function log(msg, kind = '') {

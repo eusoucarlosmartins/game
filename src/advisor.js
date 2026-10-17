@@ -6,8 +6,9 @@ import { isRecipeUnlocked, isDepositUnlocked } from './progression.js';
 
 /**
  * @typedef {{
- *   kind: 'switch' | 'mine' | 'explore' | 'buyFactory' | 'locked',
- *   text: string, factory?: number, recipe?: string, resource?: string, mineIdx?: number
+ *   kind: 'switch' | 'mine' | 'explore' | 'buyMine' | 'buyFactory' | 'locked',
+ *   text: string, factory?: number, recipe?: string, resource?: string, mineIdx?: number,
+ *   r?: number, c?: number
  * }} Advice
  */
 
@@ -68,6 +69,32 @@ function findVein(res) {
   return found;
 }
 
+/**
+ * "Geólogo": veio ainda escondido do recurso, o mais próximo de um túnel aberto.
+ * @param {string} res @returns {{mineIdx:number, r:number, c:number} | null}
+ */
+export function findHiddenVein(res) {
+  /** @type {{mineIdx:number, r:number, c:number, d:number} | null} */
+  let best = null;
+  (state.mines || []).forEach((m, mi) => {
+    if (!m || !m.grid) return;
+    /** @type {[number, number][]} */
+    const open = [];
+    for (let r = 0; r < MINE.rows; r++) for (let c = 0; c < MINE.cols; c++) {
+      const t = m.grid[r][c];
+      if (t.revealed && (t.type === 'air' || t.type === 'shaft')) open.push([r, c]);
+    }
+    for (let r = 0; r < MINE.rows; r++) for (let c = 1; c < MINE.cols; c++) {
+      const t = m.grid[r][c];
+      if (t.revealed || t.type !== 'ore' || t.resource !== res || t.amount <= 0) continue;
+      let d = 99;
+      for (const [or, oc] of open) d = Math.min(d, Math.abs(or - r) + Math.abs(oc - c));
+      if (!best || d < best.d) best = { mineIdx: mi, r, c, d };
+    }
+  });
+  return best ? { mineIdx: best.mineIdx, r: best.r, c: best.c } : null;
+}
+
 function freeWorkers() {
   let busy = 0;
   for (const m of state.mines || []) {
@@ -113,7 +140,12 @@ function adviseProduce(product, keep, seen) {
       const extra = freeWorkers() > 0 ? '' : ' (contrate um ou retire de outro veio)';
       return { kind: 'mine', resource: ing, mineIdx: vein.mineIdx, text: `Falta ${iname}: toque para alocar um minerador num veio de ${iname}${extra}.` };
     }
-    return { kind: 'explore', resource: ing, mineIdx: state.activeMineIdx || 0, text: `Falta ${iname}: nenhum veio à vista. Toque para cavar ou usar a Bússola na mina.` };
+    const hidden = findHiddenVein(ing);
+    if (hidden) {
+      const mname = state.mines[hidden.mineIdx]?.name || 'mina';
+      return { kind: 'explore', resource: ing, ...hidden, text: `Falta ${iname}: o geólogo sentiu um veio na ${mname}. Toque para ir lá e revelar com a Bússola ($40).` };
+    }
+    return { kind: 'buyMine', resource: ing, text: `Falta ${iname}: nenhuma das suas minas tem esse minério. Toque para comprar uma mina nova.` };
   }
   return null;
 }
