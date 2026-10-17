@@ -23,6 +23,7 @@ import { resizeCanvas, screenToWorld, screenToHud, hudSize, centerOn } from './c
 import { attachInput } from './input.js';
 import { initHud, syncHud, openPanel, haptic } from './hud.js';
 import { minimapLayout, minimapToWorld } from './terrain.js';
+import { freshStartIfNeeded } from './reset.js';
 
 // ---------- Game over / vitória ----------
 function fmt(n) { return Math.floor(n).toLocaleString('pt-BR'); }
@@ -370,6 +371,7 @@ window.addEventListener('beforeunload', () => {
 });
 
 // ---------- INÍCIO ----------
+freshStartIfNeeded();
 const loaded = loadGame();
 if (loaded) {
   state.eraReached = Math.max(state.eraReached || 1, currentEra());

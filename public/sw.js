@@ -4,7 +4,7 @@
 //   - Atualizar o cache em background
 //   - Fallback offline retorna o index.html cacheado
 // IMPORTANTE: bumpe a versão sempre que tiver mudança quebra-cache.
-const CACHE = 'tapuia-v4';
+const CACHE = 'tapuia-v31-reset';
 const APP_SHELL = ['./', './index.html', './manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -18,12 +18,17 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+  e.waitUntil((async () => {
+    const old = (await caches.keys()).filter((k) => k !== CACHE);
+    await Promise.all(old.map((k) => caches.delete(k)));
+    await self.clients.claim();
+    // Atualização (havia cache de versão anterior): recarrega as abas abertas
+    // para ninguém continuar rodando o código antigo servido do cache.
+    if (old.length) {
+      const wins = await self.clients.matchAll({ type: 'window' });
+      wins.forEach((w) => w.navigate(w.url).catch(() => {}));
+    }
+  })());
 });
 
 self.addEventListener('fetch', (e) => {
