@@ -5,6 +5,7 @@ import { R, SILO_DEFAULT_CAP } from './data.js';
 import { currentEra } from './progression.js';
 import { resourcesInUse } from './advisor.js';
 import { fmtMoney } from './util.js';
+import { reserveOf } from './military.js';
 
 /** @typedef {[number, number]} Pt */
 /**
@@ -74,7 +75,7 @@ export function pickCargo() {
   let best = null;
   let bestValue = 0;
   for (const id in state.products) {
-    const n = Math.floor(state.products[id] || 0);
+    const n = Math.floor(state.products[id] || 0) - reserveOf(id); // reserva militar não viaja
     if (n < 2 || used.has(id)) continue;
     const v = Math.min(n, CART_LOAD) * R[id].price;
     if (v > bestValue) { bestValue = v; best = { id, kind: /** @type {'prod'} */ ('prod') }; }
@@ -104,7 +105,8 @@ export function updateTrade(dt) {
       const pick = pickCargo();
       if (!pick) { c.wait = 4; continue; }
       const store = pick.kind === 'prod' ? state.products : state.warehouse;
-      const take = Math.min(Math.floor(store[pick.id] || 0), pick.kind === 'prod' ? CART_LOAD : CART_LOAD * 4);
+      const avail = Math.floor(store[pick.id] || 0) - (pick.kind === 'prod' ? reserveOf(pick.id) : 0);
+      const take = Math.min(avail, pick.kind === 'prod' ? CART_LOAD : CART_LOAD * 4);
       store[pick.id] -= take;
       c.cargo = pick.id;
       c.n = take;

@@ -3,6 +3,7 @@ import { state, log } from './state.js';
 import { R, RECIPE_BY_ID, CFG } from './data.js';
 import { fmtMoney } from './util.js';
 import { factSpdMul } from './progression.js';
+import { reserveOf } from './military.js';
 import { closeModal } from './modals.js';
 
 export function buyFactory() {
@@ -47,7 +48,8 @@ export function updateFactories(dt) {
         f.brewing = 0;
       }
     }
-    if (f.brewing <= 0 && (state.products[f.recipeId] || 0) < CFG.factoryStockMax) {
+    // produz até o estoque normal ou até a reserva do exército, o que for maior
+    if (f.brewing <= 0 && (state.products[f.recipeId] || 0) < Math.max(CFG.factoryStockMax, reserveOf(f.recipeId))) {
       let canStart = true;
       for (const ing in recipe.in) {
         if (ingredientHave(ing) < recipe.in[ing]) { canStart = false; break; }

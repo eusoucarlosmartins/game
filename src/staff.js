@@ -8,6 +8,7 @@ import { adviseContract, freeWorkers, freeIdleWorker, resourcesInUse, findHidden
 import { changeSiteWorkers, buildSite, siteState, siteUnlocked, SITE_BY_RESOURCE } from './sites.js';
 import { setRecipe, buyFactory } from './factories.js';
 import { compassAt, isResourceUnlocked } from './mine.js';
+import { reserveOf, militaryShortfall } from './military.js';
 import { sellProduct, sellRaw } from './market.js';
 import { fmtMoney } from './util.js';
 
@@ -243,9 +244,11 @@ const switchedAt = [];
 /** Gerente de Fábrica: põe uma fábrica livre no que o projeto em obra precisa. */
 function factoryProjectTick() {
   const short = projectShortfall();
-  if (!short.size) return;
   const keep = contractKeepSet();
-  const projectProducts = [...short.keys()].filter((id) => R[id].kind === 'prod' && RECIPE_BY_ID[id] && isRecipeUnlocked(id));
+  // prioridade: projeto em obra; depois completar a reserva militar
+  const projectProducts = [...short.keys(), ...militaryShortfall()]
+    .filter((id, i, all) => all.indexOf(id) === i && R[id].kind === 'prod' && RECIPE_BY_ID[id] && isRecipeUnlocked(id));
+  if (!projectProducts.length) return;
   const projSet = new Set(projectProducts);
   for (const id of projectProducts) {
     if (state.factories.some((f) => f.recipeId === id)) continue;
@@ -254,7 +257,7 @@ function factoryProjectTick() {
     if (idx < 0) return;
     setRecipe(idx, id);
     switchedAt[idx] = gameClock;
-    log(`🏭 Gerente de Fábrica pôs a Fábrica ${idx + 1} em ${R[id].name} para o projeto em obra.`);
+    log(`🏭 Gerente de Fábrica pôs a Fábrica ${idx + 1} em ${R[id].name} ${short.has(id) ? 'para o projeto em obra' : 'para a reserva do exército'}.`);
     return;
   }
 }
@@ -298,7 +301,8 @@ export function updateStaff(dt) {
     const used = resourcesInUse();
     for (const id in state.products) {
       const n = Math.floor(state.products[id] || 0);
-      if (n >= CFG.factoryStockMax && !used.has(id)) sellProduct(id, n - 2);
+      const keep = Math.max(2, reserveOf(id)); // reserva militar fica
+      if (n >= CFG.factoryStockMax && !used.has(id) && n > keep) sellProduct(id, n - keep);
     }
   }
   if (can('gerenteFabrica', 'sellRaw')) {

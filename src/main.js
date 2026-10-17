@@ -31,7 +31,7 @@ import { buildSite } from './sites.js';
 import { placeRelics } from './relics.js';
 import { placeHazards } from './hazards.js';
 import { updateTrade, buyCart } from './trade.js';
-import { updateArmy, buildBarracks, trainUnit, sendExpedition } from './military.js';
+import { updateArmy, buildBarracks, trainUnit, sendExpedition, setReserveUnits } from './military.js';
 import { checkVictory } from './victory.js';
 import { addSiteWorker } from './hud.js';
 
@@ -342,6 +342,7 @@ document.addEventListener('click', (e) => {
     case 'project-start':  activateProject(t.dataset.id); break;
     case 'project-cancel': cancelProject(); break;
     case 'hire-staff':     if (hireOrPromote(t.dataset.id || '')) play('success'); break;
+    case 'army-reserve':   setReserveUnits(+(t.dataset.n || 0)); play('click'); break;
     case 'build-barracks': if (buildBarracks()) play('success'); break;
     case 'train-unit':     if (trainUnit(t.dataset.id || '')) play('click'); break;
     case 'send-expedition': if (sendExpedition(t.dataset.id || '')) play('whoosh'); break;

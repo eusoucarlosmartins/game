@@ -13,7 +13,7 @@ import { SITE_BY_ID, siteState, siteUnlocked } from './sites.js';
 import { freeWorkers } from './advisor.js';
 import { ROUTES, carts, routeUnlocked, canBuyCart, CART_COST } from './trade.js';
 import { victoryProgress, POLITICAL } from './victory.js';
-import { army, UNITS, BARRACKS, canTrain, costText, armyPower, rivals, garrisonPower, canConquer, tributePerDay, upkeepPerDay, nextThreat } from './military.js';
+import { army, UNITS, BARRACKS, canTrain, costText, armyPower, rivals, garrisonPower, canConquer, tributePerDay, upkeepPerDay, nextThreat, RESERVE_CHOICES, reserveUnits, militaryReserve } from './military.js';
 import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
 import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } from './projects.js';
 
@@ -342,7 +342,7 @@ function renderArmy() {
   const th = nextThreat();
   const sum = $('army-summary');
   if (sum) sum.textContent = `· força ${armyPower()} · ${a.wins}V/${a.losses}D`;
-  const sig = JSON.stringify([a.barracks, a.units, a.territories, !!a.expedition, era, state.money >= BARRACKS.cost,
+  const sig = JSON.stringify([reserveUnits(), [...militaryReserve()].map(([k, q]) => [k, q, Math.floor(state.products[k] || 0)]), a.barracks, a.units, a.territories, !!a.expedition, era, state.money >= BARRACKS.cost,
     UNITS.map((u) => canTrain(u.id)), th ? [th.rival, th.power] : 0, armyPower()]);
   if (sig === lastArmySig) return;
   lastArmySig = sig;
@@ -363,7 +363,11 @@ function renderArmy() {
         <div class="staff-btn">${btn}</div></div></div>`;
     }).join('');
     const exp = a.expedition ? `<p>🏃 Expedição a caminho (${Math.ceil(a.expedition.eta)}s).</p>` : '';
-    body.innerHTML = `<p>Força em casa: <b>${armyPower()}</b>${th ? ` · próximo ataque: <b>${th.power}</b>` : ''} · manutenção ${fmtMoney(upkeepPerDay())}/dia · tributos ${fmtMoney(tributePerDay())}/dia</p>${exp}<div class="staff-list">${rows}</div>`;
+    const res = [...militaryReserve()];
+    const reserve = `<div class="army-reserve"><b>Reserva para o exército:</b> guardar material para
+      ${RESERVE_CHOICES.map((n) => `<button class="mini-btn${reserveUnits() === n ? ' active' : ''}" data-action="army-reserve" data-n="${n}">${n}</button>`).join(' ')} unidades
+      <div class="hint">${res.length ? res.map(([k, q]) => `${R[k].name}: ${Math.floor(state.products[k] || 0)}/${q}`).join(' · ') : 'nada guardado'} — o gerente e as caravanas não vendem isso; o Gerente de Fábrica completa a reserva.</div></div>`;
+    body.innerHTML = `<p>Força em casa: <b>${armyPower()}</b>${th ? ` · próximo ataque: <b>${th.power}</b>` : ''} · manutenção ${fmtMoney(upkeepPerDay())}/dia · tributos ${fmtMoney(tributePerDay())}/dia</p>${exp}${reserve}<div class="staff-list">${rows}</div>`;
   }
   borders.innerHTML = rivals().map((r) => {
     const won = a.territories[r.id];

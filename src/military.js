@@ -229,6 +229,40 @@ export function nextThreat() {
   return a.threats.length ? a.threats.reduce((p, q) => (q.eta < p.eta ? q : p)) : null;
 }
 
+// ---------- Reserva militar ----------
+export const RESERVE_CHOICES = [0, 5, 10, 20];
+/** Quantas unidades de cada tipo liberado guardar material para treinar. */
+export const reserveUnits = () => (army().barracks ? (army().reserveUnits ?? 5) : 0);
+/** @param {number} n */
+export function setReserveUnits(n) {
+  if (RESERVE_CHOICES.includes(n)) army().reserveUnits = n;
+}
+
+/** Material a guardar para o exército (não vender nem exportar). @returns {Map<string, number>} */
+export function militaryReserve() {
+  /** @type {Map<string, number>} */
+  const out = new Map();
+  const n = reserveUnits();
+  if (!n) return out;
+  const era = currentEra();
+  for (const u of UNITS) {
+    if (era < u.era) continue;
+    for (const [k, q] of Object.entries(u.cost)) {
+      if (k === 'money') continue;
+      out.set(k, Math.max(out.get(k) || 0, q * n));
+    }
+  }
+  return out;
+}
+
+/** Quanto do produto fica guardado para o exército. @param {string} id */
+export const reserveOf = (id) => militaryReserve().get(id) || 0;
+
+/** Itens da reserva abaixo da meta (para o Gerente de Fábrica completar). @returns {string[]} */
+export function militaryShortfall() {
+  return [...militaryReserve()].filter(([id, q]) => (state.products[id] || 0) < q).map(([id]) => id);
+}
+
 /** Bandidos fogem se houver um mínimo de exército em casa. */
 export const scaresBandits = () => armyPower() >= 3;
 
