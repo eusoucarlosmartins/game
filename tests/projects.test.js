@@ -69,13 +69,16 @@ describe('updateProjects (drenagem)', () => {
     state.warehouse = { wood: 100, stone: 100 };
     state.products = { iron_ingot: 100 };
     activateProject('serraria');
-    updateProjects(1); // 1 segundo
+    updateProjects(1); // 1 segundo: meia unidade ainda não sai do estoque
     const prog = state.projects.active.progress;
-    expect(prog.wood).toBeCloseTo(0.5, 5);
-    expect(prog.stone).toBeCloseTo(0.5, 5);
-    expect(prog.iron_ingot).toBeCloseTo(0.5, 5);
-    expect(state.warehouse.wood).toBeCloseTo(99.5, 5);
-    expect(state.products.iron_ingot).toBeCloseTo(99.5, 5);
+    expect(prog.wood || 0).toBe(0);
+    expect(state.products.iron_ingot).toBe(100);
+    updateProjects(1); // 2 segundos: 1 unidade inteira de cada
+    expect(prog.wood).toBe(1);
+    expect(prog.stone).toBe(1);
+    expect(prog.iron_ingot).toBe(1);
+    expect(state.warehouse.wood).toBe(99);
+    expect(state.products.iron_ingot).toBe(99);
   });
 
   it('não consome se warehouse vazia desse recurso', () => {
@@ -130,11 +133,11 @@ describe('cancelProject', () => {
     state.warehouse = { wood: 100, stone: 100, iron_ingot: 100 };
     activateProject('serraria');
     updateProjects(10); // contribuiu 5 de cada
+    updateProjects(10); // +5
     cancelProject();
     expect(state.projects.active).toBeNull();
-    // contribuiu ~5 de cada, devolveu ~2 (50% truncado)
-    expect(state.warehouse.wood).toBeGreaterThan(95);
-    expect(state.warehouse.wood).toBeLessThan(99);
+    // contribuiu 10 de cada, devolveu 5
+    expect(state.warehouse.wood).toBe(95);
   });
 });
 

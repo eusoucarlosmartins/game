@@ -15,6 +15,15 @@ import { ROUTES, carts, routeUnlocked, canBuyCart, CART_COST } from './trade.js'
 import { victoryProgress, POLITICAL } from './victory.js';
 import { army, UNITS, BARRACKS, canTrain, costText, armyPower, rivals, garrisonPower, canConquer, tributePerDay, tributeEach, conquestLoot, conquestBonus, upkeepPerDay, nextThreat, RESERVE_CHOICES, reserveUnits, militaryReserve } from './military.js';
 import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
+
+/** Troca o HTML só quando muda — redesenhar a cada quadro recriava os botões e o clique se perdia. @param {Element | null} el @param {string} html */
+function setHTML(el, html) {
+  const e = /** @type {any} */ (el);
+  if (!e || (e._html === html && e.innerHTML === e._dom)) return;
+  e.innerHTML = html;
+  e._html = html;
+  e._dom = e.innerHTML;
+}
 import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } from './projects.js';
 
 function statusWagon() {
@@ -32,16 +41,16 @@ function renderContract() {
     const pPct = Math.round((k.delivered / k.need) * 100);
     const tLeft = Math.max(0, k.deadline - k.elapsed);
     box.className = 'contract contract-active';
-    box.innerHTML = `
+    setHTML(box, `
       <div class="contract-title">${k.city} pede <span style="color:${R[k.product].color}">${R[k.product].name}</span></div>
-      <div class="contract-line"><span>Entregue</span><span>${k.delivered} / ${k.need}</span></div>
+      <div class="contract-line"><span>Entregue</span><span>${Math.floor(k.delivered)} / ${k.need}</span></div>
       <div class="contract-bar"><div class="contract-bar-fill" style="width:${pPct}%"></div></div>
       <div class="contract-line"><span>Tempo restante</span><span>${tLeft.toFixed(1)}s</span></div>
       <div class="contract-bar"><div class="contract-bar-fill contract-time-bar-fill" style="width:${(tLeft / k.deadline) * 100}%"></div></div>
-    `;
+    `);
   } else {
     box.className = 'contract';
-    box.innerHTML = `<div class="contract-empty">Próximo pedido em ${Math.max(0, state.nextContractIn).toFixed(1)}s…</div>`;
+    setHTML(box, `<div class="contract-empty">Próximo pedido em ${Math.max(0, state.nextContractIn).toFixed(1)}s…</div>`);
   }
 }
 
@@ -52,9 +61,9 @@ function renderStockLists() {
     if (state.products[k] > 0) prodItems.push({ k, n: state.products[k] });
   }
   prodItems.sort((a, b) => b.n - a.n);
-  prods.innerHTML = prodItems.length === 0
+  setHTML(prods, prodItems.length === 0
     ? '<li><em>Nada pronto ainda.</em></li>'
-    : prodItems.map(it => `<li><span class="dot" style="background:${R[it.k].color}"></span>${R[it.k].name} <small style="opacity:.6">N${R[it.k].tier}</small> <strong>${Math.floor(it.n)}</strong></li>`).join('');
+    : prodItems.map(it => `<li><span class="dot" style="background:${R[it.k].color}"></span>${R[it.k].name} <small style="opacity:.6">N${R[it.k].tier}</small> <strong>${Math.floor(it.n)}</strong></li>`).join(''));
 
   const wh = $('warehouse-list');
   const whItems = [];
@@ -63,9 +72,9 @@ function renderStockLists() {
     if (state.warehouse[k] > 0) whItems.push({ k, n: state.warehouse[k] });
   }
   whItems.sort((a, b) => b.n - a.n);
-  wh.innerHTML = whItems.length === 0
+  setHTML(wh, whItems.length === 0
     ? '<li><em>Armazém vazio.</em></li>'
-    : whItems.map(it => `<li><span class="dot" style="background:${R[it.k].color}"></span>${R[it.k].name} <strong>${Math.floor(it.n)}</strong></li>`).join('');
+    : whItems.map(it => `<li><span class="dot" style="background:${R[it.k].color}"></span>${R[it.k].name} <strong>${Math.floor(it.n)}</strong></li>`).join(''));
 }
 
 let lastSiloSig = '';
@@ -82,7 +91,7 @@ function renderMinePanel() {
 
   const tool = TOOLS[state.tool] || TOOLS.pick;
   const info = $('tool-info');
-  if (info) info.innerHTML = `<strong>${tool.name}</strong> — ${tool.desc}`;
+  if (info) setHTML(info, `<strong>${tool.name}</strong> — ${tool.desc}`);
 
   // Sincroniza estado visual dos botões de ferramenta (HTML)
   document.querySelectorAll('.tool-btn').forEach((btn) => {
@@ -96,7 +105,7 @@ function renderMinePanel() {
   if (oreMap) {
     const counts = getRevealedOreCounts();
     const keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-    oreMap.innerHTML = keys.length === 0
+    setHTML(oreMap, keys.length === 0
       ? '<li><em>Nenhum veio descoberto ainda. Cave para revelar mais terreno.</em></li>'
       : keys.map(k => {
           const locked = !isResourceUnlocked(k);
@@ -105,7 +114,7 @@ function renderMinePanel() {
             <span style="flex:1">${R[k].name}${locked ? ' 🔒' : ''}</span>
             <strong>${counts[k]}</strong>
           </li>`;
-        }).join('');
+        }).join(''));
   }
 
   // Silos por recurso (apenas com estoque > 0 ou desbloqueados pela era atual)
@@ -122,7 +131,7 @@ function renderMinePanel() {
   const siloSig = JSON.stringify([items.map((it) => [it.k, Math.floor(it.n), it.cap, state.money >= siloUpgradeCost(it.cap)])]);
   if (list && siloSig !== lastSiloSig) {
     lastSiloSig = siloSig;
-    list.innerHTML = items.length === 0
+    setHTML(list, items.length === 0
       ? '<li><em>Nenhum silo em uso ainda.</em></li>'
       : items.map(it => {
           const pct = Math.min(100, Math.round((it.n / it.cap) * 100));
@@ -133,7 +142,7 @@ function renderMinePanel() {
             <span style="font-size:11px;${full ? 'color:var(--bad)' : ''}">${Math.floor(it.n)}/${it.cap}${full ? ' CHEIO' : ''}</span>
             <button class="mini-btn" data-action="upgrade-silo" data-id="${it.k}" title="Ampliar o silo em +${SILO_STEP}" ${state.money >= siloUpgradeCost(it.cap) ? '' : 'disabled'}>+${SILO_STEP} · ${fmtMoney(siloUpgradeCost(it.cap))}</button>
           </li>`;
-        }).join('');
+        }).join(''));
   }
 }
 
@@ -160,7 +169,7 @@ function renderProjects() {
       }).join('');
       const pct = Math.round((totalHave / Math.max(1, totalNeed)) * 100);
       activeEl.className = 'project-active';
-      activeEl.innerHTML = `
+      setHTML(activeEl, `
         <div class="project-card active">
           <div class="project-name">${def.name}</div>
           <div class="project-desc">${def.desc}</div>
@@ -171,7 +180,7 @@ function renderProjects() {
             <button class="mini-btn" data-action="project-cancel">Cancelar (devolve 50%)</button>
           </div>
         </div>
-      `;
+      `);
     }
   }
 
@@ -180,9 +189,9 @@ function renderProjects() {
   if (listEl) {
     const items = availableProjects().filter(p => !state.projects.active || state.projects.active.id !== p.id);
     if (items.length === 0) {
-      listEl.innerHTML = '<p class="hint"><em>Nenhum projeto disponível na era atual.</em></p>';
+      setHTML(listEl, '<p class="hint"><em>Nenhum projeto disponível na era atual.</em></p>');
     } else {
-      listEl.innerHTML = items.map(p => {
+      setHTML(listEl, items.map(p => {
         const canStart = canActivateProject(p.id);
         const reqLines = Object.entries(p.requirements).map(([res, need]) => {
           const have = R[res] && R[res].kind === 'raw' ? (state.warehouse[res] || 0) : (state.products[res] || 0);
@@ -202,7 +211,7 @@ function renderProjects() {
             <button class="mini-btn" data-action="project-start" data-id="${p.id}" ${canStart ? '' : 'disabled'}>${state.projects.active ? 'Outro ativo' : 'Iniciar'}</button>
           </div>
         </div>`;
-      }).join('');
+      }).join(''));
     }
   }
 
@@ -210,12 +219,12 @@ function renderProjects() {
   const doneEl = $('project-completed');
   if (doneEl) {
     if (!state.projects.completed.length) {
-      doneEl.innerHTML = '<li><em>Nenhum projeto concluído ainda.</em></li>';
+      setHTML(doneEl, '<li><em>Nenhum projeto concluído ainda.</em></li>');
     } else {
-      doneEl.innerHTML = state.projects.completed.map(id => {
+      setHTML(doneEl, state.projects.completed.map(id => {
         const def = PROJECT_DEFS.find(p => p.id === id);
         return def ? `<li>✓ ${def.name}</li>` : '';
-      }).join('');
+      }).join(''));
     }
   }
 }
@@ -272,12 +281,12 @@ function renderMarket() {
     }).join('');
   }
   html += '</div>';
-  cont.innerHTML = html;
+  setHTML(cont, html);
 }
 
 function renderFactories() {
   const cont = $('factories-list');
-  cont.innerHTML = state.factories.map((f, i) => {
+  setHTML(cont, state.factories.map((f, i) => {
     const recipe = RECIPE_BY_ID[f.recipeId];
     const product = R[f.recipeId];
     const pct = recipe && f.brewing > 0 ? Math.round((1 - f.brewing / recipe.time) * 100) : 0;
@@ -300,7 +309,7 @@ function renderFactories() {
         <div class="factory-stock">Estoque pronto: <strong>${Math.floor(state.products[f.recipeId] || 0)}</strong></div>
       </div>
     `;
-  }).join('');
+  }).join(''));
 
   const btn = $('buy-factory-btn');
   if (state.factories.length >= CFG.factorySlotsMax) {
@@ -315,7 +324,7 @@ function renderFactories() {
 
 function renderEquipment() {
   const cont = $('equipment-list');
-  cont.innerHTML = EQUIPMENT.map(e => {
+  setHTML(cont, EQUIPMENT.map(e => {
     const owned = !!state.equipment[e.id];
     const reqMissing = e.req && !state.equipment[e.req];
     const reqText = e.req ? ` <em>(requer ${EQ_BY_ID[e.req].name})</em>` : '';
@@ -333,7 +342,7 @@ function renderEquipment() {
         </div>
       </div>
     `;
-  }).join('');
+  }).join(''));
 }
 
 let lastArmySig = '';
@@ -351,9 +360,9 @@ function renderArmy() {
   if (sig === lastArmySig) return;
   lastArmySig = sig;
   if (!a.barracks) {
-    body.innerHTML = era < BARRACKS.era
+    setHTML(body, era < BARRACKS.era
       ? `<p>🔒 O Quartel é liberado na Era ${ROMAN[BARRACKS.era - 1]}.</p>`
-      : `<button class="big-btn" data-action="build-barracks" ${state.money < BARRACKS.cost ? 'disabled' : ''}>⚔️ Construir Quartel — ${fmtMoney(BARRACKS.cost)}</button>`;
+      : `<button class="big-btn" data-action="build-barracks" ${state.money < BARRACKS.cost ? 'disabled' : ''}>⚔️ Construir Quartel — ${fmtMoney(BARRACKS.cost)}</button>`);
   } else {
     const rows = UNITS.map((u) => {
       const st = canTrain(u.id);
@@ -371,9 +380,9 @@ function renderArmy() {
     const reserve = `<div class="army-reserve"><b>Reserva para o exército:</b> guardar material para
       ${RESERVE_CHOICES.map((n) => `<button class="mini-btn${reserveUnits() === n ? ' active' : ''}" data-action="army-reserve" data-n="${n}">${n}</button>`).join(' ')} unidades
       <div class="hint">${res.length ? res.map(([k, q]) => `${R[k].name}: ${Math.floor(state.products[k] || 0)}/${q}`).join(' · ') : 'nada guardado'} — o gerente e as caravanas não vendem isso; o Gerente de Fábrica completa a reserva.</div></div>`;
-    body.innerHTML = `<p>Força em casa: <b>${armyPower()}</b>${th ? ` · próximo ataque: <b>${th.power}</b>` : ''} · manutenção ${fmtMoney(upkeepPerDay())}/dia · tributos ${fmtMoney(tributePerDay())}/dia</p>${exp}${reserve}<div class="staff-list">${rows}</div>`;
+    setHTML(body, `<p>Força em casa: <b>${armyPower()}</b>${th ? ` · próximo ataque: <b>${th.power}</b>` : ''} · manutenção ${fmtMoney(upkeepPerDay())}/dia · tributos ${fmtMoney(tributePerDay())}/dia</p>${exp}${reserve}<div class="staff-list">${rows}</div>`);
   }
-  borders.innerHTML = rivals().map((r) => {
+  setHTML(borders, rivals().map((r) => {
     const won = a.territories[r.id];
     const g = garrisonPower(r.id);
     const bonus = conquestBonus(r.id);
@@ -384,7 +393,7 @@ function renderArmy() {
       <div class="staff-role">${won ? `paga ${fmtMoney(tributeEach())}/dia de tributo` : `rival — ataca pela fronteira · conquistar: saque ${fmtMoney(conquestLoot(r.id))} + ${fmtMoney(tributeEach())}/dia`}</div>
       ${bonus ? `<div class="staff-role">${won ? '✅' : '🎁'} ${bonus.text}</div>` : ''}
       <div class="staff-btn">${btn}</div></div></div>`;
-  }).join('');
+  }).join(''));
 }
 
 let lastTradeSig = '';
@@ -397,7 +406,7 @@ function renderTrade() {
   if (earned) earned.textContent = state.trade && state.trade.earned ? `· ${fmtMoney(state.trade.earned)} vendidos` : '';
   if (sig === lastTradeSig) return;
   lastTradeSig = sig;
-  cont.innerHTML = ROUTES.map((r) => {
+  setHTML(cont, ROUTES.map((r) => {
     const n = list.filter((c) => c.route === r.id).length;
     const unlocked = routeUnlocked(r.id);
     const btn = !unlocked
@@ -412,7 +421,7 @@ function renderTrade() {
           <div class="staff-btn">${btn}</div>
         </div>
       </div>`;
-  }).join('');
+  }).join(''));
 }
 
 let lastStaffSig = '';
@@ -429,7 +438,7 @@ function renderStaff() {
   if (navBtn) navBtn.classList.toggle('attention', staffAttention());
   if (sig === lastStaffSig) return;
   lastStaffSig = sig;
-  cont.innerHTML = STAFF.map((d) => {
+  setHTML(cont, STAFF.map((d) => {
     const lv = staffLevel(d.id);
     const cur = lv > 0 ? d.levels[lv - 1] : null;
     const nl = nextLevel(d.id);
@@ -456,7 +465,7 @@ function renderStaff() {
           <div class="staff-btn">${btn}</div>
         </div>
       </div>`;
-  }).join('');
+  }).join(''));
 }
 
 function renderResearch() {
@@ -484,7 +493,7 @@ function renderResearch() {
       `;
     }
   }
-  cont.innerHTML = html;
+  setHTML(cont, html);
 }
 
 function renderStats() {
@@ -517,9 +526,9 @@ function renderStats() {
       })(),
       ['🏺 Relíquias', `${state.relics || 0} (+${fmtMoney((state.relics || 0) * 30)}/dia)`, (state.relics || 0) > 0 ? 'good' : ''],
     ];
-    summary.innerHTML = rows.map(([label, value, cls]) =>
+    setHTML(summary, rows.map(([label, value, cls]) =>
       `<li><span class="label">${label}</span><span class="value ${cls}">${value}</span></li>`
-    ).join('');
+    ).join(''));
   }
   const oresEl = $('stats-ores');
   if (oresEl) {
@@ -528,11 +537,11 @@ function renderStats() {
       .filter((k) => ores[k] > 0)
       .sort((a, b) => ores[b] - ores[a]);
     if (items.length === 0) {
-      oresEl.innerHTML = '<li><em>Nenhum minério extraído ainda.</em></li>';
+      setHTML(oresEl, '<li><em>Nenhum minério extraído ainda.</em></li>');
     } else {
-      oresEl.innerHTML = items.map((k) =>
+      setHTML(oresEl, items.map((k) =>
         `<li><span class="dot" style="background:${R[k].color}"></span>${R[k].name} <strong>${Math.floor(ores[k]).toLocaleString('pt-BR')}</strong></li>`
-      ).join('');
+      ).join(''));
     }
   }
   const minesEl = $('stats-mines');
@@ -543,7 +552,7 @@ function renderStats() {
                      '<span class="value">operando</span>');
       return `<li><span class="label">${m.name}</span>${status}</li>`;
     });
-    minesEl.innerHTML = rows.length === 0 ? '<li><em>Nenhuma mina.</em></li>' : rows.join('');
+    setHTML(minesEl, rows.length === 0 ? '<li><em>Nenhuma mina.</em></li>' : rows.join(''));
   }
   // Conquistas
   const achEl = $('achievements-list');
@@ -554,7 +563,7 @@ function renderStats() {
   }
   if (achEl) {
     const unlockedMap = state.achievements || {};
-    achEl.innerHTML = ACHIEVEMENTS.map((a) => {
+    setHTML(achEl, ACHIEVEMENTS.map((a) => {
       const owned = !!unlockedMap[a.id];
       return `<li class="${owned ? 'unlocked' : 'locked'}">
         <span class="emoji">${a.emoji}</span>
@@ -563,15 +572,15 @@ function renderStats() {
           <span class="desc">${a.desc}</span>
         </span>
       </li>`;
-    }).join('');
+    }).join(''));
   }
 }
 
 function renderLog() {
   const logEl = $('log');
-  logEl.innerHTML = state.log.slice(0, 80)
+  setHTML(logEl, state.log.slice(0, 80)
     .map(l => `<li class="${l.kind}"><em>D${l.day}</em> · ${l.msg}</li>`)
-    .join('');
+    .join(''));
 }
 
 function renderEraBanner() {
@@ -582,14 +591,14 @@ function renderEraBanner() {
   const next = ERAS[eraId];
   if (next) {
     const pct = Math.min(100, (state.contractsCompleted / era.nextAt) * 100);
-    el.innerHTML = `Era ${ROMAN[eraId - 1]} — ${era.name}
+    setHTML(el, `Era ${ROMAN[eraId - 1]} — ${era.name}
       <small>${era.desc}</small>
       <small>Próxima era: ${state.contractsCompleted}/${era.nextAt} contratos</small>
-      <div class="progress"><div class="progress-fill" style="width:${pct}%"></div></div>`;
+      <div class="progress"><div class="progress-fill" style="width:${pct}%"></div></div>`);
   } else {
-    el.innerHTML = `Era ${ROMAN[eraId - 1]} — ${era.name}
+    setHTML(el, `Era ${ROMAN[eraId - 1]} — ${era.name}
       <small>${era.desc}</small>
-      <small>Era final atingida.</small>`;
+      <small>Era final atingida.</small>`);
   }
 }
 
@@ -658,7 +667,7 @@ export { openModal, closeModal };
 export function openCivilizationModal() {
   const opts = $('civ-options');
   if (!opts) return;
-  opts.innerHTML = CIVILIZATIONS.map((c) => {
+  setHTML(opts, CIVILIZATIONS.map((c) => {
     const bonuses = c.bonuses.map((b) => {
       const positive = (typeof b.mod === 'number' && b.mod > 0) || b.effect === 'approval_start_bonus' || b.effect === 'silo_cap_bonus';
       const neg = (typeof b.mod === 'number' && b.mod < 0);
@@ -673,7 +682,7 @@ export function openCivilizationModal() {
         <div class="civ-bonuses">${bonuses}</div>
       </button>
     `;
-  }).join('');
+  }).join(''));
   openModal('modal-civilization');
 }
 
@@ -702,7 +711,7 @@ export function openBuyMineModal() {
       </button>
     `;
   }
-  opts.innerHTML = html;
+  setHTML(opts, html);
   openModal('modal-buy-mine');
 }
 
@@ -770,6 +779,6 @@ export function openRecipeModal(factoryIndex) {
       `;
     }
   }
-  opts.innerHTML = html;
+  setHTML(opts, html);
   openModal('modal-recipe');
 }

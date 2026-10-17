@@ -56,6 +56,11 @@ export function loadGame() {
       }
       if (R[k].kind === 'prod' && state.products[k] === undefined) state.products[k] = 0;
     }
+    // Saves antigos: projetos tiravam frações dos produtos (5.1399…)
+    for (const k in state.products) state.products[k] = Math.round(state.products[k] || 0);
+    if (state.contract) state.contract.delivered = Math.round(state.contract.delivered || 0);
+    const act = state.projects && state.projects.active;
+    if (act && act.progress) for (const k in act.progress) act.progress[k] = Math.round(act.progress[k]);
     // MIGRAÇÃO: saves antigos tinham state.mine (single) — converter pra mines[]
     // @ts-ignore — campo legado pode existir em saves antigos
     if (state.mine && (!state.mines || state.mines.length === 0)) {

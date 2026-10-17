@@ -283,7 +283,7 @@ export function syncHud() {
   if (state.contract) {
     const k = state.contract;
     const left = Math.max(0, Math.ceil(k.deadline - k.elapsed));
-    chipTxt = `📜 ${R[k.product].name} ${k.delivered}/${k.need} · ⏱${left}s`;
+    chipTxt = `📜 ${R[k.product].name} ${Math.floor(k.delivered)}/${k.need} · ⏱${left}s`;
   }
   if (chipTxt !== lastChip) {
     lastChip = chipTxt;

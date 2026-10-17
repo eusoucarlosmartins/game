@@ -278,7 +278,7 @@ function drawContractPanelOverworld() {
   ctx.fillText(product.name, x + 42, y + 28);
   ctx.fillStyle = '#5a3416';
   ctx.font = 'bold 16px "Segoe UI"';
-  ctx.fillText(`${k.delivered} / ${k.need}`, x + 42, y + 46);
+  ctx.fillText(`${Math.floor(k.delivered)} / ${k.need}`, x + 42, y + 46);
   // progresso entrega
   const pct = clamp(k.delivered / k.need, 0, 1);
   ctx.fillStyle = '#1a0e06';

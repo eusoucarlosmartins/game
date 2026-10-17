@@ -298,7 +298,7 @@ function drawRecipePanel(ctx, fp, factory, i) {
   drawResourceIcon(ctx, px + pw - 4 - icon, py + 4, icon, factory.recipeId);
   ctx.fillStyle = '#1a0e06';
   ctx.textAlign = 'right';
-  ctx.fillText(`${state.products[factory.recipeId] || 0}/${CFG.factoryStockMax}`, px + pw - 28, py + 14);
+  ctx.fillText(`${Math.floor(state.products[factory.recipeId] || 0)}/${CFG.factoryStockMax}`, px + pw - 28, py + 14);
   if (factory.brewing > 0) {
     const pct = 1 - factory.brewing / recipe.time;
     ctx.fillStyle = '#5a3416';
