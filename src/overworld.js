@@ -11,22 +11,22 @@ import {
   proj, unproj, box, gableRoof, pyramidRoof, facePatch, castShadow, selectFootprint, poly, groundTransform,
 } from './iso.js';
 import {
-  MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_CENTER, CITY_SIGN, CIV_FLAG, centerOf,
+  MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_CENTER, CITY_SIGN, CIV_FLAG, centerOf, DEPOT_FP, DEPOT_PATHS,
 } from './layout.js';
 import {
   drawIsoTerrain, drawAmbientFlat, ambientObjects, drawAmbientSky, treeObjects, drawShroud,
-  VILLAGES, BRIDGE, CLIFF_H, drawVillager, choppableTrees,
+  VILLAGES, BRIDGE, CLIFF_H, drawVillager, choppableTrees, MINE_PATHS,
 } from './terrain.js';
 import { SITES, siteState, siteUnlocked } from './sites.js';
 import { projectProgress } from './projects.js';
-import { ROUTES, ROUTE_BY_ID, carts, pointOn, routeUnlocked } from './trade.js';
+import { ROUTES, ROUTE_BY_ID, carts, pointOn, pathLength, routeUnlocked } from './trade.js';
 import { army, rivals, rivalOf, BARRACKS, UNITS, TRIBUTE } from './military.js';
 import { drawScrollPanel, drawResourceIcon, plate, badge, civColor, civAccent, UI_FONT } from './paint.js';
 import { camFor } from './camera.js';
 
 /** @typedef {import('./layout.js').Footprint} Footprint */
 /** @typedef {{depth:number, draw:(ctx:CanvasRenderingContext2D)=>void}} SceneObj */
-/** @typedef {{kind:'mine'|'mineSlot'|'factory'|'factorySlot'|'mercado'|'pesquisa'|'site'|'barracks', idx:number, site?: string}} Target */
+/** @typedef {{kind:'mine'|'mineSlot'|'factory'|'factorySlot'|'mercado'|'pesquisa'|'site'|'barracks'|'depot', idx:number, site?: string}} Target */
 /** @typedef {Target & {fp: Footprint, h: number, rects: {x:number,y:number,w:number,h:number}[]}} Pickable */
 
 const MINE_H = 54;
@@ -74,6 +74,7 @@ function rebuildPickables() {
     kind: i < state.factories.length ? 'factory' : 'factorySlot', idx: i, fp, h: i < state.factories.length ? FACTORY_H : 10, rects: [],
   }));
   pickables.push({ kind: 'mercado', idx: 0, fp: MERCADO_FP, h: 44, rects: [] });
+  pickables.push({ kind: 'depot', idx: 0, fp: DEPOT_FP, h: 46, rects: [] });
   pickables.push({ kind: 'pesquisa', idx: 0, fp: PESQUISA_FP, h: 80, rects: [] });
   if (currentEra() >= BARRACKS.era) pickables.push({ kind: 'barracks', idx: 0, fp: BARRACKS, h: 40, rects: [] });
   SITES.forEach((def, i) => {
@@ -1198,6 +1199,78 @@ function drawMilitaryLabels(ctx, hover) {
   }
 }
 
+// ---------- Logística: Depósito Central e carroças ----------
+/** @param {CanvasRenderingContext2D} ctx */
+function drawDepot(ctx) {
+  const f = DEPOT_FP;
+  const b = { x: f.x + 4, y: f.y + 4, w: f.w - 8, d: f.d - 10 };
+  box(ctx, b.x, b.y, b.w, b.d, 30, '#9a7a52');
+  facePatch(ctx, b, 'L', 0.5, 0, 18, 20, '#3a2414');
+  facePatch(ctx, b, 'R', 0.5, 0, 14, 18, '#3a2414');
+  for (const u of [0.2, 0.8]) facePatch(ctx, b, 'L', u, 16, 6, 8, '#d8c890');
+  gableRoof(ctx, b.x, b.y, b.w, b.d, 30, 16, '#6a4a32', 'y', '#9a7a52');
+  // caixotes e barris na frente
+  box(ctx, f.x + 6, f.y + f.d - 6, 9, 8, 7, '#b88a52');
+  box(ctx, f.x + 17, f.y + f.d - 4, 8, 7, 6, '#a87a42');
+  box(ctx, f.x + 10, f.y + f.d - 6, 8, 7, 6, '#c89a62', 7);
+  const p = proj(f.x + f.w - 8, f.y + f.d - 2);
+  ctx.fillStyle = '#7a4a22';
+  ctx.beginPath(); ctx.ellipse(p.x, p.y - 6, 4, 6, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+/**
+ * Carroça puxada a cavalo num ponto do caminho (chão).
+ * @param {CanvasRenderingContext2D} ctx @param {[number, number][]} path @param {number} u @param {number} dir +1 ida / −1 volta
+ * @param {string | null} cargo cor da carga (null = vazia)
+ */
+function drawCart(ctx, path, u, dir, cargo) {
+  const p = pointOn(path, u);
+  const ahead = pointOn(path, Math.max(0, Math.min(1, u + dir * 0.06)));
+  const bob = Math.sin(performance.now() / 140 + u * 20);
+  box(ctx, ahead.x - 4, ahead.y - 2.5, 8, 5, 5, '#6a3e1c', 5 + bob * 0.6);
+  box(ctx, p.x - 6, p.y - 4, 12, 8, 5, '#8a5a2e', 4);
+  if (cargo) box(ctx, p.x - 4.5, p.y - 3, 9, 6, 4, cargo, 9);
+  const w = proj(p.x, p.y + 4, 3);
+  ctx.fillStyle = '#2a1a0e';
+  ctx.beginPath(); ctx.ellipse(w.x - 4, w.y, 2.6, 3, 0, 0, Math.PI * 2); ctx.ellipse(w.x + 4, w.y, 2.6, 3, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+/** Carroças de verdade seguindo a atividade: mina → depósito e depósito → fábrica. @returns {SceneObj[]} */
+function logisticsObjects() {
+  /** @type {SceneObj[]} */
+  const out = [];
+  const t = performance.now() / 1000;
+  /** @param {[number, number][]} path @param {number} k @param {string|null} color @param {number} speed */
+  const cart = (path, k, color, speed) => {
+    const len = pathLength(path);
+    const ph = ((t * speed) / len + k) % 2;
+    const going = ph < 1;
+    const u = going ? ph : 2 - ph;
+    const p = pointOn(path, u);
+    out.push({ depth: p.x + p.y + 4, draw: (ctx) => drawCart(ctx, path, u, going ? 1 : -1, going ? color : null) });
+  };
+  MINE_FP.forEach((_, i) => {
+    const m = state.mines[i];
+    if (!m || !m.grid || m.exhausted) return;
+    const worked = m.grid.flat().filter((x) => x.worker && x.type === 'ore');
+    if (!worked.length) return;
+    const n = Math.min(2, worked.length);
+    for (let k = 0; k < n; k++) {
+      const res = R[worked[k % worked.length].resource];
+      cart(MINE_PATHS[i], k * 0.9 + i * 0.3, res ? res.color : '#6a4a30', 22);
+    }
+  });
+  state.factories.forEach((f, i) => {
+    const rec = RECIPE_BY_ID[f.recipeId];
+    if (!rec || !DEPOT_PATHS[i]) return;
+    const input = Object.keys(rec.in).find((k) => !R[k].free && R[k].kind === 'raw')
+      || Object.keys(rec.in).find((k) => !R[k].free);
+    if (!input || (f.brewing <= 0 && ingredientHave(input) < rec.in[input])) return;
+    cart(DEPOT_PATHS[i], i * 0.45, R[input].color, 26);
+  });
+  return out;
+}
+
 // ---------- Cena ----------
 /**
  * Desenha o mapa. Chamar com a transformação da câmera (espaço iso) ativa.
@@ -1219,6 +1292,7 @@ export function drawOverworldIso(ctx, viewIso, hoverX, hoverY) {
   MINE_FP.forEach((fp, i) => { if (state.mines[i]) castShadow(ctx, fp.x + 25, fp.y + 20, fp.w - 50, fp.d - 40, MINE_H * 0.7); });
   FACTORY_FP.forEach((fp, i) => { if (i < state.factories.length) { const b = hallOf(fp); castShadow(ctx, b.x, b.y, b.w, b.d, 60); } });
   castShadow(ctx, MERCADO_FP.x + 8, MERCADO_FP.y + 8, MERCADO_FP.w - 16, MERCADO_FP.d - 16, 30);
+  castShadow(ctx, DEPOT_FP.x + 4, DEPOT_FP.y + 4, DEPOT_FP.w - 8, DEPOT_FP.d - 10, 40);
   castShadow(ctx, PESQUISA_FP.x + 6, PESQUISA_FP.y + 6, PESQUISA_FP.w - 12, PESQUISA_FP.d - 12, 50);
   FACTORY_FP.forEach((fp, i) => { if (i >= state.factories.length) drawFoundation(ctx, fp); });
   for (const def of SITES) if (siteVisible(def)) drawSiteGround(ctx, def);
@@ -1253,13 +1327,11 @@ export function drawOverworldIso(ctx, viewIso, hoverX, hoverY) {
     objs.push({ depth: def.x + def.y + def.w / 2 + def.d / 2, draw: (c) => drawSiteStructure(c, def) });
     objs.push(...siteWorkers(def));
   }
-  objs.push(...tradeObjects(), ...militaryObjects());
+  objs.push(...tradeObjects(), ...militaryObjects(), ...logisticsObjects());
+  objs.push({ depth: DEPOT_FP.x + DEPOT_FP.y + DEPOT_FP.w / 2 + DEPOT_FP.d / 2, draw: drawDepot });
   if (wonderVisible()) objs.push({ depth: WB.x1 + WB.y + 60, draw: drawWonderBridge });
   objs.push(...cityObjects(), ...villageObjects(), ...treeObjects(viewIso, lumberCut()));
-  objs.push(...ambientObjects({
-    activeMines: MINE_FP.map((_, i) => !!state.mines[i] && !state.mines[i].exhausted),
-    playerColor: civColor(),
-  }));
+  objs.push(...ambientObjects());
   objs.sort((a, b) => a.depth - b.depth);
   for (const o of objs) o.draw(ctx);
 
@@ -1362,6 +1434,11 @@ function drawLabels(ctx, hover) {
     const q = proj(end.x, end.y);
     if (detail) plate(ctx, q.x, q.y - 10, `${routeUnlocked(r.id) ? '🐎' : '🔒'} → ${r.name.toUpperCase()}`, { bg: 'rgba(241,227,194,0.85)', size: 9, border: 'rgba(42,22,8,0.5)' });
     else badge(ctx, q.x, q.y - 10, '🐎');
+  }
+  {
+    const dc = centerOf(DEPOT_FP);
+    const dp = proj(dc.x, DEPOT_FP.y + DEPOT_FP.d + 10);
+    addRect('depot', 0, plate(ctx, dp.x, dp.y, '📦 DEPÓSITO', { bg: isTarget(hover, 'depot', 0) ? '#ffe680' : '#e2b765', size: 11 }));
   }
   const mc = centerOf(MERCADO_FP), pc = centerOf(PESQUISA_FP);
   const pm = proj(mc.x, MERCADO_FP.y + MERCADO_FP.d + 10);

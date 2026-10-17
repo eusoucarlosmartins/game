@@ -13,7 +13,7 @@ import { drawOverworldIso } from './overworld.js';
 import { drawMineSurface, drawMineGridVol } from './mineview.js';
 import { drawFx } from './fx.js';
 import { nextThreat, rivalOf, armyPower } from './military.js';
-import { MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_CENTER } from './layout.js';
+import { MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_CENTER, DEPOT_FP } from './layout.js';
 import { drawScrollPanel as paintScroll, drawResourceIcon as paintIcon, civColor } from './paint.js';
 
 /** @param {number} x @param {number} y @param {number} w @param {number} h */
@@ -134,6 +134,7 @@ function drawOverworldMinimap() {
     markers.push({ x: f.x + 10, y: f.y + 10, w: f.w - 20, h: f.d - 20, color: cc });
   }
   markers.push({ x: CITY_CENTER.x - 120, y: CITY_CENTER.y - 120, w: 240, h: 260, color: cc });
+  markers.push({ x: DEPOT_FP.x + 8, y: DEPOT_FP.y + 8, w: DEPOT_FP.w - 16, h: DEPOT_FP.d - 16, color: '#c8a060' });
   for (const f of [MERCADO_FP, PESQUISA_FP]) {
     markers.push({ x: f.x + 10, y: f.y + 10, w: f.w - 20, h: f.d - 20, color: '#e8c060' });
   }

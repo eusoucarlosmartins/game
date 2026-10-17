@@ -3,7 +3,7 @@
 // mais minimapa e névoa. Desenhos de chão usam coordenadas de chão 1280x720.
 import { W, H } from './geometry.js';
 import { proj, unproj, groundTransform, ISO_W, ISO_H } from './iso.js';
-import { MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_CENTER, centerOf } from './layout.js';
+import { MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_CENTER, centerOf, DEPOT_FP, DEPOT_PATHS } from './layout.js';
 import { SITES, SITE_BY_ID } from './sites.js';
 import { ROUTES } from './trade.js';
 
@@ -26,21 +26,24 @@ const RIVER_GAP = { x1: 796, x2: 860 };
 
 /** Trilhas de terra de cada mina até o pátio das fábricas (aldeões andam nelas). @type {Pt[][]} */
 export const MINE_PATHS = [
-  [[178, 262], [255, 292], [325, 332], [386, 362]],
-  [[184, 420], [270, 412], [386, 402]],
-  [[182, 578], [255, 525], [325, 474], [386, 444]],
-  [[182, 688], [235, 615], [262, 525], [325, 476], [386, 446]],
-];
+  [[178, 262], [222, 318], [262, 366]],
+  [[184, 420], [224, 408], [258, 396]],
+  [[182, 578], [222, 498], [262, 414]],
+  [[182, 688], [228, 600], [248, 500], [268, 418]],
+]
 /** @type {Pt[][]} */
 const OTHER_PATHS = [
-  [[345, 532], [362, 492], [402, 464]],
-  [[560, 466], [660, 486], [772, 490]],
-  [[695, 540], [702, 496]],
+  [[345, 532], [372, 480], [410, 428]],
+  [[476, 422], [560, 456], [680, 468], [772, 490]],
+  [[646, 336], [690, 366]],
+  [[766, 452], [772, 488]],
+  [[695, 540], [692, 470]],
   [[560, 654], [470, 622], [394, 590]],
   [[300, 218], [292, 285]],
   [[320, 214], [500, 202], [690, 206]],
   [[878, 490], [940, 470], [1000, 452]],
-];
+  ...DEPOT_PATHS,
+]
 
 export const VILLAGES = [
   { x: 300, y: 212, name: 'LAGES', scale: 0.75 },
@@ -78,7 +81,6 @@ function makeSampler(pts) {
   return { total, at };
 }
 const riverSampler = makeSampler(RIVER);
-const mineSamplers = MINE_PATHS.map(makeSampler);
 
 /** @param {CanvasRenderingContext2D} g @param {Pt[]} pts */
 function tracePath(g, pts) {
@@ -359,6 +361,8 @@ function inExclusion(x, y) {
     [0, 115, 205, 720], [365, 215, 775, 480], [285, 515, 405, 640], [635, 515, 755, 645],
     [868, 190, 1232, 640], [775, 0, 880, 720],
     [450, 440, 540, 515], // quartel
+    [245, 340, 335, 420], // depósito
+    [665, 360, 775, 460], // fábrica 3
   ];
   for (const [x1, y1, x2, y2] of zones) if (x >= x1 && x <= x2 && y >= y1 && y <= y2) return true;
   for (const v of VILLAGES) if (Math.abs(x - v.x) < 40 && Math.abs(y - v.y) < 30) return true;
@@ -434,7 +438,8 @@ export function getTrees() {
       for (let u = 0; u <= 1; u += 6 / s.total) { const q = s.at(u); if (Math.hypot(q.x - t.x, q.y - t.y) < 16) return true; }
       return false;
     });
-    treeList = generateTrees().filter((t) => !onRoad(t) && !SITES.some((f) =>
+    const clear = [...SITES, ...FACTORY_FP.map((f) => ({ ...f })), DEPOT_FP];
+    treeList = generateTrees().filter((t) => !onRoad(t) && !clear.some((f) =>
       t.x > f.x - 16 && t.x < f.x + f.w + 16 && t.y > f.y - 14 && t.y < f.y + f.d + 22));
   }
   return treeList;
@@ -500,8 +505,8 @@ function paintEdgeFog(g) {
 
 /** @param {CanvasRenderingContext2D} g @param {() => number} rnd */
 function paintFoundations(g, rnd) {
-  const fa = FACTORY_FP;
-  dirtFoundation(g, (fa[0].x + fa[2].x + fa[2].w) / 2, fa[0].y + fa[0].d / 2 + 4, 250, 74, rnd);
+  for (const f of FACTORY_FP) { const c = centerOf(f); dirtFoundation(g, c.x + 6, c.y + 6, 78, 66, rnd); }
+  { const c = centerOf(DEPOT_FP); dirtFoundation(g, c.x, c.y + 4, 62, 50, rnd); }
   for (const f of MINE_FP) { const c = centerOf(f); dirtFoundation(g, c.x + 20, c.y + 22, 82, 58, rnd); }
   for (const f of [MERCADO_FP, PESQUISA_FP]) { const c = centerOf(f); dirtFoundation(g, c.x, c.y, 66, 52, rnd); }
   for (const v of VILLAGES) dirtFoundation(g, v.x, v.y, 44, 30, rnd);
@@ -842,11 +847,10 @@ export function drawAmbientFlat(ctx) {
 /** @typedef {{depth:number, draw:(ctx:CanvasRenderingContext2D)=>void}} SceneObj */
 
 /**
- * Animais e aldeões em pé, para entrar na ordenação por profundidade.
- * @param {{ activeMines: boolean[], playerColor: string }} opts
+ * Animais em pé, para entrar na ordenação por profundidade.
  * @returns {SceneObj[]}
  */
-export function ambientObjects(opts) {
+export function ambientObjects() {
   const t = performance.now() / 1000;
   /** @type {SceneObj[]} */
   const out = [];
@@ -864,17 +868,6 @@ export function ambientObjects(opts) {
   });
   at(575 + Math.sin(t * 0.08) * 20, 150, (ctx, x, y) => deer(ctx, x, y, Math.cos(t * 0.08) >= 0 ? 1 : -1, t));
   at(1150 + Math.sin(t * 0.06 + 2) * 16, 165, (ctx, x, y) => deer(ctx, x, y, Math.cos(t * 0.06 + 2) >= 0 ? 1 : -1, t + 3));
-  for (let i = 0; i < mineSamplers.length; i++) {
-    if (!opts.activeMines[i]) continue;
-    const s = mineSamplers[i];
-    for (let k = 0; k < 2; k++) {
-      const u = (t * 26 / s.total + k * 0.95 + i * 0.37) % 2;
-      const outbound = u < 1;
-      const p = s.at(outbound ? u : 2 - u);
-      const sdx = (outbound ? 1 : -1) * (p.dx - p.dy);
-      at(p.x, p.y, (ctx, x, y) => drawVillager(ctx, x, y, sdx >= 0 ? 1 : -1, t * 9 + k, opts.playerColor, outbound));
-    }
-  }
   return out;
 }
 

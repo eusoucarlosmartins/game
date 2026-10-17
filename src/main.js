@@ -219,6 +219,9 @@ function handleWorldTap(x, y) {
     } else if (hit.kind === 'factorySlot') {
       openPanel('factory');
       play('click');
+    } else if (hit.kind === 'depot') {
+      openPanel('contract');
+      play('click');
     } else if (hit.kind === 'barracks') {
       openPanel('army');
       play('click');
