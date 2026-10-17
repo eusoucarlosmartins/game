@@ -7,10 +7,11 @@ import { getProjectDef } from './projects.js';
 import { activeMine, regenCost } from './mine.js';
 import { ACH_BY_ID } from './data.js';
 import { drawMinimap, minimapLayout } from './terrain.js';
-import { applyWorldTransform, applyHudTransform, hudSize, visibleWorldRect, view } from './camera.js';
+import { applyWorldTransform, applyHudTransform, hudSize, visibleWorldRect, view, worldToScreen } from './camera.js';
 import { W, ROAD } from './geometry.js';
 import { drawOverworldIso } from './overworld.js';
 import { drawMineSurface, drawMineGridVol } from './mineview.js';
+import { drawFx } from './fx.js';
 import { nextThreat, rivalOf, armyPower } from './military.js';
 import { MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_CENTER } from './layout.js';
 import { drawScrollPanel as paintScroll, drawResourceIcon as paintIcon, civColor } from './paint.js';
@@ -40,7 +41,10 @@ function drawTileTooltip() {
   if (!t.revealed) return;
   // monta as linhas do tooltip
   let title, sub, color = '#f1e3c2';
-  if (t.type === 'shaft') { title = 'Poço do Elevador'; sub = 'Trilhos do carrinho — não cavável'; }
+  if (t.gas) { title = '☁️ Grisu (gás)'; sub = 'Picareta explode e fere quem estiver perto. Dinamite queima com segurança.'; color = '#b8e080'; }
+  else if (t.water) { title = "💧 Lençol d'água"; sub = 'Ao cavar, inunda os túneis próximos por 40s.'; color = '#8ac8f0'; }
+  else if (t.flood > 0) { title = 'Túnel inundado'; sub = `Escoa em ${Math.ceil(t.flood)}s — mineradores perto param`; color = '#8ac8f0'; }
+  else   if (t.type === 'shaft') { title = 'Poço do Elevador'; sub = 'Trilhos do carrinho — não cavável'; }
   else if (t.type === 'air') { title = 'Túnel'; sub = 'Vazio (pode atravessar)'; }
   else if (t.type === 'dirt') { title = 'Terra'; sub = 'Cavar: $5'; }
   else if (t.type === 'stone') { title = 'Pedra'; sub = 'Cavar: $12'; }
@@ -59,10 +63,14 @@ function drawTileTooltip() {
   const subW = ctx.measureText(sub).width;
   const ttW = Math.max(titleW, subW) + 16;
   const ttH = 38;
-  let tx = state.mouseX + 14;
-  let ty = state.mouseY + 14;
-  if (tx + ttW > W) tx = state.mouseX - ttW - 8;
-  if (ty + ttH > MINE.y + MINE.rows * MINE.cell) ty = state.mouseY - ttH - 4;
+  // desenhado no HUD (tamanho fixo), preso à posição do cursor na tela
+  const sp = worldToScreen('mine', state.mouseX, state.mouseY);
+  const hs = hudSize();
+  const mx = sp.x / view.hudScale, my = sp.y / view.hudScale;
+  let tx = mx + 14;
+  let ty = my + 14;
+  if (tx + ttW > hs.w - 4) tx = Math.max(4, mx - ttW - 8);
+  if (ty + ttH > hs.h - 4) ty = my - ttH - 6;
   ctx.fillStyle = 'rgba(20,10,5,0.92)';
   ctx.fillRect(tx, ty, ttW, ttH);
   ctx.strokeStyle = color;
@@ -332,6 +340,7 @@ function drawMineScene() {
   drawMineSurface(ctx, mine);
   drawMineGridVol(ctx, mine);
   if (mine) drawTntFx(mine);
+  drawFx(ctx);
   drawElevator();
   drawExhaustedOverlay();
 }
@@ -454,11 +463,11 @@ export function draw() {
   applyWorldTransform(ctx, state.scene);
   if (state.scene === 'mine') {
     drawMineScene();
-    drawTileTooltip();
   } else {
     drawOverworldIso(ctx, visibleWorldRect('overworld'), state.mouseX, state.mouseY);
   }
   applyHudTransform(ctx);
+  if (state.scene === 'mine') drawTileTooltip();
   if (state.scene !== 'mine') {
     drawOverworldMinimap();
     if (wideScreen()) {

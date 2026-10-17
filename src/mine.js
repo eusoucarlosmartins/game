@@ -4,6 +4,8 @@ import { state, log } from './state.js';
 import { R, DEPOSIT_TYPES, MINE, TOOLS, SILO_DEFAULT_CAP, WORKER_COST, MINE_CATALOG } from './data.js';
 import { SURFACE_RESOURCES, siteWorkersTotal, updateSites } from './sites.js';
 import { placeRelics, collectRelicFrom } from './relics.js';
+import { placeHazards, explodeGas, floodAround, isFlooded } from './hazards.js';
+import { fxBurst, fxText, fxShake } from './fx.js';
 import { irand, fmtMoney } from './util.js';
 import { mineRateMul, currentEra, eraData } from './progression.js';
 import { play } from './audio.js';
@@ -95,6 +97,8 @@ function buildMineGrid(mine, oreBias) {
   revealAround(mine.grid, 1, cc, 1);
   mine.relicsPlaced = false;
   placeRelics(mine);
+  mine.hazardsPlaced = false;
+  placeHazards(mine);
 }
 
 /**
@@ -209,6 +213,9 @@ function hasAdjacentAir(grid, r, c) {
 }
 
 // ----- Ações do jogador -----
+/** Centro do tile no mundo da mina (para efeitos). @param {number} r @param {number} c */
+const tileCenter = (r, c) => ({ x: MINE.x + (c + 0.5) * MINE.cell, y: MINE.y + (r + 0.5) * MINE.cell });
+
 export function tryDigClick(r, c) {
   const mine = activeMine();
   if (!mine || !mine.grid) return;
@@ -222,21 +229,45 @@ export function tryDigClick(r, c) {
   else if (t.type === 'ore') cost = TOOLS.pick.costOre;
   if (state.money < cost) { log('Dinheiro insuficiente para cavar.', 'bad'); return; }
   state.money -= cost;
+  const p = tileCenter(r, c);
+  if (t.gas) {
+    explodeGas(mine, r, c);
+    fxBurst(p.x, p.y, '#9ab870', 26, 1.8);
+    fxBurst(p.x, p.y, '#ffb050', 14, 1.4);
+    fxShake(12);
+    play('rumble');
+    play('hiss');
+    return;
+  }
+  const water = !!t.water;
+  fxBurst(p.x, p.y, t.type === 'stone' ? '#a8a296' : t.type === 'ore' ? (R[t.resource] ? R[t.resource].color : '#8a5a30') : '#9a6a3a', 9);
+  if (cost) fxText(p.x, p.y - 6, `−$${cost}`, '#f1e3c2');
   digTile(mine.grid, r, c);
+  if (water) {
+    floodAround(mine, r, c);
+    fxBurst(p.x, p.y, '#6ab0d8', 22, 1.3);
+    play('splash');
+  }
 }
 
 function digTile(grid, r, c) {
   const t = tileAt(grid, r, c);
   if (!t) return;
   if (t.type === 'dirt' || t.type === 'stone') {
-    if (collectRelicFrom(t)) play('success');
+    if (collectRelicFrom(t)) {
+      const p = tileCenter(r, c);
+      fxText(p.x, p.y - 10, '🏺 Relíquia!', '#ffd44a');
+      fxBurst(p.x, p.y, '#ffd44a', 20, 1.2);
+      play('relic');
+    }
+    play(t.type === 'stone' ? 'crack' : 'dirt');
     grid[r][c] = airTile(true);
     state.tilesDug++;
   } else if (t.type === 'ore') {
     t.revealed = true;
+    play('clink');
   }
   revealAround(grid, r, c, 1);
-  play('pickaxe');
 }
 
 export function tryTNT(r, c) {
@@ -245,12 +276,14 @@ export function tryTNT(r, c) {
   if (state.money < TOOLS.tnt.costPerUse) { log('Sem dinheiro para a Dinamite.', 'bad'); return; }
   state.money -= TOOLS.tnt.costPerUse;
   const radius = TOOLS.tnt.radius;
-  let dug = 0, oreCollected = 0;
+  let dug = 0, oreCollected = 0, gasBurned = false, waterHit = false;
   for (let dr = -radius; dr <= radius; dr++) {
     for (let dc = -radius; dc <= radius; dc++) {
       const nr = r + dr, nc = c + dc;
       const t = tileAt(mine.grid, nr, nc);
       if (!t || t.type === 'shaft') continue;
+      if (t.gas) gasBurned = true;
+      if (t.water) waterHit = true;
       if (t.type === 'dirt' || t.type === 'stone') {
         collectRelicFrom(t);
         mine.grid[nr][nc] = airTile(true);
@@ -267,6 +300,12 @@ export function tryTNT(r, c) {
   state.tilesDug += dug;
   log(`Dinamite: ${dug} tiles. ${oreCollected > 0 ? '+' + oreCollected + ' de minério.' : ''}`, 'good');
   mine.tntFx = { r, c, t: 0.8 };
+  const p = tileCenter(r, c);
+  fxBurst(p.x, p.y, '#8a6a46', 40, 2);
+  fxBurst(p.x, p.y, '#ffb050', 16, 1.6);
+  fxShake(gasBurned ? 16 : 9);
+  if (gasBurned) log('🔥 A dinamite queimou o grisu com segurança.', 'good');
+  if (waterHit) { floodAround(mine, r, c); play('splash'); }
   play('boom');
   state.tntUseCount = (state.tntUseCount || 0) + 1;
 }
@@ -394,9 +433,11 @@ function updateSingleMine(mine, dt, rate) {
   for (let r = 0; r < MINE.rows; r++) {
     for (let c = 0; c < MINE.cols; c++) {
       const t = mine.grid[r][c];
+      if (t.flood > 0) t.flood = Math.max(0, t.flood - dt);
       if (!t.worker) continue;
       if (t.type !== 'ore') { t.worker = false; continue; }
       if (t.amount <= 0) continue;
+      if (isFlooded(mine, r, c)) continue; // água em volta: espera escoar
       const take = Math.min(rate * dt, t.amount);
       const added = tryAddToSilo(t.resource, take);
       t.amount -= added;

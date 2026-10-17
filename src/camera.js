@@ -3,6 +3,7 @@
 // a mina é 1280x720; o mapa é o espaço isométrico (ISO_W x ISO_H).
 import { W, H } from './geometry.js';
 import { ISO_W, ISO_H, proj } from './iso.js';
+import { shakeOffset } from './fx.js';
 
 /** @typedef {{ x: number, y: number, zoom: number, touched: boolean, bw: number, bh: number, focus?: {x:number,y:number}, zoomBoost?: number }} Cam */
 
@@ -83,7 +84,8 @@ export function resizeCanvas(canvas) {
 export function applyWorldTransform(ctx, scene) {
   const cam = camFor(scene);
   const s = view.dpr * cam.zoom;
-  ctx.setTransform(s, 0, 0, s, view.dpr * (view.cw / 2 - cam.x * cam.zoom), view.dpr * (view.ch / 2 - cam.y * cam.zoom));
+  const sh = scene === 'mine' ? shakeOffset() : { x: 0, y: 0 };
+  ctx.setTransform(s, 0, 0, s, view.dpr * (view.cw / 2 - cam.x * cam.zoom + sh.x), view.dpr * (view.ch / 2 - cam.y * cam.zoom + sh.y));
 }
 
 /** @param {CanvasRenderingContext2D} ctx */
@@ -104,6 +106,12 @@ export function screenToWorld(scene, sx, sy) {
     x: cam.x + (sx - view.cw / 2) / cam.zoom,
     y: cam.y + (sy - view.ch / 2) / cam.zoom,
   };
+}
+
+/** Mundo → pixels CSS do canvas. @param {string} scene @param {number} x @param {number} y */
+export function worldToScreen(scene, x, y) {
+  const cam = camFor(scene);
+  return { x: (x - cam.x) * cam.zoom + view.cw / 2, y: (y - cam.y) * cam.zoom + view.ch / 2 };
 }
 
 /** @param {number} sx @param {number} sy */

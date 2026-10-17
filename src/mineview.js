@@ -357,6 +357,43 @@ export function drawMineGridVol(ctx, mine) {
   }
   ctx.restore();
 
+  // perigos revelados e túneis inundados
+  for (let r = 0; r < MINE.rows; r++) {
+    for (let c = 0; c < MINE.cols; c++) {
+      const tile = mine.grid[r][c];
+      const px = gx + c * cell, py = gy + r * cell;
+      if (tile.flood > 0) {
+        const a = Math.min(1, tile.flood / 6);
+        ctx.fillStyle = `rgba(60,130,180,${0.55 * a})`;
+        ctx.fillRect(px, py + 8, cell, cell - 8);
+        ctx.strokeStyle = `rgba(200,235,250,${0.6 * a})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = 0; x <= cell; x += 4) ctx.lineTo(px + x, py + 9 + Math.sin(t * 4 + x * 0.4 + c) * 1.5);
+        ctx.stroke();
+        if (tile.flood > 1) {
+          ctx.font = `bold 10px ${UI_FONT}`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#e8f6ff';
+          ctx.fillText(`${Math.ceil(tile.flood)}s`, px + cell / 2, py + cell / 2 + 6);
+        }
+      }
+      if (!tile.revealed || (!tile.gas && !tile.water)) continue;
+      if (tile.gas) {
+        for (let k = 0; k < 3; k++) {
+          const ph = (t * 0.5 + k / 3) % 1;
+          ctx.fillStyle = `rgba(150,200,90,${0.35 * (1 - ph)})`;
+          ctx.beginPath(); ctx.ellipse(px + cell / 2 + Math.sin(t + k) * 5, py + cell / 2 - ph * 10, 8 + ph * 8, 5 + ph * 4, 0, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      ctx.font = `16px ${UI_FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(tile.gas ? '☁️' : '💧', px + cell / 2, py + cell / 2 + 1);
+    }
+  }
+
   // relíquias reveladas: brilho dourado no bloco
   for (let r = 0; r < MINE.rows; r++) {
     for (let c = 0; c < MINE.cols; c++) {
@@ -384,6 +421,18 @@ export function drawMineGridVol(ctx, mine) {
       if (!tile.revealed || tile.type !== 'ore') continue;
       const px = gx + c * cell, py = gy + r * cell;
       const locked = !era.deposits.includes(tile.resource);
+      // veio raro (prata, ouro, rubi, diamante): aura colorida pulsando
+      if (!locked && R[tile.resource] && R[tile.resource].price >= 25) {
+        const pulse = (Math.sin(t * 2.5 + c + r) + 1) / 2;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const g = ctx.createRadialGradient(px + cell / 2, py + cell / 2, 2, px + cell / 2, py + cell / 2, cell * 0.9);
+        g.addColorStop(0, `rgba(255,236,160,${0.25 + 0.25 * pulse})`);
+        g.addColorStop(1, 'rgba(255,220,120,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(px - cell / 2, py - cell / 2, cell * 2, cell * 2);
+        ctx.restore();
+      }
       // cintilar
       for (let i = 0; i < 2; i++) {
         const ph = (t * 0.7 + hash(r, c, i + 70)) % 1;

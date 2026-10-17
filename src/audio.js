@@ -84,6 +84,32 @@ const SOUNDS = {
   fail(c) {
     tone(c, { freq: 220, dur: 0.18, vol: 0.08, type: 'sawtooth', sweep: -120 });
   },
+  // pedra: estalo seco com variação de tom (não cansa no 100º golpe)
+  crack(c) {
+    noise(c, { dur: 0.07, vol: 0.09 });
+    tone(c, { freq: 160 + Math.random() * 80, dur: 0.07, vol: 0.06, type: 'triangle', sweep: -90 });
+  },
+  dirt(c) {
+    noise(c, { dur: 0.09, vol: 0.05 });
+    tone(c, { freq: 120 + Math.random() * 40, dur: 0.06, vol: 0.04, type: 'sine', sweep: -60 });
+  },
+  clink(c) {
+    tone(c, { freq: 1400 + Math.random() * 300, dur: 0.05, vol: 0.04, type: 'square' });
+  },
+  rumble(c) {
+    noise(c, { dur: 0.9, vol: 0.2 });
+    tone(c, { freq: 60, dur: 0.9, vol: 0.14, type: 'sawtooth', sweep: -30 });
+  },
+  hiss(c) {
+    noise(c, { dur: 0.6, vol: 0.05 });
+  },
+  splash(c) {
+    noise(c, { dur: 0.4, vol: 0.09 });
+    tone(c, { freq: 500, dur: 0.25, vol: 0.04, type: 'sine', sweep: -350 });
+  },
+  relic(c) {
+    [784, 988, 1175, 1568].forEach((f, i) => setTimeout(() => tone(c, { freq: f, dur: 0.22, vol: 0.05, type: 'triangle' }), i * 90));
+  },
 };
 
 export function play(type) {
@@ -106,9 +132,11 @@ export function unlockOnFirstGesture() {
     if (c && c.state === 'suspended') c.resume().catch(() => {});
     document.removeEventListener('click', wake);
     document.removeEventListener('keydown', wake);
+    document.removeEventListener('pointerdown', wake);
   };
   document.addEventListener('click', wake, { once: true });
   document.addEventListener('keydown', wake, { once: true });
+  document.addEventListener('pointerdown', wake, { once: true });
 }
 
 export function toggleMute() {
