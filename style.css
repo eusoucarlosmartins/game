@@ -1486,3 +1486,33 @@ html, body {
   .stage.scene-mine .zoom-ctl { left: 10px; right: auto; top: auto; bottom: 10px; transform: none; }
   .dock-ico { font-size: 20px; }
 }
+
+/* Conselheiro do contrato: uma ação concreta, logo abaixo dos controles do topo */
+.hud-advisor {
+  order: 10;
+  flex-basis: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: bold;
+  line-height: 1.25;
+  text-align: left;
+  color: #1a0e06;
+  background: linear-gradient(to bottom, #ffe9a8, #f1c95a);
+  border: 2px solid #8b5e1f;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  cursor: pointer;
+  touch-action: manipulation;
+  animation: advisorIn 0.25s ease-out;
+}
+.hud-advisor:active { transform: translateY(1px); }
+.hud-advisor.info-only { cursor: default; background: linear-gradient(to bottom, #efe2bf, #d8c498); }
+.adv-ico { font-size: 18px; }
+@keyframes advisorIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }

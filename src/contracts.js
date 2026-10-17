@@ -4,6 +4,7 @@ import { R, CFG } from './data.js';
 import { fmtMoney, rand, irand, clamp } from './util.js';
 import { currentEra, eraData, checkEraProgression } from './progression.js';
 import { play } from './audio.js';
+import { nobodyMakes } from './advisor.js';
 
 export function pickContractProduct() {
   const era = eraData(currentEra());
@@ -20,7 +21,8 @@ export function generateContract() {
   else if (product.tier === 3) need = irand(3, 6);
   else need = irand(2, 5);
   if (currentEra() === 1) need = irand(3, 5);
-  const deadline = rand(CFG.cityDeadlineMin, CFG.cityDeadlineMax) + price * 0.15;
+  // produto que nenhuma fábrica faz: tempo extra para trocar a receita e produzir
+  const deadline = rand(CFG.cityDeadlineMin, CFG.cityDeadlineMax) + price * 0.15 + (nobodyMakes(productId) ? 30 : 0);
   let city = CFG.cities[irand(0, CFG.cities.length - 1)];
   if (state.contract && city === state.contract.city) {
     city = CFG.cities[(CFG.cities.indexOf(city) + 1) % CFG.cities.length];

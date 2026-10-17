@@ -3,7 +3,9 @@
 // barra inferior que abre a sidebar como painel deslizante.
 import { state } from './state.js';
 import { R, MINE } from './data.js';
-import { setActiveMine, activeMine } from './mine.js';
+import { setActiveMine, activeMine, setTool } from './mine.js';
+import { setRecipe } from './factories.js';
+import { adviseContract } from './advisor.js';
 import { play } from './audio.js';
 import { zoomCenter, toggleFit, view, centerOn } from './camera.js';
 
@@ -154,6 +156,24 @@ function wireStage() {
     openPanel('contract');
     play('click');
   });
+  el('advisor').addEventListener('click', () => {
+    const a = currentAdvice;
+    if (!a) return;
+    haptic();
+    if (a.kind === 'switch' && a.factory !== undefined && a.recipe) {
+      setRecipe(a.factory, a.recipe);
+      play('success');
+    } else if ((a.kind === 'mine' || a.kind === 'explore') && a.mineIdx !== undefined) {
+      setActiveMine(a.mineIdx);
+      state.scene = 'mine';
+      setTool(a.kind === 'mine' ? 'miner' : 'pick');
+      play('whoosh');
+    } else if (a.kind === 'buyFactory') {
+      openPanel('factory');
+      play('click');
+    }
+    lastAdviceAt = 0;
+  });
   // ferramenta escolhida no dock também vibra (o setTool vem do handler global data-action)
   el('tool-dock').addEventListener('click', () => haptic(6));
 }
@@ -173,6 +193,10 @@ function focusActiveMine() {
 }
 
 let lastFocusKey = '';
+/** @type {import('./advisor.js').Advice | null} */
+let currentAdvice = null;
+let lastAdviceAt = 0;
+let lastAdviceText = '';
 let lastSwitcherSig = '';
 let lastChip = '';
 let lastSpeed = -1;
@@ -219,6 +243,22 @@ export function syncHud() {
     chip.hidden = !chipTxt;
     chip.textContent = chipTxt;
     chip.classList.toggle('urgent', !!state.contract && state.contract.deadline - state.contract.elapsed < 20);
+  }
+
+  // conselheiro: recalcula 4x/s; some durante o tutorial inicial
+  const now = performance.now();
+  if (now - lastAdviceAt > 250) {
+    lastAdviceAt = now;
+    const tutorialOn = state.tutorial && !state.tutorial.dismissed;
+    currentAdvice = tutorialOn ? null : adviseContract();
+    const txt = currentAdvice ? currentAdvice.text : '';
+    if (txt !== lastAdviceText) {
+      lastAdviceText = txt;
+      const adv = el('advisor');
+      adv.hidden = !txt;
+      el('advisor-text').textContent = txt;
+      adv.classList.toggle('info-only', !!currentAdvice && currentAdvice.kind === 'locked');
+    }
   }
 
   const stage = /** @type {HTMLElement} */ (document.querySelector('.stage'));

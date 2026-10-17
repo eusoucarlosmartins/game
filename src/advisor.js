@@ -1,0 +1,136 @@
+// advisor.js — "conselheiro do contrato": descobre o que impede o pedido atual de
+// ser cumprido e sugere UMA ação concreta (de preferência resolvida com um toque).
+import { state } from './state.js';
+import { R, RECIPE_BY_ID, CFG, MINE } from './data.js';
+import { isRecipeUnlocked, isDepositUnlocked } from './progression.js';
+
+/**
+ * @typedef {{
+ *   kind: 'switch' | 'mine' | 'explore' | 'buyFactory' | 'locked',
+ *   text: string, factory?: number, recipe?: string, resource?: string, mineIdx?: number
+ * }} Advice
+ */
+
+/** @param {string} id */
+const stockOf = (id) => (R[id] && R[id].free ? Infinity
+  : R[id] && R[id].kind === 'raw' ? state.warehouse[id] || 0 : state.products[id] || 0);
+
+/** @param {string} id */
+const factoryMaking = (id) => state.factories.findIndex((f) => f.recipeId === id);
+
+/** Quantas unidades do produto do pedido ainda faltam fabricar. */
+function remainingUnits() {
+  const k = state.contract;
+  if (!k) return 0;
+  return Math.max(0, k.need - k.delivered - (state.products[k.product] || 0));
+}
+
+/**
+ * Produtos intermediários que precisam continuar sendo fabricados (estoque não basta).
+ * @param {string} product @param {number} units @param {Set<string>} keep
+ */
+function collectKeep(product, units, keep) {
+  keep.add(product);
+  const recipe = RECIPE_BY_ID[product];
+  if (!recipe) return;
+  for (const [ing, n] of Object.entries(recipe.in)) {
+    if (R[ing].kind !== 'prod') continue;
+    const need = units * n - stockOf(ing);
+    if (need > 0) collectKeep(ing, need, keep);
+  }
+}
+
+/** Fábrica que pode trocar de receita sem prejudicar o pedido. @param {Set<string>} keep */
+function factoryToSwitch(keep) {
+  let best = -1;
+  state.factories.forEach((f, i) => {
+    if (keep.has(f.recipeId)) return;
+    if (best < 0 || (state.factories[best].brewing > 0 && !(f.brewing > 0))) best = i;
+  });
+  return best;
+}
+
+/** @param {string} res @returns {{mineIdx:number, worked:boolean} | null} */
+function findVein(res) {
+  /** @type {{mineIdx:number, worked:boolean} | null} */
+  let found = null;
+  (state.mines || []).forEach((m, mi) => {
+    if (!m || !m.grid) return;
+    for (let r = 0; r < MINE.rows; r++) {
+      for (let c = 0; c < MINE.cols; c++) {
+        const t = m.grid[r][c];
+        if (!t.revealed || t.type !== 'ore' || t.resource !== res || t.amount <= 0) continue;
+        if (t.worker) { found = { mineIdx: mi, worked: true }; return; }
+        if (!found) found = { mineIdx: mi, worked: false };
+      }
+    }
+  });
+  return found;
+}
+
+function freeWorkers() {
+  let busy = 0;
+  for (const m of state.mines || []) {
+    if (!m || !m.grid) continue;
+    for (const row of m.grid) for (const t of row) if (t.worker) busy++;
+  }
+  return state.workersTotal - busy;
+}
+
+/**
+ * @param {string} product @param {Set<string>} keep @param {Set<string>} seen
+ * @returns {Advice | null}
+ */
+function adviseProduce(product, keep, seen) {
+  if (seen.has(product)) return null;
+  seen.add(product);
+  const name = R[product].name;
+  const recipe = RECIPE_BY_ID[product];
+  if (!recipe) return null;
+  if (!isRecipeUnlocked(product)) return { kind: 'locked', text: `${name} ainda não pode ser fabricado nesta era.` };
+  if (factoryMaking(product) < 0) {
+    const target = factoryToSwitch(keep);
+    if (target >= 0) {
+      return { kind: 'switch', factory: target, recipe: product, text: `Nenhuma fábrica faz ${name}. Toque para colocar a Fábrica ${target + 1} em ${name}.` };
+    }
+    if (state.factories.length < CFG.factorySlotsMax) {
+      return { kind: 'buyFactory', text: `Precisa de mais uma fábrica para ${name}. Toque para ver as fábricas.` };
+    }
+    return null;
+  }
+  for (const [ing, n] of Object.entries(recipe.in)) {
+    if (R[ing].free || stockOf(ing) >= n) continue;
+    if (R[ing].kind === 'prod') {
+      const sub = adviseProduce(ing, keep, seen);
+      if (sub) return sub;
+      continue;
+    }
+    const iname = R[ing].name;
+    if (!isDepositUnlocked(ing)) return { kind: 'locked', text: `${iname} só pode ser extraído numa era mais avançada.` };
+    const vein = findVein(ing);
+    if (vein && vein.worked) continue; // já está sendo extraído: é só esperar
+    if (vein) {
+      const extra = freeWorkers() > 0 ? '' : ' (contrate um ou retire de outro veio)';
+      return { kind: 'mine', resource: ing, mineIdx: vein.mineIdx, text: `Falta ${iname}: toque para alocar um minerador num veio de ${iname}${extra}.` };
+    }
+    return { kind: 'explore', resource: ing, mineIdx: state.activeMineIdx || 0, text: `Falta ${iname}: nenhum veio à vista. Toque para cavar ou usar a Bússola na mina.` };
+  }
+  return null;
+}
+
+/** @returns {Advice | null} */
+export function adviseContract() {
+  const k = state.contract;
+  if (!k || !R[k.product]) return null;
+  const left = remainingUnits();
+  if (left <= 0) return null;
+  const keep = new Set();
+  collectKeep(k.product, left, keep);
+  return adviseProduce(k.product, keep, new Set());
+}
+
+/** Pedido de um produto que nenhuma fábrica faz ainda? (dá prazo extra para trocar) */
+/** @param {string} product */
+export function nobodyMakes(product) {
+  return factoryMaking(product) < 0;
+}
