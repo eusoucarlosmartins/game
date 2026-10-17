@@ -29,6 +29,7 @@ import { freshStartIfNeeded } from './reset.js';
 import { updateStaff, hireOrPromote } from './staff.js';
 import { buildSite } from './sites.js';
 import { placeRelics } from './relics.js';
+import { updateTrade, buyCart } from './trade.js';
 import { addSiteWorker } from './hud.js';
 
 // ---------- Game over / vitória ----------
@@ -113,6 +114,7 @@ function tick(dt) {
   updateDay(dt);
   updateStaff(dt);
   updateWonder(dt);
+  updateTrade(dt);
   checkAchievements();
   updateAchievementToast(dt);
   // Auto-dismiss do último passo do tutorial
@@ -333,6 +335,7 @@ document.addEventListener('click', (e) => {
     case 'project-start':  activateProject(t.dataset.id); break;
     case 'project-cancel': cancelProject(); break;
     case 'hire-staff':     if (hireOrPromote(t.dataset.id || '')) play('success'); break;
+    case 'buy-cart':       if (buyCart(t.dataset.id || '')) play('coin'); break;
     case 'site-build':     if (buildSite(t.dataset.id || '')) play('success'); break;
     case 'site-worker':    if (addSiteWorker(t.dataset.id || '', +(t.dataset.delta || 1))) play('click'); break;
     case 'tool-select':    setTool(t.dataset.tool); play('click'); break;

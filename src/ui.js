@@ -11,6 +11,7 @@ import { openModal, closeModal } from './modals.js';
 import { STAFF, staffLevel, staffActive, nextLevel, canHire, totalSalary, staffAttention } from './staff.js';
 import { SITE_BY_ID, siteState, siteUnlocked } from './sites.js';
 import { freeWorkers } from './advisor.js';
+import { ROUTES, carts, routeUnlocked, canBuyCart, CART_COST } from './trade.js';
 import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
 import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } from './projects.js';
 
@@ -329,6 +330,34 @@ function renderEquipment() {
   }).join('');
 }
 
+let lastTradeSig = '';
+function renderTrade() {
+  const cont = $('trade-routes');
+  if (!cont) return;
+  const list = carts();
+  const sig = ROUTES.map((r) => `${r.id}${routeUnlocked(r.id)}${list.filter((c) => c.route === r.id).length}`).join('|') + (state.money >= CART_COST) + canBuyCart();
+  const earned = $('trade-earned');
+  if (earned) earned.textContent = state.trade && state.trade.earned ? `· ${fmtMoney(state.trade.earned)} vendidos` : '';
+  if (sig === lastTradeSig) return;
+  lastTradeSig = sig;
+  cont.innerHTML = ROUTES.map((r) => {
+    const n = list.filter((c) => c.route === r.id).length;
+    const unlocked = routeUnlocked(r.id);
+    const btn = !unlocked
+      ? `<button class="mini-btn" disabled>🔒 Era ${ROMAN[r.era - 1]}</button>`
+      : `<button class="mini-btn" data-action="buy-cart" data-id="${r.id}" ${!canBuyCart() || state.money < CART_COST ? 'disabled' : ''}>+ Carroça · ${fmtMoney(CART_COST)}</button>`;
+    return `
+      <div class="staff-card${n ? ' hired' : ''}">
+        <div class="staff-face">🐎</div>
+        <div class="staff-info">
+          <div class="staff-name">${r.name}</div>
+          <div class="staff-role">paga ${Math.round(r.mult * 100)}% do preço · ${n} carroça(s)</div>
+          <div class="staff-btn">${btn}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 let lastStaffSig = '';
 function renderStaff() {
   const cont = $('staff-list');
@@ -540,6 +569,7 @@ export function syncUI() {
   renderStats();
   renderEquipment();
   renderStaff();
+  renderTrade();
   if (openSiteId) renderSiteModal();
   renderResearch();
   renderLog();

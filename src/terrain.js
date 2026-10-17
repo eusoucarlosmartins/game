@@ -5,6 +5,7 @@ import { W, H } from './geometry.js';
 import { proj, unproj, groundTransform, ISO_W, ISO_H } from './iso.js';
 import { MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_CENTER, centerOf } from './layout.js';
 import { SITES, SITE_BY_ID } from './sites.js';
+import { ROUTES } from './trade.js';
 
 /** @typedef {[number, number]} Pt */
 
@@ -360,8 +361,8 @@ function inExclusion(x, y) {
   ];
   for (const [x1, y1, x2, y2] of zones) if (x >= x1 && x <= x2 && y >= y1 && y <= y2) return true;
   for (const v of VILLAGES) if (Math.abs(x - v.x) < 40 && Math.abs(y - v.y) < 30) return true;
-  for (const p of [...MINE_PATHS, ...OTHER_PATHS]) {
-    const s = makeSampler(p);
+  for (const p of [...MINE_PATHS, ...OTHER_PATHS, ...ROUTES.map((r) => r.path)]) {
+    const s = makeSampler(/** @type {Pt[]} */ (p));
     for (let u = 0; u <= 1; u += 8 / s.total) {
       const q = s.at(u);
       if (Math.hypot(q.x - x, q.y - y) < 18) return true;
@@ -427,7 +428,12 @@ let treeList = null;
 export function getTrees() {
   if (!treeList) {
     // abre clareira onde ficam os postos de coleta
-    treeList = generateTrees().filter((t) => !SITES.some((f) =>
+    const roads = ROUTES.map((r) => makeSampler(/** @type {Pt[]} */ (r.path)));
+    const onRoad = (/** @type {Tree} */ t) => roads.some((s) => {
+      for (let u = 0; u <= 1; u += 6 / s.total) { const q = s.at(u); if (Math.hypot(q.x - t.x, q.y - t.y) < 16) return true; }
+      return false;
+    });
+    treeList = generateTrees().filter((t) => !onRoad(t) && !SITES.some((f) =>
       t.x > f.x - 16 && t.x < f.x + f.w + 16 && t.y > f.y - 14 && t.y < f.y + f.d + 22));
   }
   return treeList;
@@ -523,7 +529,7 @@ export function getGroundCanvas() {
   const rnd = mulberry32(1500);
   paintGrass(g, rnd);
   paintFoundations(g, rnd);
-  for (const p of [...OTHER_PATHS, ...MINE_PATHS]) dirtPath(g, p, rnd);
+  for (const p of [...OTHER_PATHS, ...MINE_PATHS, ...ROUTES.map((r) => /** @type {Pt[]} */ (r.path))]) dirtPath(g, p, rnd);
   paintRiver(g);
   paintEdgeFog(g);
   groundCache = c;

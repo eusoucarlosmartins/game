@@ -19,6 +19,7 @@ import {
 } from './terrain.js';
 import { SITES, siteState, siteUnlocked } from './sites.js';
 import { projectProgress } from './projects.js';
+import { ROUTES, ROUTE_BY_ID, carts, pointOn, routeUnlocked } from './trade.js';
 import { drawScrollPanel, drawResourceIcon, plate, civColor, civAccent, UI_FONT } from './paint.js';
 
 /** @typedef {import('./layout.js').Footprint} Footprint */
@@ -1039,6 +1040,37 @@ function drawWonderBridge(ctx) {
   }
 }
 
+// ---------- Caravanas de comércio ----------
+/** @returns {SceneObj[]} */
+function tradeObjects() {
+  /** @type {SceneObj[]} */
+  const out = [];
+  const bob = Math.sin(performance.now() / 140);
+  for (const c of carts()) {
+    const route = ROUTE_BY_ID[c.route];
+    if (!route || (c.dir === 0 && c.u === 0)) continue;
+    const p = pointOn(route.path, c.u);
+    const ahead = pointOn(route.path, Math.max(0, Math.min(1, c.u + (c.dir >= 0 ? 0.035 : -0.035))));
+    out.push({
+      depth: p.x + p.y + 6,
+      draw: (ctx) => {
+        box(ctx, ahead.x - 6, ahead.y - 3, 12, 6, 6, '#6a3e1c', 6 + bob);
+        box(ctx, p.x - 8, p.y - 5, 16, 10, 7, '#8a5a2e', 5);
+        if (c.cargo && R[c.cargo]) box(ctx, p.x - 6, p.y - 4, 12, 8, 5, R[c.cargo].color, 12);
+        const wheel = proj(p.x, p.y + 5, 4);
+        ctx.fillStyle = '#2a1a0e';
+        ctx.beginPath();
+        ctx.ellipse(wheel.x - 5, wheel.y, 3.2, 3.6, 0, 0, Math.PI * 2);
+        ctx.ellipse(wheel.x + 5, wheel.y, 3.2, 3.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        const mast = proj(p.x, p.y, 14);
+        flag(ctx, mast.x, mast.y, 12, 10);
+      },
+    });
+  }
+  return out;
+}
+
 // ---------- Cena ----------
 /**
  * Desenha o mapa. Chamar com a transformação da câmera (espaço iso) ativa.
@@ -1087,6 +1119,7 @@ export function drawOverworldIso(ctx, viewIso, hoverX, hoverY) {
     objs.push({ depth: def.x + def.y + def.w / 2 + def.d / 2, draw: (c) => drawSiteStructure(c, def) });
     objs.push(...siteWorkers(def));
   }
+  objs.push(...tradeObjects());
   if (wonderVisible()) objs.push({ depth: WB.x1 + WB.y + 60, draw: drawWonderBridge });
   objs.push(...cityObjects(), ...villageObjects(), ...treeObjects(viewIso, lumberCut()));
   objs.push(...ambientObjects({
@@ -1177,6 +1210,11 @@ function drawLabels(ctx, hover) {
     const txt = w && w.done ? `🌉 PONTE HERCÍLIO LUZ · vitória em ${Math.ceil(w.countdown)}s`
       : prog > 0 ? `🌉 PONTE HERCÍLIO LUZ · ${prog}%` : '🌉 MARAVILHA: inicie em Projetos';
     plate(ctx, wp.x, wp.y, txt, { bg: w && w.done ? '#ffe680' : '#f1e3c2', size: 11 });
+  }
+  for (const r of ROUTES) {
+    const end = pointOn(r.path, 0.82);
+    const q = proj(end.x, end.y);
+    plate(ctx, q.x, q.y - 10, `${routeUnlocked(r.id) ? '🐎' : '🔒'} → ${r.name.toUpperCase()}`, { bg: 'rgba(241,227,194,0.92)', size: 10, border: 'rgba(42,22,8,0.7)' });
   }
   const mc = centerOf(MERCADO_FP), pc = centerOf(PESQUISA_FP);
   const pm = proj(mc.x, MERCADO_FP.y + MERCADO_FP.d + 10);

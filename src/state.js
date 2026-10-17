@@ -79,6 +79,8 @@ export const state = {
   /** @type {Record<string, {built: boolean, workers: number, harvested: number}>} postos de superfície */
   sites: {},
   relics: 0,
+  /** @type {{carts: any[], earned: number}} rotas comerciais */
+  trade: { carts: [], earned: 0 },
   /** @type {{done: boolean, countdown: number, won: boolean} | null} */
   wonder: null,
   /** @type {string[]} */

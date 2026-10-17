@@ -13,6 +13,7 @@ import { updateEvents } from '../events.js';
 import { updateProjects } from '../projects.js';
 import { checkAchievements, updateAchievementToast } from '../achievements.js';
 import { updateStaff } from '../staff.js';
+import { updateTrade } from '../trade.js';
 
 /**
  * Boot da versão Phaser do jogo. Mantém toda a lógica de state/updates
@@ -52,6 +53,7 @@ export function startPhaserGame() {
       updateProjects(dt);
       updateDay(dt);
       updateStaff(dt);
+      updateTrade(dt);
       checkAchievements();
       updateAchievementToast(dt);
     } catch (err) {
