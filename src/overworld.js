@@ -21,7 +21,8 @@ import { SITES, siteState, siteUnlocked } from './sites.js';
 import { projectProgress } from './projects.js';
 import { ROUTES, ROUTE_BY_ID, carts, pointOn, routeUnlocked } from './trade.js';
 import { army, rivals, rivalOf, BARRACKS, UNITS, TRIBUTE } from './military.js';
-import { drawScrollPanel, drawResourceIcon, plate, civColor, civAccent, UI_FONT } from './paint.js';
+import { drawScrollPanel, drawResourceIcon, plate, badge, civColor, civAccent, UI_FONT } from './paint.js';
+import { camFor } from './camera.js';
 
 /** @typedef {import('./layout.js').Footprint} Footprint */
 /** @typedef {{depth:number, draw:(ctx:CanvasRenderingContext2D)=>void}} SceneObj */
@@ -1153,15 +1154,18 @@ function militaryObjects() {
   return out;
 }
 
-/** Poeira da batalha recente, bandeiras dos territórios e placas dos invasores. @param {CanvasRenderingContext2D} ctx */
-function drawMilitaryLabels(ctx) {
+/** Poeira da batalha recente, bandeiras dos territórios e placas dos invasores. */
+/** @param {CanvasRenderingContext2D} ctx @param {Target|null} hover */
+function drawMilitaryLabels(ctx, hover) {
   if (currentEra() < BARRACKS.era) return;
   const a = army();
   const t = performance.now() / 1000;
   const bc = proj(BARRACKS.x + BARRACKS.w / 2, BARRACKS.y + BARRACKS.d + 10);
-  addRect('barracks', 0, plate(ctx, bc.x, bc.y, a.barracks ? '⚔️ QUARTEL' : `CONSTRUIR ⚔️ QUARTEL · ${fmtMoney(BARRACKS.cost)}`, {
-    bg: a.barracks ? '#e2b765' : 'rgba(26,14,6,0.85)', fg: a.barracks ? '#1a0e06' : '#f1e3c2', size: 11,
-  }));
+  const hovB = !!hover && hover.kind === 'barracks';
+  addRect('barracks', 0, a.barracks
+    ? plate(ctx, bc.x, bc.y, '⚔️ QUARTEL', { bg: hovB ? '#ffe680' : '#e2b765', size: 10 })
+    : hovB ? plate(ctx, bc.x, bc.y, `CONSTRUIR ⚔️ QUARTEL · ${fmtMoney(BARRACKS.cost)}`, { bg: '#ffe680', size: 10 })
+      : badge(ctx, bc.x, bc.y, '⚔️', { dim: true }));
   for (const th of a.threats) {
     const route = ROUTE_BY_ID[th.border];
     const r = rivalOf(th.rival);
@@ -1190,7 +1194,7 @@ function drawMilitaryLabels(ctx) {
     const g = pointOn(route.path, 0.92);
     const p = proj(g.x, g.y);
     flag(ctx, p.x - 18, p.y, 26, 18);
-    plate(ctx, p.x, p.y + 12, `🏴 TERRITÓRIO ${r.name.toUpperCase()} · +$${TRIBUTE}/dia`, { bg: '#ffe680', size: 10 });
+    plate(ctx, p.x, p.y + 12, `🏴 ${r.name.toUpperCase()} · +$${TRIBUTE}/dia`, { bg: '#ffe680', size: 9 });
   }
 }
 
@@ -1274,9 +1278,13 @@ export function drawOverworldIso(ctx, viewIso, hoverX, hoverY) {
 
 /** Placas e painéis: sempre por cima, texto nítido. @param {CanvasRenderingContext2D} ctx @param {Target|null} hover */
 function drawLabels(ctx, hover) {
-  for (const v of VILLAGES) {
-    const p = proj(v.x, v.y + 14);
-    plate(ctx, p.x, p.y, v.name, { bg: 'rgba(241,227,194,0.92)', size: 10, border: 'rgba(42,22,8,0.7)' });
+  // nomes secundários só com zoom aproximado: o mapa "respira" na visão geral
+  const detail = camFor('overworld').zoom >= 1.0;
+  if (detail) {
+    for (const v of VILLAGES) {
+      const p = proj(v.x, v.y + 14);
+      plate(ctx, p.x, p.y, v.name, { bg: 'rgba(241,227,194,0.85)', size: 9, border: 'rgba(42,22,8,0.5)' });
+    }
   }
   MINE_FP.forEach((fp, i) => {
     const m = state.mines[i];
@@ -1297,11 +1305,13 @@ function drawLabels(ctx, hover) {
       ctx.fillStyle = hov ? '#ffe680' : '#e2b765';
       ctx.font = `bold 28px ${UI_FONT}`;
       ctx.fillText('+', p.x, p.y - 14);
-      ctx.font = `bold 12px ${UI_FONT}`;
+      ctx.font = `bold 11px ${UI_FONT}`;
       ctx.fillText('NOVA MINA', p.x, p.y + 8);
-      ctx.font = `italic 10px ${UI_FONT}`;
-      ctx.fillStyle = 'rgba(241,227,194,0.85)';
-      ctx.fillText('terra inexplorada', p.x, p.y + 22);
+      if (hov) {
+        ctx.font = `italic 10px ${UI_FONT}`;
+        ctx.fillStyle = 'rgba(241,227,194,0.85)';
+        ctx.fillText('terra inexplorada · toque para comprar', p.x, p.y + 22);
+      }
       addRect('mineSlot', i, { x: p.x - 60, y: p.y - 36, w: 120, h: 70 });
     }
   });
@@ -1315,9 +1325,9 @@ function drawLabels(ctx, hover) {
       drawRecipePanel(ctx, fp, f, i);
     } else {
       const c = proj(fp.x + fp.w / 2, fp.y + fp.d / 2);
-      const r = plate(ctx, c.x, c.y - 6, `CONSTRUIR · ${fmtMoney(CFG.factoryCosts[i])}`, {
-        bg: isTarget(hover, 'factorySlot', i) ? '#ffe680' : 'rgba(26,14,6,0.85)', fg: isTarget(hover, 'factorySlot', i) ? '#1a0e06' : '#f1e3c2', size: 11,
-      });
+      const r = isTarget(hover, 'factorySlot', i)
+        ? plate(ctx, c.x, c.y - 6, `🏗 NOVA FÁBRICA · ${fmtMoney(CFG.factoryCosts[i])}`, { bg: '#ffe680', size: 11 })
+        : badge(ctx, c.x, c.y - 6, '🏗', { dim: true });
       addRect('factorySlot', i, r);
     }
   });
@@ -1326,37 +1336,42 @@ function drawLabels(ctx, hover) {
     const st = siteState(def.id);
     const p = proj(def.x + def.w / 2, def.y + def.d + 10);
     const hov = isTarget(hover, 'site', i);
-    const r = st.built
-      ? plate(ctx, p.x, p.y, `${def.emoji} ${def.name.toUpperCase()} · ${st.workers}👷`, { bg: hov ? '#ffe680' : (st.workers ? '#e2b765' : '#d8c8a0'), size: 11 })
-      : plate(ctx, p.x, p.y, `CONSTRUIR ${def.emoji} ${def.name.toUpperCase()} · ${fmtMoney(def.cost)}`, {
-        bg: hov ? '#ffe680' : 'rgba(26,14,6,0.85)', fg: hov ? '#1a0e06' : '#f1e3c2', size: 10,
-      });
+    let r;
+    if (st.built) {
+      r = hov || detail
+        ? plate(ctx, p.x, p.y, `${def.emoji} ${def.name.toUpperCase()} · ${st.workers}👷`, { bg: hov ? '#ffe680' : (st.workers ? '#e2b765' : '#d8c8a0'), size: 10 })
+        : badge(ctx, p.x, p.y, def.emoji);
+    } else {
+      r = hov
+        ? plate(ctx, p.x, p.y, `CONSTRUIR ${def.emoji} ${def.name.toUpperCase()} · ${fmtMoney(def.cost)}`, { bg: '#ffe680', size: 10 })
+        : badge(ctx, p.x, p.y, def.emoji, { dim: true });
+    }
     addRect('site', i, r);
   });
   if (wonderVisible()) {
     const wp = proj((WB.x1 + WB.x2) / 2, WB.y + WB.d + 18);
     const prog = Math.round(projectProgress('maravilha') * 100);
     const w = state.wonder;
-    const txt = w && w.done ? `🌉 PONTE HERCÍLIO LUZ · vitória em ${Math.ceil(w.countdown)}s`
-      : prog > 0 ? `🌉 PONTE HERCÍLIO LUZ · ${prog}%` : '🌉 MARAVILHA: inicie em Projetos';
-    plate(ctx, wp.x, wp.y, txt, { bg: w && w.done ? '#ffe680' : '#f1e3c2', size: 11 });
+    if (w && w.done) plate(ctx, wp.x, wp.y, `🌉 PONTE HERCÍLIO LUZ · vitória em ${Math.ceil(w.countdown)}s`, { bg: '#ffe680', size: 11 });
+    else if (prog > 0) plate(ctx, wp.x, wp.y, `🌉 PONTE HERCÍLIO LUZ · ${prog}%`, { bg: '#f1e3c2', size: 10 });
   }
-  drawMilitaryLabels(ctx);
+  drawMilitaryLabels(ctx, hover);
   for (const r of ROUTES) {
+    if (!routeUnlocked(r.id) && !detail) continue;
     const end = pointOn(r.path, 0.82);
     const q = proj(end.x, end.y);
-    plate(ctx, q.x, q.y - 10, `${routeUnlocked(r.id) ? '🐎' : '🔒'} → ${r.name.toUpperCase()}`, { bg: 'rgba(241,227,194,0.92)', size: 10, border: 'rgba(42,22,8,0.7)' });
+    if (detail) plate(ctx, q.x, q.y - 10, `${routeUnlocked(r.id) ? '🐎' : '🔒'} → ${r.name.toUpperCase()}`, { bg: 'rgba(241,227,194,0.85)', size: 9, border: 'rgba(42,22,8,0.5)' });
+    else badge(ctx, q.x, q.y - 10, '🐎');
   }
   const mc = centerOf(MERCADO_FP), pc = centerOf(PESQUISA_FP);
   const pm = proj(mc.x, MERCADO_FP.y + MERCADO_FP.d + 10);
   addRect('mercado', 0, plate(ctx, pm.x, pm.y, '💰 MERCADO', { bg: isTarget(hover, 'mercado', 0) ? '#ffe680' : '#e2b765' }));
   const pp = proj(pc.x, PESQUISA_FP.y + PESQUISA_FP.d + 10);
-  addRect('pesquisa', 0, plate(ctx, pp.x, pp.y, '📚 PESQUISA', { bg: isTarget(hover, 'pesquisa', 0) ? '#ffe680' : '#e2b765' }));
-  if (state.relics > 0) plate(ctx, pp.x, pp.y + 20, `🏺 ${state.relics} relíquia${state.relics > 1 ? 's' : ''} · +$${state.relics * 30}/dia`, { bg: '#f1e3c2', size: 10 });
+  addRect('pesquisa', 0, plate(ctx, pp.x, pp.y, state.relics > 0 ? `📚 PESQUISA · 🏺${state.relics}` : '📚 PESQUISA', { bg: isTarget(hover, 'pesquisa', 0) ? '#ffe680' : '#e2b765' }));
   const cs = proj(CITY_SIGN.x, CITY_SIGN.y);
   plate(ctx, cs.x, cs.y, `${(state.currentCity || 'Florianópolis').toUpperCase()} · ${cityTitle(state.contractsCompleted || 0)}`, { bg: '#c69042', size: 13 });
   const civ = state.civilization ? CIV_BY_ID[state.civilization] : null;
-  if (civ) {
+  if (civ && detail) {
     const p = proj(CIV_FLAG.x, CIV_FLAG.y, CLIFF_H);
     plate(ctx, p.x + 10, p.y + 12, `${civ.emoji} ${civ.name.toUpperCase()}`, { size: 10, bg: '#f1e3c2' });
   }

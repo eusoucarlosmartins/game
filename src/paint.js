@@ -82,3 +82,30 @@ export function plate(ctx, x, y, text, o = {}) {
   ctx.fillText(text, rx + w / 2, ry + h / 2 + 0.5);
   return { x: rx, y: ry, w, h };
 }
+
+/**
+ * Selo redondo e discreto (ícone) — usado no lugar de placas grandes para coisas
+ * ainda não construídas; o texto completo aparece ao passar o mouse/tocar.
+ * @param {CanvasRenderingContext2D} ctx @param {number} x @param {number} y @param {string} icon
+ * @param {{ dim?: boolean }} [o]
+ * @returns {{x:number,y:number,w:number,h:number}}
+ */
+export function badge(ctx, x, y, icon, o = {}) {
+  const r = 11;
+  ctx.save();
+  ctx.globalAlpha = o.dim ? 0.75 : 1;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.arc(x + 1, y + 2, r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(26,14,6,0.88)';
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#c69042';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.font = `12px ${UI_FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#f1e3c2';
+  ctx.fillText(icon, x, y + 1);
+  ctx.restore();
+  return { x: x - r - 2, y: y - r - 2, w: 2 * r + 4, h: 2 * r + 4 };
+}
