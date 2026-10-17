@@ -15,6 +15,7 @@ function run(setup) {
   let seed = 7;
   Math.random = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   initMines();
+  state.eraReached = 1;
   state.money = 3000; state.approval = 60; state.contractsCompleted = 6; state.contract = null; state.nextContractIn = 2;
   state.workersTotal = 4; state.sites = {}; state.staff = {}; state.staffUnpaid = {}; state.army = null;
   state.factories = [{ recipeId: 'iron_ingot', brewing: 0, output: 0 }];

@@ -37,12 +37,14 @@ export function eqMod(effect) {
 }
 
 // Era atual com base em contratos cumpridos
+// Era atual: pelos contratos cumpridos, mas nunca abaixo da maior era já
+// alcançada (mudanças de balanceamento não podem rebaixar uma partida salva).
 export function currentEra() {
   let era = 1;
   for (let i = 0; i < ERAS.length - 1; i++) {
     if (state.contractsCompleted >= ERAS[i].nextAt) era = ERAS[i + 1].id;
   }
-  return era;
+  return Math.max(era, state.eraReached || 1);
 }
 export function eraData(id) { return ERAS[id - 1]; }
 export function isDepositUnlocked(depId) { return eraData(currentEra()).deposits.includes(depId); }

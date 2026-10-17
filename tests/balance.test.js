@@ -78,6 +78,7 @@ function playSeed(seed) {
   state.mines.length = Math.min(state.mines.length, 2);
   state.money = CFG.startMoney;
   state.approval = 50;
+  state.eraReached = 1;
   state.contractsCompleted = 0;
   state.contract = null;
   state.nextContractIn = 3;

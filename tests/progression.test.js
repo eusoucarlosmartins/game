@@ -91,3 +91,15 @@ describe('eqMod (soma de modificadores)', () => {
     expect(eqMod('mineRate')).toBeCloseTo(0.35);
   });
 });
+
+describe('era nunca volta para trás', () => {
+  it('save antigo na Era IV continua na Era IV mesmo com os novos limites de contratos', async () => {
+    const { state } = await import('../src/state.js');
+    const { currentEra, isDepositUnlocked } = await import('../src/progression.js');
+    state.contractsCompleted = 20; // pelos limites novos seria Era III
+    state.eraReached = 4;          // a partida já tinha chegado à Era IV
+    expect(currentEra()).toBe(4);
+    expect(isDepositUnlocked('oil')).toBe(true);
+    state.eraReached = 1;
+  });
+});
