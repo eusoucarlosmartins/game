@@ -30,6 +30,7 @@ import { updateStaff, hireOrPromote } from './staff.js';
 import { buildSite } from './sites.js';
 import { placeRelics } from './relics.js';
 import { updateTrade, buyCart } from './trade.js';
+import { updateArmy, buildBarracks, trainUnit, sendExpedition } from './military.js';
 import { addSiteWorker } from './hud.js';
 
 // ---------- Game over / vitória ----------
@@ -115,6 +116,7 @@ function tick(dt) {
   updateStaff(dt);
   updateWonder(dt);
   updateTrade(dt);
+  updateArmy(dt);
   checkAchievements();
   updateAchievementToast(dt);
   // Auto-dismiss do último passo do tutorial
@@ -217,6 +219,9 @@ function handleWorldTap(x, y) {
       play('click');
     } else if (hit.kind === 'factorySlot') {
       openPanel('factory');
+      play('click');
+    } else if (hit.kind === 'barracks') {
+      openPanel('army');
       play('click');
     } else if (hit.kind === 'site') {
       openSiteModal(hit.site || '');
@@ -335,6 +340,9 @@ document.addEventListener('click', (e) => {
     case 'project-start':  activateProject(t.dataset.id); break;
     case 'project-cancel': cancelProject(); break;
     case 'hire-staff':     if (hireOrPromote(t.dataset.id || '')) play('success'); break;
+    case 'build-barracks': if (buildBarracks()) play('success'); break;
+    case 'train-unit':     if (trainUnit(t.dataset.id || '')) play('click'); break;
+    case 'send-expedition': if (sendExpedition(t.dataset.id || '')) play('whoosh'); break;
     case 'buy-cart':       if (buyCart(t.dataset.id || '')) play('coin'); break;
     case 'site-build':     if (buildSite(t.dataset.id || '')) play('success'); break;
     case 'site-worker':    if (addSiteWorker(t.dataset.id || '', +(t.dataset.delta || 1))) play('click'); break;

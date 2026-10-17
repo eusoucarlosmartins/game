@@ -6,6 +6,7 @@ import { R, MINE } from './data.js';
 import { setActiveMine, activeMine, setTool } from './mine.js';
 import { setRecipe } from './factories.js';
 import { adviseContract, freeWorkers, freeIdleWorker } from './advisor.js';
+import { nextThreat, armyPower, army, rivalOf } from './military.js';
 import { buildSite, changeSiteWorkers } from './sites.js';
 import { tryHireWorker } from './mine.js';
 import { openBuyMineModal } from './ui.js';
@@ -196,6 +197,9 @@ function wireStage() {
       if (buildSite(a.site)) { addSiteWorker(a.site, 1); play('success'); }
     } else if (a.kind === 'siteWorker' && a.site) {
       if (addSiteWorker(a.site, 1)) play('success');
+    } else if (a.kind === 'army') {
+      openPanel('army');
+      play('click');
     } else if (a.kind === 'buyMine') {
       openBuyMineModal();
       play('click');
@@ -221,6 +225,18 @@ function focusActiveMine() {
   }
   if (!n) return;
   centerOn('mine', MINE.x + (sx / n + 0.5) * MINE.cell, MINE.y + (sy / n + 0.5) * MINE.cell);
+}
+
+/** Ataque chegando e exército fraco: tem prioridade sobre o pedido. @returns {import('./advisor.js').Advice | null} */
+function adviseArmy() {
+  const th = nextThreat();
+  if (!th || armyPower() >= th.power) return null;
+  const r = rivalOf(th.rival);
+  const who = r ? `${r.emoji} ${r.name}s` : 'Invasores';
+  const eta = Math.ceil(th.eta);
+  return army().barracks
+    ? { kind: 'army', text: `${who} atacam em ${eta}s: força ${th.power} contra a sua ${armyPower()}. Toque para treinar unidades.` }
+    : { kind: 'army', text: `${who} atacam em ${eta}s (força ${th.power}) e você não tem exército. Toque para construir o Quartel.` };
 }
 
 let lastFocusKey = '';
@@ -281,7 +297,7 @@ export function syncHud() {
   if (now - lastAdviceAt > 250) {
     lastAdviceAt = now;
     const tutorialOn = state.tutorial && !state.tutorial.dismissed;
-    currentAdvice = tutorialOn ? null : adviseContract();
+    currentAdvice = tutorialOn ? null : (adviseArmy() || adviseContract());
     const txt = currentAdvice ? currentAdvice.text : '';
     if (txt !== lastAdviceText) {
       lastAdviceText = txt;

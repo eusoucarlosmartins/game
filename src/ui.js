@@ -12,6 +12,7 @@ import { STAFF, staffLevel, staffActive, nextLevel, canHire, totalSalary, staffA
 import { SITE_BY_ID, siteState, siteUnlocked } from './sites.js';
 import { freeWorkers } from './advisor.js';
 import { ROUTES, carts, routeUnlocked, canBuyCart, CART_COST } from './trade.js';
+import { army, UNITS, BARRACKS, canTrain, costText, armyPower, rivals, garrisonPower, canConquer, tributePerDay, upkeepPerDay, nextThreat } from './military.js';
 import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
 import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } from './projects.js';
 
@@ -330,6 +331,51 @@ function renderEquipment() {
   }).join('');
 }
 
+let lastArmySig = '';
+function renderArmy() {
+  const body = $('army-body');
+  const borders = $('army-borders');
+  if (!body || !borders) return;
+  const a = army();
+  const era = currentEra();
+  const th = nextThreat();
+  const sum = $('army-summary');
+  if (sum) sum.textContent = `· força ${armyPower()} · ${a.wins}V/${a.losses}D`;
+  const sig = JSON.stringify([a.barracks, a.units, a.territories, !!a.expedition, era, state.money >= BARRACKS.cost,
+    UNITS.map((u) => canTrain(u.id)), th ? [th.rival, th.power] : 0, armyPower()]);
+  if (sig === lastArmySig) return;
+  lastArmySig = sig;
+  if (!a.barracks) {
+    body.innerHTML = era < BARRACKS.era
+      ? `<p>🔒 O Quartel é liberado na Era ${ROMAN[BARRACKS.era - 1]}.</p>`
+      : `<button class="big-btn" data-action="build-barracks" ${state.money < BARRACKS.cost ? 'disabled' : ''}>⚔️ Construir Quartel — ${fmtMoney(BARRACKS.cost)}</button>`;
+  } else {
+    const rows = UNITS.map((u) => {
+      const st = canTrain(u.id);
+      const n = a.units[u.id] || 0;
+      const btn = st === 'era'
+        ? `<button class="mini-btn" disabled>🔒 Era ${ROMAN[u.era - 1]}</button>`
+        : `<button class="mini-btn" data-action="train-unit" data-id="${u.id}" ${st !== 'ok' ? 'disabled' : ''}>Treinar · ${costText(u.cost)}</button>`;
+      return `<div class="staff-card${n ? ' hired' : ''}"><div class="staff-face">${u.emoji}</div><div class="staff-info">
+        <div class="staff-name">${u.name} <span class="staff-stars">× ${n}</span></div>
+        <div class="staff-role">força ${u.power} cada · manutenção ${fmtMoney(u.upkeep)}/dia</div>
+        <div class="staff-btn">${btn}</div></div></div>`;
+    }).join('');
+    const exp = a.expedition ? `<p>🏃 Expedição a caminho (${Math.ceil(a.expedition.eta)}s).</p>` : '';
+    body.innerHTML = `<p>Força em casa: <b>${armyPower()}</b>${th ? ` · próximo ataque: <b>${th.power}</b>` : ''} · manutenção ${fmtMoney(upkeepPerDay())}/dia · tributos ${fmtMoney(tributePerDay())}/dia</p>${exp}<div class="staff-list">${rows}</div>`;
+  }
+  borders.innerHTML = rivals().map((r) => {
+    const won = a.territories[r.id];
+    const g = garrisonPower(r.id);
+    const btn = won ? '<span class="eq-cost">🏴 Conquistado</span>'
+      : `<button class="mini-btn" data-action="send-expedition" data-id="${r.id}" ${canConquer(r.id) ? '' : 'disabled'}>Conquistar (guarnição ${g})</button>`;
+    return `<div class="staff-card${won ? ' hired' : ''}"><div class="staff-face">${r.emoji}</div><div class="staff-info">
+      <div class="staff-name">Território ${r.name}</div>
+      <div class="staff-role">${won ? `paga ${fmtMoney(120)}/dia de tributo` : 'rival — ataca pela fronteira'}</div>
+      <div class="staff-btn">${btn}</div></div></div>`;
+  }).join('');
+}
+
 let lastTradeSig = '';
 function renderTrade() {
   const cont = $('trade-routes');
@@ -570,6 +616,7 @@ export function syncUI() {
   renderEquipment();
   renderStaff();
   renderTrade();
+  renderArmy();
   if (openSiteId) renderSiteModal();
   renderResearch();
   renderLog();

@@ -7,9 +7,18 @@ import { updateWagon } from '../src/wagon.js';
 import { updateContract, updateDay } from '../src/contracts.js';
 import { adviseContract, freeWorkers, freeIdleWorker } from '../src/advisor.js';
 import { buildSite, changeSiteWorkers } from '../src/sites.js';
+import { updateArmy, nextThreat, armyPower, army, buildBarracks, trainUnit } from '../src/military.js';
 
 /** Robô que só faz o que o conselheiro sugere (1 ação a cada 2s de jogo). */
+function defend() {
+  const th = nextThreat();
+  if (!th || armyPower() >= th.power + 1) return false;
+  if (!army().barracks) return buildBarracks();
+  return trainUnit('milicia');
+}
+
 function actOnAdvice() {
+  if (defend()) return;
   const a = adviseContract();
   if (!a) return;
   if (a.kind === 'switch' && a.factory !== undefined && a.recipe) setRecipe(a.factory, a.recipe);
@@ -74,6 +83,8 @@ function playSeed(seed) {
   state.nextContractIn = 3;
   state.workersTotal = 2;
   state.sites = {};
+  state.army = null;
+  state.approvalFloor = 0;
   state.wagon = { pos: 0, dir: 0, state: 'idle', load: 0, product: null, timer: 0 };
   for (const k in state.warehouse) state.warehouse[k] = 0;
   for (const k in state.products) state.products[k] = 0;
@@ -84,11 +95,12 @@ function playSeed(seed) {
   let minApproval = 100;
   let act = 0;
   for (let t = 0; t < 1200; t += 0.1) {
-    updateMine(0.1); updateFactories(0.1); updateWagon(0.1); updateContract(0.1); updateDay(0.1);
+    updateMine(0.1); updateFactories(0.1); updateWagon(0.1); updateContract(0.1); updateDay(0.1); updateArmy(0.1);
     act += 0.1;
     if (act >= 2) { act = 0; actOnAdvice(); }
     minApproval = Math.min(minApproval, state.approval);
   }
+  if (seed === 11) console.log(`[army] ${army().wins}V/${army().losses}D força ${armyPower()}`);
   return { contracts: state.contractsCompleted, approval: state.approval, minApproval, money: Math.round(state.money) };
 }
 

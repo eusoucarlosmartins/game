@@ -11,6 +11,7 @@ import { applyWorldTransform, applyHudTransform, hudSize, visibleWorldRect, view
 import { W, ROAD } from './geometry.js';
 import { drawOverworldIso } from './overworld.js';
 import { drawMineSurface, drawMineGridVol } from './mineview.js';
+import { nextThreat, rivalOf, armyPower } from './military.js';
 import { MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_CENTER } from './layout.js';
 import { drawScrollPanel as paintScroll, drawResourceIcon as paintIcon, civColor } from './paint.js';
 
@@ -424,6 +425,27 @@ function drawExhaustedOverlay() {
   ctx.fillText(`✨ Regenerar — ${fmtMoney(cost)}`, bx + bw / 2, by + bh / 2);
 }
 
+// ---------- Ataque rival chegando ----------
+function drawThreatBanner() {
+  const th = nextThreat();
+  if (!th) return;
+  const r = rivalOf(th.rival);
+  const hw = hudSize().w;
+  const bw = Math.min(380, hw - 16), bh = 30;
+  const x = (hw - bw) / 2;
+  const y = view.hudTopInset + (state.activeEvent ? 40 : 0);
+  const strong = armyPower() >= th.power;
+  ctx.fillStyle = strong ? 'rgba(40,70,40,0.92)' : 'rgba(130,30,20,0.94)';
+  ctx.fillRect(x, y, bw, bh);
+  ctx.fillStyle = '#ffd44a';
+  ctx.fillRect(x, y + bh - 3, bw * Math.max(0, th.eta / th.total), 3);
+  ctx.fillStyle = '#f1e3c2';
+  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  fillTextFit(`⚔️ ${r ? r.emoji + ' ' + r.name + 's' : 'Invasores'} em ${Math.ceil(th.eta)}s · força ${th.power} × sua ${armyPower()}`, hw / 2, y + bh / 2 - 1, bw - 12);
+}
+
 // ---------- Entry ----------
 export function draw() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -445,6 +467,7 @@ export function draw() {
     }
   }
   drawEventBanner();
+  drawThreatBanner();
   drawTutorial();
   drawAchievementToast();
 }

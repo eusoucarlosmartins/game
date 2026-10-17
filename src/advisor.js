@@ -7,7 +7,7 @@ import { SITE_BY_RESOURCE, SITES, siteState, siteUnlocked } from './sites.js';
 
 /**
  * @typedef {{
- *   kind: 'switch' | 'mine' | 'explore' | 'buyMine' | 'buyFactory' | 'buildSite' | 'siteWorker' | 'locked',
+ *   kind: 'switch' | 'mine' | 'explore' | 'buyMine' | 'buyFactory' | 'buildSite' | 'siteWorker' | 'army' | 'locked',
  *   text: string, factory?: number, recipe?: string, resource?: string, mineIdx?: number,
  *   r?: number, c?: number, site?: string
  * }} Advice

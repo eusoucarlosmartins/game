@@ -20,11 +20,12 @@ import {
 import { SITES, siteState, siteUnlocked } from './sites.js';
 import { projectProgress } from './projects.js';
 import { ROUTES, ROUTE_BY_ID, carts, pointOn, routeUnlocked } from './trade.js';
+import { army, rivals, rivalOf, BARRACKS, UNITS, TRIBUTE } from './military.js';
 import { drawScrollPanel, drawResourceIcon, plate, civColor, civAccent, UI_FONT } from './paint.js';
 
 /** @typedef {import('./layout.js').Footprint} Footprint */
 /** @typedef {{depth:number, draw:(ctx:CanvasRenderingContext2D)=>void}} SceneObj */
-/** @typedef {{kind:'mine'|'mineSlot'|'factory'|'factorySlot'|'mercado'|'pesquisa'|'site', idx:number, site?: string}} Target */
+/** @typedef {{kind:'mine'|'mineSlot'|'factory'|'factorySlot'|'mercado'|'pesquisa'|'site'|'barracks', idx:number, site?: string}} Target */
 /** @typedef {Target & {fp: Footprint, h: number, rects: {x:number,y:number,w:number,h:number}[]}} Pickable */
 
 const MINE_H = 54;
@@ -73,6 +74,7 @@ function rebuildPickables() {
   }));
   pickables.push({ kind: 'mercado', idx: 0, fp: MERCADO_FP, h: 44, rects: [] });
   pickables.push({ kind: 'pesquisa', idx: 0, fp: PESQUISA_FP, h: 80, rects: [] });
+  if (currentEra() >= BARRACKS.era) pickables.push({ kind: 'barracks', idx: 0, fp: BARRACKS, h: 40, rects: [] });
   SITES.forEach((def, i) => {
     if (siteVisible(def)) pickables.push({ kind: 'site', idx: i, site: def.id, fp: def, h: SITE_H[def.id] || 30, rects: [] });
   });
@@ -1071,6 +1073,127 @@ function tradeObjects() {
   return out;
 }
 
+// ---------- Exército: quartel, soldados, ataques, expedições ----------
+/** Soldado: farda na cor da civ, barretina e mosquete. @param {CanvasRenderingContext2D} ctx @param {number} x @param {number} y @param {string} color @param {number} step @param {number} dir */
+function soldier(ctx, x, y, color, step, dir) {
+  const leg = Math.sin(step) * 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(x + 1, y + 1, 5, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#1a120a'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(x - 1, y - 5); ctx.lineTo(x - 1 + leg, y); ctx.moveTo(x + 1, y - 5); ctx.lineTo(x + 1 - leg, y); ctx.stroke();
+  ctx.fillStyle = color; ctx.fillRect(x - 3, y - 11, 6, 7);
+  ctx.fillStyle = '#e8d8b0'; ctx.fillRect(x - 3, y - 8, 6, 1.2);
+  ctx.fillStyle = '#d9a77a'; ctx.beginPath(); ctx.arc(x, y - 13.3, 2.3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#1a120a'; ctx.fillRect(x - 2.5, y - 18, 5, 3.5);
+  ctx.strokeStyle = '#4a3a2a'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(x + dir * 2, y - 6); ctx.lineTo(x + dir * 4, y - 19); ctx.stroke();
+}
+
+/** Grupo marchando num ponto do chão. @param {number} gx @param {number} gy @param {number} n @param {string} color @param {number} dir */
+function troop(gx, gy, n, color, dir) {
+  /** @type {SceneObj[]} */
+  const out = [];
+  const t = performance.now() / 1000;
+  for (let i = 0; i < n; i++) {
+    const ox = (i % 3) * 7 - 7, oy = Math.floor(i / 3) * 7 - 5;
+    const p = proj(gx + ox, gy + oy);
+    out.push({ depth: gx + ox + gy + oy, draw: (ctx) => soldier(ctx, p.x, p.y, color, t * 9 + i, dir) });
+  }
+  return out;
+}
+
+/** @returns {SceneObj[]} */
+function militaryObjects() {
+  /** @type {SceneObj[]} */
+  const out = [];
+  if (currentEra() < BARRACKS.era) return out;
+  const a = army();
+  const b = BARRACKS;
+  if (a.barracks) {
+    out.push({
+      depth: b.x + b.y + b.w / 2 + b.d / 2,
+      draw: (ctx) => {
+        // paliçada
+        ctx.strokeStyle = '#6a4220'; ctx.lineWidth = 2;
+        for (let i = 0; i <= 16; i++) {
+          const u = i / 16;
+          for (const [gx, gy] of [[b.x + b.w * u, b.y], [b.x, b.y + b.d * u]]) {
+            const p0 = proj(gx, gy), p1 = proj(gx, gy, 10);
+            ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+          }
+        }
+        const hall = { x: b.x + 4, y: b.y + 4, w: 30, d: 20 };
+        box(ctx, hall.x, hall.y, hall.w, hall.d, 22, '#b89a6a');
+        facePatch(ctx, hall, 'L', 0.5, 0, 8, 12, '#3a2010');
+        gableRoof(ctx, hall.x, hall.y, hall.w, hall.d, 22, 12, '#5a3a2a', 'x', '#b89a6a');
+        const top = proj(hall.x + hall.w, hall.y + hall.d, 34);
+        flag(ctx, top.x, top.y, 22, 16);
+      },
+    });
+    let units = 0;
+    for (const u of UNITS) units += a.units[u.id] || 0;
+    const sway = Math.sin(performance.now() / 2600) * 10;
+    if (units) out.push(...troop(b.x + 40 + sway, b.y + 32, Math.min(9, units), civColor(), sway >= 0 ? 1 : -1));
+  }
+  for (const th of a.threats) {
+    const route = ROUTE_BY_ID[th.border];
+    const r = rivalOf(th.rival);
+    if (!route || !r) continue;
+    const p = pointOn(route.path, 0.35 + 0.65 * Math.max(0, th.eta / th.total));
+    out.push(...troop(p.x, p.y, Math.min(9, 3 + Math.round(th.power / 3)), r.color, -1));
+  }
+  if (a.expedition) {
+    const r = rivalOf(a.expedition.rival);
+    const route = r && ROUTE_BY_ID[r.border];
+    if (route) {
+      const p = pointOn(route.path, 0.35 + 0.65 * (1 - a.expedition.eta / a.expedition.total));
+      out.push(...troop(p.x, p.y, 6, civColor(), 1));
+    }
+  }
+  return out;
+}
+
+/** Poeira da batalha recente, bandeiras dos territórios e placas dos invasores. @param {CanvasRenderingContext2D} ctx */
+function drawMilitaryLabels(ctx) {
+  if (currentEra() < BARRACKS.era) return;
+  const a = army();
+  const t = performance.now() / 1000;
+  const bc = proj(BARRACKS.x + BARRACKS.w / 2, BARRACKS.y + BARRACKS.d + 10);
+  addRect('barracks', 0, plate(ctx, bc.x, bc.y, a.barracks ? '⚔️ QUARTEL' : `CONSTRUIR ⚔️ QUARTEL · ${fmtMoney(BARRACKS.cost)}`, {
+    bg: a.barracks ? '#e2b765' : 'rgba(26,14,6,0.85)', fg: a.barracks ? '#1a0e06' : '#f1e3c2', size: 11,
+  }));
+  for (const th of a.threats) {
+    const route = ROUTE_BY_ID[th.border];
+    const r = rivalOf(th.rival);
+    if (!route || !r) continue;
+    const g = pointOn(route.path, 0.35 + 0.65 * Math.max(0, th.eta / th.total));
+    const p = proj(g.x, g.y);
+    plate(ctx, p.x, p.y - 30, `⚔️ ${r.name.toUpperCase()}S · força ${th.power} · ${Math.ceil(th.eta)}s`, { bg: r.color, fg: '#f1e3c2', size: 10 });
+  }
+  if (a.lastBattle && Date.now() - a.lastBattle.at < 4000) {
+    const route = ROUTE_BY_ID[a.lastBattle.border];
+    if (route) {
+      const g = pointOn(route.path, 0.35);
+      const p = proj(g.x, g.y);
+      for (let i = 0; i < 8; i++) {
+        const ang = i * 0.8 + t * 2;
+        ctx.fillStyle = 'rgba(200,180,140,0.45)';
+        ctx.beginPath(); ctx.ellipse(p.x + Math.cos(ang) * 18, p.y - 6 + Math.sin(ang) * 8, 12, 6, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      plate(ctx, p.x, p.y - 36, a.lastBattle.won ? '🏆 VITÓRIA NA FRONTEIRA' : '💀 DERROTA NA FRONTEIRA', { bg: a.lastBattle.won ? '#ffe680' : '#c8604a', size: 11 });
+    }
+  }
+  for (const r of rivals()) {
+    if (!a.territories[r.id]) continue;
+    const route = ROUTE_BY_ID[r.border];
+    if (!route) continue;
+    const g = pointOn(route.path, 0.92);
+    const p = proj(g.x, g.y);
+    flag(ctx, p.x - 18, p.y, 26, 18);
+    plate(ctx, p.x, p.y + 12, `🏴 TERRITÓRIO ${r.name.toUpperCase()} · +$${TRIBUTE}/dia`, { bg: '#ffe680', size: 10 });
+  }
+}
+
 // ---------- Cena ----------
 /**
  * Desenha o mapa. Chamar com a transformação da câmera (espaço iso) ativa.
@@ -1095,6 +1218,13 @@ export function drawOverworldIso(ctx, viewIso, hoverX, hoverY) {
   castShadow(ctx, PESQUISA_FP.x + 6, PESQUISA_FP.y + 6, PESQUISA_FP.w - 12, PESQUISA_FP.d - 12, 50);
   FACTORY_FP.forEach((fp, i) => { if (i >= state.factories.length) drawFoundation(ctx, fp); });
   for (const def of SITES) if (siteVisible(def)) drawSiteGround(ctx, def);
+  if (currentEra() >= BARRACKS.era) {
+    const b = BARRACKS;
+    poly(ctx, [[b.x, b.y, 0], [b.x + b.w, b.y, 0], [b.x + b.w, b.y + b.d, 0], [b.x, b.y + b.d, 0]]);
+    ctx.fillStyle = army().barracks ? 'rgba(150,120,80,0.75)' : 'rgba(70,46,22,0.35)';
+    ctx.fill();
+    if (!army().barracks) { ctx.setLineDash([5, 3]); ctx.strokeStyle = '#efe2bf'; ctx.lineWidth = 1.2; ctx.stroke(); ctx.setLineDash([]); }
+  }
   if (hover) {
     const p = pickables.find((q) => q.kind === hover.kind && q.idx === hover.idx);
     if (p && p.kind !== 'mineSlot') selectFootprint(ctx, p.fp.x, p.fp.y, p.fp.w, p.fp.d);
@@ -1119,7 +1249,7 @@ export function drawOverworldIso(ctx, viewIso, hoverX, hoverY) {
     objs.push({ depth: def.x + def.y + def.w / 2 + def.d / 2, draw: (c) => drawSiteStructure(c, def) });
     objs.push(...siteWorkers(def));
   }
-  objs.push(...tradeObjects());
+  objs.push(...tradeObjects(), ...militaryObjects());
   if (wonderVisible()) objs.push({ depth: WB.x1 + WB.y + 60, draw: drawWonderBridge });
   objs.push(...cityObjects(), ...villageObjects(), ...treeObjects(viewIso, lumberCut()));
   objs.push(...ambientObjects({
@@ -1211,6 +1341,7 @@ function drawLabels(ctx, hover) {
       : prog > 0 ? `🌉 PONTE HERCÍLIO LUZ · ${prog}%` : '🌉 MARAVILHA: inicie em Projetos';
     plate(ctx, wp.x, wp.y, txt, { bg: w && w.done ? '#ffe680' : '#f1e3c2', size: 11 });
   }
+  drawMilitaryLabels(ctx);
   for (const r of ROUTES) {
     const end = pointOn(r.path, 0.82);
     const q = proj(end.x, end.y);

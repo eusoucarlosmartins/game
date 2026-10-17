@@ -79,6 +79,8 @@ export const state = {
   /** @type {Record<string, {built: boolean, workers: number, harvested: number}>} postos de superfície */
   sites: {},
   relics: 0,
+  /** @type {any} exército, ataques e territórios (criado em military.army()) */
+  army: null,
   /** @type {{carts: any[], earned: number}} rotas comerciais */
   trade: { carts: [], earned: 0 },
   /** @type {{done: boolean, countdown: number, won: boolean} | null} */

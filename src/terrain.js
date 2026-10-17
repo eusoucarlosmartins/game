@@ -358,6 +358,7 @@ function inExclusion(x, y) {
   const zones = [
     [0, 115, 205, 720], [365, 215, 775, 480], [285, 515, 405, 640], [635, 515, 755, 645],
     [868, 190, 1232, 640], [775, 0, 880, 720],
+    [450, 440, 540, 515], // quartel
   ];
   for (const [x1, y1, x2, y2] of zones) if (x >= x1 && x <= x2 && y >= y1 && y <= y2) return true;
   for (const v of VILLAGES) if (Math.abs(x - v.x) < 40 && Math.abs(y - v.y) < 30) return true;

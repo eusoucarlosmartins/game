@@ -3,6 +3,7 @@ import { state, log } from './state.js';
 import { CIV_BY_ID, SILO_DEFAULT_CAP, R, CFG } from './data.js';
 import { clamp, fmtMoney } from './util.js';
 import { play } from './audio.js';
+import { scaresBandits } from './military.js';
 
 /**
  * Aplica bônus "um-tiro" da civ no início do jogo (dinheiro, aprovação, silos).
@@ -41,6 +42,10 @@ export function chooseCivilization(civId) {
 // Raid dispara via events.js como evento 'raid'. Resolução automática:
 // perde 20% de um recurso aleatório do silo mais cheio, ou falha contrato.
 export function triggerRaid() {
+  if (scaresBandits()) {
+    log('🗡️ Bandidos rondaram a vila, mas fugiram ao ver a milícia.', 'good');
+    return;
+  }
   // Escolhe silo mais cheio
   let targetRes = null, maxStock = 0;
   for (const k in state.warehouse) {
