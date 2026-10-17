@@ -1,6 +1,6 @@
 // progression.js — eras, modificadores de equipamento/pesquisa, e cálculos derivados
 import { state, log } from './state.js';
-import { ERAS, ROMAN, EQ_BY_ID, RES_BY_ID, CFG, R, CIV_BY_ID } from './data.js';
+import { ERAS, ROMAN, EQ_BY_ID, RES_BY_ID, CFG, R, CIV_BY_ID, CONQUEST_BONUS } from './data.js';
 import { staffMod } from './staff.js';
 
 /**
@@ -10,9 +10,20 @@ import { staffMod } from './staff.js';
  */
 export function civMod(effect) {
   const civ = state.civilization ? CIV_BY_ID[state.civilization] : null;
-  if (!civ) return 0;
+  if (!civ) return conquestMod(effect);
   let total = 0;
   for (const b of civ.bonuses) if (b.effect === effect) total += b.mod;
+  return total + conquestMod(effect);
+}
+
+/** Bônus dos territórios conquistados. @param {string} effect */
+export function conquestMod(effect) {
+  const terr = (state.army && state.army.territories) || {};
+  let total = 0;
+  for (const id in terr) {
+    const b = /** @type {Record<string, {effect:string, mod:number}>} */ (CONQUEST_BONUS)[id];
+    if (terr[id] && b && b.effect === effect) total += b.mod;
+  }
   return total;
 }
 

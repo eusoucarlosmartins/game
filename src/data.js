@@ -316,6 +316,14 @@ export const CIVILIZATIONS = [
 ];
 export const CIV_BY_ID = Object.fromEntries(CIVILIZATIONS.map((c) => [c.id, c]));
 
+/** Bônus permanente ao conquistar o território de cada civilização rival. */
+export const CONQUEST_BONUS = {
+  catarinense: { effect: 'mineRate', mod: 0.15, text: '+15% velocidade de mineração' },
+  gaucho: { effect: 'wagonSpd', mod: 0.30, text: '+30% velocidade das carruagens e caravanas' },
+  paulista: { effect: 'factSpd', mod: 0.20, text: '+20% velocidade das fábricas' },
+  mineiro: { effect: 'pileMax', mod: 0.30, text: '+30% capacidade das pilhas da mina' },
+};
+
 export const MINE_CATALOG = [
   {
     id: 'central',

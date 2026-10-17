@@ -1,10 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { state } from '../src/state.js';
-import { army, buildBarracks, trainUnit, canTrain, armyPower, resolveAttack, sendExpedition, updateArmy, rivals, garrisonPower, tributePerDay, scaresBandits } from '../src/military.js';
+import { CONQUEST_BONUS } from '../src/data.js';
+import { civMod } from '../src/progression.js';
+import { army, buildBarracks, trainUnit, canTrain, armyPower, resolveAttack, sendExpedition, updateArmy, rivals, garrisonPower, tributePerDay, tributeEach, conquestLoot, scaresBandits } from '../src/military.js';
 
 describe('exército e fronteiras', () => {
   beforeEach(() => {
     state.army = null;
+    state.eraReached = 0;
     state.civilization = 'catarinense';
     state.contractsCompleted = 16; // Era III
     state.money = 10000;
@@ -65,10 +68,23 @@ describe('exército e fronteiras', () => {
     while (armyPower() * 1.0 < garrisonPower(target) + 2) trainUnit('milicia');
     expect(sendExpedition(target)).toBe(true);
     expect(armyPower()).toBe(0);
+    const before = state.money;
     for (let i = 0; i < 50; i++) updateArmy(1);
     expect(army().territories[target]).toBe(true);
-    expect(tributePerDay()).toBe(120);
+    expect(state.money - before).toBeGreaterThanOrEqual(conquestLoot(target) - 50);
+    expect(tributePerDay()).toBe(tributeEach());
     expect(armyPower()).toBeGreaterThan(0);
+  });
+
+  it('território conquistado dá bônus permanente e tributo cresce com a era', () => {
+    const target = rivals()[0].id;
+    const effect = CONQUEST_BONUS[target].effect;
+    const base = civMod(effect);
+    army().territories[target] = true;
+    expect(civMod(effect)).toBeCloseTo(base + CONQUEST_BONUS[target].mod);
+    const t3 = tributeEach();
+    state.eraReached = 5;
+    expect(tributeEach()).toBeGreaterThan(t3);
   });
 
   it('milícia em casa espanta bandidos', () => {

@@ -13,7 +13,7 @@ import { SITE_BY_ID, siteState, siteUnlocked } from './sites.js';
 import { freeWorkers } from './advisor.js';
 import { ROUTES, carts, routeUnlocked, canBuyCart, CART_COST } from './trade.js';
 import { victoryProgress, POLITICAL } from './victory.js';
-import { army, UNITS, BARRACKS, canTrain, costText, armyPower, rivals, garrisonPower, canConquer, tributePerDay, upkeepPerDay, nextThreat, RESERVE_CHOICES, reserveUnits, militaryReserve } from './military.js';
+import { army, UNITS, BARRACKS, canTrain, costText, armyPower, rivals, garrisonPower, canConquer, tributePerDay, tributeEach, conquestLoot, conquestBonus, upkeepPerDay, nextThreat, RESERVE_CHOICES, reserveUnits, militaryReserve } from './military.js';
 import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
 import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } from './projects.js';
 
@@ -372,11 +372,13 @@ function renderArmy() {
   borders.innerHTML = rivals().map((r) => {
     const won = a.territories[r.id];
     const g = garrisonPower(r.id);
+    const bonus = conquestBonus(r.id);
     const btn = won ? '<span class="eq-cost">🏴 Conquistado</span>'
       : `<button class="mini-btn" data-action="send-expedition" data-id="${r.id}" ${canConquer(r.id) ? '' : 'disabled'}>Conquistar (guarnição ${g})</button>`;
     return `<div class="staff-card${won ? ' hired' : ''}"><div class="staff-face">${r.emoji}</div><div class="staff-info">
       <div class="staff-name">Território ${r.name}</div>
-      <div class="staff-role">${won ? `paga ${fmtMoney(120)}/dia de tributo` : 'rival — ataca pela fronteira'}</div>
+      <div class="staff-role">${won ? `paga ${fmtMoney(tributeEach())}/dia de tributo` : `rival — ataca pela fronteira · conquistar: saque ${fmtMoney(conquestLoot(r.id))} + ${fmtMoney(tributeEach())}/dia`}</div>
+      ${bonus ? `<div class="staff-role">${won ? '✅' : '🎁'} ${bonus.text}</div>` : ''}
       <div class="staff-btn">${btn}</div></div></div>`;
   }).join('');
 }

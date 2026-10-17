@@ -2,7 +2,7 @@
 // fronteiras e vendem melhor que o mercado local. Quanto mais longe, melhor paga.
 import { state, log } from './state.js';
 import { R, SILO_DEFAULT_CAP } from './data.js';
-import { currentEra } from './progression.js';
+import { currentEra, civMod } from './progression.js';
 import { resourcesInUse } from './advisor.js';
 import { fmtMoney } from './util.js';
 import { reserveOf } from './military.js';
@@ -97,7 +97,7 @@ export function updateTrade(dt) {
   for (const c of carts()) {
     const route = ROUTE_BY_ID[c.route];
     if (!route) continue;
-    const step = (CART_SPEED * dt) / pathLength(route.path);
+    const step = (CART_SPEED * (1 + civMod('wagonSpd')) * dt) / pathLength(route.path);
     if (c.dir === 0) {
       // no Mercado: carrega
       c.wait -= dt;

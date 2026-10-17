@@ -20,7 +20,7 @@ import {
 import { SITES, siteState, siteUnlocked } from './sites.js';
 import { projectProgress } from './projects.js';
 import { ROUTES, ROUTE_BY_ID, carts, pointOn, pathLength, routeUnlocked } from './trade.js';
-import { army, rivals, rivalOf, BARRACKS, UNITS, TRIBUTE } from './military.js';
+import { army, rivals, rivalOf, BARRACKS, UNITS, tributeEach } from './military.js';
 import { drawScrollPanel, drawResourceIcon, plate, badge, civColor, civAccent, UI_FONT } from './paint.js';
 import { camFor } from './camera.js';
 
@@ -1195,7 +1195,7 @@ function drawMilitaryLabels(ctx, hover) {
     const g = pointOn(route.path, 0.92);
     const p = proj(g.x, g.y);
     flag(ctx, p.x - 18, p.y, 26, 18);
-    plate(ctx, p.x, p.y + 12, `🏴 ${r.name.toUpperCase()} · +$${TRIBUTE}/dia`, { bg: '#ffe680', size: 9 });
+    plate(ctx, p.x, p.y + 12, `🏴 ${r.name.toUpperCase()} · +$${tributeEach()}/dia`, { bg: '#ffe680', size: 9 });
   }
 }
 

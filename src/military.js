@@ -2,7 +2,7 @@
 // os produtos de guerra da economia, ataques das civilizações rivais pelas
 // fronteiras e expedições para conquistar territórios que pagam tributo.
 import { state, log } from './state.js';
-import { R, CIVILIZATIONS } from './data.js';
+import { R, CIVILIZATIONS, CONQUEST_BONUS } from './data.js';
 import { currentEra } from './progression.js';
 import { fmtMoney } from './util.js';
 
@@ -23,7 +23,8 @@ export const UNIT_BY_ID = Object.fromEntries(UNITS.map((u) => [u.id, u]));
 export const BARRACKS = { era: 3, cost: 1000, x: 470, y: 455, w: 56, d: 46 };
 /** Fronteiras (as mesmas estradas das rotas comerciais). */
 export const BORDERS = ['portoalegre', 'curitiba', 'rio'];
-export const TRIBUTE = 120; // $/dia por território conquistado
+export const TRIBUTE = 120; // $/dia por território conquistado na Era III (cresce com a era)
+export const LOOT_PER_POWER = 80; // saque da conquista: $ por ponto de força da guarnição
 const MARCH = 60; // segundos de aviso até o ataque chegar
 const EXPEDITION_TIME = 45;
 
@@ -178,14 +179,24 @@ function resolveExpedition() {
     a.territories[ex.rival] = true;
     a.threats = a.threats.filter((t) => t.rival !== ex.rival);
     state.approval = Math.min(100, (state.approval || 0) + 10);
-    log(`🏴 Território ${r ? r.name.toLowerCase() : ''} conquistado! Paga ${fmtMoney(TRIBUTE)}/dia de tributo e não ataca mais.`, 'good');
+    const loot = conquestLoot(ex.rival);
+    state.money += loot;
+    state.totalEarnings = (state.totalEarnings || 0) + loot;
+    const bonus = conquestBonus(ex.rival);
+    log(`🏴 Território ${r ? r.name.toLowerCase() : ''} conquistado! Saque de ${fmtMoney(loot)}, ${fmtMoney(tributeEach())}/dia de tributo${bonus ? ` e ${bonus.text}` : ''}. Não ataca mais.`, 'good');
     return true;
   }
   log(`⚔️ A expedição foi repelida pela guarnição (força ${need}). Sobreviventes voltaram.`, 'bad');
   return false;
 }
 
-export const tributePerDay = () => Object.keys(army().territories).length * TRIBUTE;
+/** Saque imediato ao conquistar. @param {string} rivalId */
+export const conquestLoot = (rivalId) => garrisonPower(rivalId) * LOOT_PER_POWER;
+/** Bônus permanente daquele território. @param {string} rivalId @returns {{effect:string, mod:number, text:string} | null} */
+export const conquestBonus = (rivalId) => /** @type {any} */ (CONQUEST_BONUS)[rivalId] || null;
+/** Tributo de cada território: +50% por era depois da III. */
+export const tributeEach = () => Math.round(TRIBUTE * (1 + Math.max(0, currentEra() - 3) * 0.5));
+export const tributePerDay = () => Object.keys(army().territories).length * tributeEach();
 export const upkeepPerDay = () => UNITS.reduce((s, u) => s + (army().units[u.id] || 0) * u.upkeep, 0);
 
 let lastDay = -1;
