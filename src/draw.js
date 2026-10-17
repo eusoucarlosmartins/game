@@ -1,22 +1,25 @@
 // draw.js — renderização do canvas (mina em grid + superfície compacta)
 import { state } from './state.js';
-import { R, RECIPE_BY_ID, CFG, MINE, SILO_DEFAULT_CAP } from './data.js';
+import { R, MINE, SILO_DEFAULT_CAP } from './data.js';
 import { fmtMoney, clamp } from './util.js';
-import { transportTier, currentEra, eraData } from './progression.js';
-import { ingredientHave } from './factories.js';
+import { currentEra, eraData } from './progression.js';
 import { getProjectDef } from './projects.js';
 import { activeMine, regenCost } from './mine.js';
-import { ACH_BY_ID, CIV_BY_ID } from './data.js';
+import { ACH_BY_ID } from './data.js';
 import { getSprite } from './sprites.js';
-import {
-  getTerrainCanvas, drawAmbientGround, drawAmbientSky, drawShroud,
-  drawSelectionEllipse, drawPennant, drawMinimap, minimapLayout, BRIDGE, VILLAGES,
-} from './terrain.js';
+import { drawMinimap, minimapLayout } from './terrain.js';
 import { applyWorldTransform, applyHudTransform, hudSize, visibleWorldRect, view } from './camera.js';
-import {
-  W, H, GROUND_Y, MINE_GROUND_Y, CITY, ROAD,
-  OVERWORLD, factoryRect,
-} from './geometry.js';
+import { W, MINE_GROUND_Y, ROAD } from './geometry.js';
+import { drawOverworldIso } from './overworld.js';
+import { MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_CENTER } from './layout.js';
+import { drawScrollPanel as paintScroll, drawResourceIcon as paintIcon, resAbbrev, civColor } from './paint.js';
+
+/** @param {number} x @param {number} y @param {number} w @param {number} h */
+const drawScrollPanel = (x, y, w, h) => paintScroll(ctx, x, y, w, h);
+/** @param {number} x @param {number} y @param {number} size @param {string} id */
+const drawResourceIcon = (x, y, size, id) => paintIcon(ctx, x, y, size, id);
+// painéis de contrato/projeto no canto do mapa só em telas grandes (no celular há o chip e o painel deslizante)
+const wideScreen = () => view.cw > 820 && view.ch > 520;
 
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game'));
 const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
@@ -122,611 +125,12 @@ function drawSilo(x, baseY, w, resourceId) {
   ctx.fillText(`${Math.floor(stock)}/${cap}${cheio ? ' ★' : ''}`, x + w / 2, baseY + 2);
 }
 
-// ---------- Fábricas compactas ----------
-function drawFactories() {
-  const factorySprite = getSprite('factory');
-  for (let i = 0; i < state.factories.length; i++) {
-    const f = state.factories[i];
-    const rect = factoryRect(i);
-    // sombra elíptica abaixo (AoE flavor)
-    drawShadow(rect.x + rect.w / 2, rect.y + rect.h + 2, rect.w * 0.55, 5);
-    if (isHovering(rect.x, rect.y - 52, rect.w, rect.h + 52)) {
-      drawSelectionEllipse(ctx, rect.x + rect.w / 2, rect.y + rect.h, rect.w * 0.6, 14);
-    }
-    if (factorySprite) {
-      // Usa sprite estendendo um pouco acima do rect pra incluir chaminé
-      const extraH = 30;
-      ctx.drawImage(factorySprite, rect.x - 4, rect.y - extraH, rect.w + 8, rect.h + extraH);
-      drawPennant(ctx, rect.x + 12, rect.y - 4, civColor(), civAccent());
-      // fumaça animada por cima quando produzindo
-      if (f.brewing > 0) {
-        const t = performance.now() / 500;
-        for (let k = 0; k < 3; k++) {
-          const yOff = (t * 12 + k * 8) % 32;
-          ctx.fillStyle = `rgba(80,60,40,${0.4 - k * 0.1})`;
-          ctx.beginPath();
-          ctx.arc(rect.x + rect.w - 11, rect.y - extraH - 2 - yOff, 4 + k, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-      // placa com nome do produto (overlay)
-      const recipeName = R[f.recipeId]?.name || '—';
-      ctx.fillStyle = civAccent();
-      ctx.fillRect(rect.x + 4, rect.y + rect.h - 22, rect.w - 8, 16);
-      ctx.fillStyle = '#1a0e06';
-      ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(recipeName.length > 14 ? recipeName.slice(0, 13) + '…' : recipeName, rect.x + rect.w / 2, rect.y + rect.h - 14);
-      // barra de progresso
-      const recipe = RECIPE_BY_ID[f.recipeId];
-      if (recipe && f.brewing > 0) {
-        const pct = 1 - f.brewing / recipe.time;
-        ctx.fillStyle = '#1a0e06';
-        ctx.fillRect(rect.x + 4, rect.y - 8, rect.w - 8, 4);
-        ctx.fillStyle = '#c69042';
-        ctx.fillRect(rect.x + 4, rect.y - 8, (rect.w - 8) * pct, 4);
-      }
-      continue;
-    }
-    // Fallback procedural (código original)
-    ctx.fillStyle = '#7a4b25';
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-    ctx.fillStyle = '#5a3416';
-    ctx.fillRect(rect.x, rect.y, rect.w, 6);
-    // janelas
-    ctx.fillStyle = '#f1e3c2';
-    const winsPerRow = Math.max(2, Math.floor((rect.w - 20) / 26));
-    for (let j = 0; j < winsPerRow; j++) {
-      ctx.fillRect(rect.x + 10 + j * 26, rect.y + 22, 16, 14);
-    }
-    // chaminé com fumaça
-    ctx.fillStyle = '#3a1f0a';
-    ctx.fillRect(rect.x + rect.w - 22, rect.y - 36, 10, 36);
-    const t = performance.now() / 500;
-    if (f.brewing > 0) {
-      for (let k = 0; k < 3; k++) {
-        const yOff = (t * 12 + k * 8) % 28;
-        ctx.fillStyle = `rgba(80,60,40,${0.4 - k * 0.1})`;
-        ctx.beginPath();
-        ctx.arc(rect.x + rect.w - 17, rect.y - 40 - yOff, 4 + k, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    // placa com nome do produto
-    const recipeName = R[f.recipeId]?.name || '—';
-    ctx.fillStyle = '#c69042';
-    ctx.fillRect(rect.x + 4, rect.y + rect.h - 22, rect.w - 8, 16);
-    ctx.fillStyle = '#1a0e06';
-    ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(recipeName.length > 14 ? recipeName.slice(0, 13) + '…' : recipeName, rect.x + rect.w / 2, rect.y + rect.h - 14);
-    // barra de progresso
-    const recipe = RECIPE_BY_ID[f.recipeId];
-    if (recipe && f.brewing > 0) {
-      const pct = 1 - f.brewing / recipe.time;
-      ctx.fillStyle = '#1a0e06';
-      ctx.fillRect(rect.x + 4, rect.y - 8, rect.w - 8, 4);
-      ctx.fillStyle = '#c69042';
-      ctx.fillRect(rect.x + 4, rect.y - 8, (rect.w - 8) * pct, 4);
-    }
-  }
-  for (let i = state.factories.length; i < CFG.factorySlotsMax; i++) {
-    const rect = factoryRect(i);
-    drawFoundation(rect.x + 6, rect.y + 50, rect.w - 12, rect.h - 56);
-    const cx = rect.x + rect.w / 2, cy = rect.y + 50 + (rect.h - 56) / 2;
-    ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const label = fmtMoney(CFG.factoryCosts[i]);
-    const lw = Math.max(ctx.measureText('CONSTRUIR').width, ctx.measureText(label).width) + 14;
-    ctx.fillStyle = 'rgba(26,14,6,0.78)';
-    ctx.fillRect(cx - lw / 2, cy - 18, lw, 34);
-    ctx.fillStyle = '#c69042';
-    ctx.fillText('CONSTRUIR', cx, cy - 8);
-    ctx.fillStyle = '#f1e3c2';
-    ctx.fillText(label, cx, cy + 7);
-  }
-}
-
-// Fundação de obra (AoE): terra escavada, estacas nos cantos e corda
-/** @param {number} x @param {number} y @param {number} w @param {number} h */
-function drawFoundation(x, y, w, h) {
-  ctx.fillStyle = 'rgba(70,48,24,0.35)';
-  ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = 'rgba(40,26,12,0.35)';
-  ctx.lineWidth = 1;
-  for (let yy = y + 6; yy < y + h; yy += 7) {
-    ctx.beginPath(); ctx.moveTo(x + 3, yy); ctx.lineTo(x + w - 3, yy + 2); ctx.stroke();
-  }
-  ctx.strokeStyle = '#e8dcb8';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([5, 3]);
-  ctx.strokeRect(x, y, w, h);
-  ctx.setLineDash([]);
-  ctx.fillStyle = '#5a3416';
-  for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
-    ctx.fillRect(px - 2, py - 7, 4, 9);
-  }
-}
-
-// ---------- Cidades — 3 estilos por região de SC ----------
-const CITY_STYLES = {
-  // Litoral: portos
-  'Florianópolis': 'port', 'Itajaí': 'port', 'Navegantes': 'port',
-  'Balneário Camboriú': 'port', 'Camboriú': 'port', 'Tubarão': 'port',
-  // Vale do Itajaí / norte industrial
-  'Joinville': 'industrial', 'Blumenau': 'industrial', 'Brusque': 'industrial',
-  'Jaraguá do Sul': 'industrial', 'São Bento do Sul': 'industrial',
-  'Rio do Sul': 'industrial', 'São José': 'industrial', 'Palhoça': 'industrial',
-  'Criciúma': 'industrial',
-  // Outras (Lages, Chapecó, etc.) = colonial padrão
-};
-
-function drawCity() {
-  const cx0 = CITY.x;
-  const w = CITY.w;
-
-  // base de terra
-  ctx.fillStyle = '#a07a4a';
-  ctx.fillRect(cx0 - 6, GROUND_Y - 3, w + 12, 6);
-
-  const style = CITY_STYLES[state.currentCity] || 'colonial';
-  if (style === 'port') drawPortCity(cx0, w);
-  else if (style === 'industrial') drawIndustrialCity(cx0, w);
-  else drawColonialCity(cx0, w);
-
-  drawCitySign(cx0 + w / 2, CITY.y);
-  drawPennant(ctx, cx0 + 14, GROUND_Y - 2, civColor(), civAccent());
-  drawPennant(ctx, cx0 + w - 14, GROUND_Y - 2, civColor(), civAccent());
-}
-
-function drawColonialCity(cx0, w) {
-  drawColonialHouse(cx0 + 4,  GROUND_Y, 32, 92, '#e8c87a', '#a82e1c');
-  drawColonialChurch(cx0 + w / 2 - 20, GROUND_Y);
-  drawColonialHouse(cx0 + w - 36, GROUND_Y, 32, 85, '#b8c8a8', '#8a4a2a');
-}
-
-// Cidade portuária: farol listrado + casas claras + ondinhas no chão
-function drawPortCity(cx0, w) {
-  // Casa esquerda azul-claro
-  drawColonialHouse(cx0 + 4, GROUND_Y, 28, 80, '#a8c8d8', '#5a3416');
-  // Farol no centro (substitui igreja)
-  drawLighthouse(cx0 + w / 2 - 10, GROUND_Y);
-  // Casa direita branca
-  drawColonialHouse(cx0 + w - 32, GROUND_Y, 28, 70, '#f1e3c2', '#8a4a2a');
-  // Ondinhas representando água na frente
-  ctx.strokeStyle = '#5a9fc8';
-  ctx.lineWidth = 1.5;
-  for (let i = 0; i < 3; i++) {
-    const y = GROUND_Y + 4 + i * 3;
-    ctx.beginPath();
-    for (let x = cx0 - 4; x <= cx0 + w + 4; x += 6) {
-      ctx.lineTo(x, y + Math.sin((x + i * 4) * 0.3) * 1.2);
-    }
-    ctx.stroke();
-  }
-}
-
-function drawLighthouse(x, baseY) {
-  const w = 20, h = 130;
-  const top = baseY - h;
-  // base larga
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(x - 4, baseY - 14, w + 8, 14);
-  // torre listrada vermelho/branco
-  for (let i = 0; i < 5; i++) {
-    ctx.fillStyle = i % 2 === 0 ? '#f1e3c2' : '#a82e1c';
-    ctx.fillRect(x, top + 20 + i * 18, w, 18);
-  }
-  // topo (sala da lanterna)
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(x - 4, top + 12, w + 8, 10);
-  ctx.fillStyle = '#ffe680';
-  ctx.fillRect(x + 2, top, w - 4, 14);
-  ctx.strokeStyle = '#3a1f0a';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x + 2, top, w - 4, 14);
-  // teto cônico
-  ctx.fillStyle = '#3a1f0a';
-  ctx.beginPath();
-  ctx.moveTo(x - 4, top);
-  ctx.lineTo(x + w / 2, top - 14);
-  ctx.lineTo(x + w + 4, top);
-  ctx.closePath();
-  ctx.fill();
-  // farol "piscando" (raio amarelo translúcido oscilante)
-  const t = performance.now() / 600;
-  const beam = (Math.sin(t) + 1) / 2;
-  ctx.fillStyle = `rgba(255,230,128,${0.15 + 0.25 * beam})`;
-  ctx.beginPath();
-  ctx.moveTo(x + w / 2, top + 6);
-  ctx.lineTo(x + w / 2 - 40, top - 30);
-  ctx.lineTo(x + w / 2 + 40, top - 30);
-  ctx.closePath();
-  ctx.fill();
-}
-
-// Cidade industrial: chaminés altas com fumaça + prédio de tijolo
-function drawIndustrialCity(cx0, w) {
-  // Fábrica esquerda (grande, com chaminé)
-  drawFactoryBuilding(cx0 + 4, GROUND_Y, 44, 110, '#8a3a1a', '#5a2010');
-  // Prédio central (mais alto)
-  drawIndustrialBlock(cx0 + w / 2 - 18, GROUND_Y, 36, 150);
-  // Fábrica direita (menor)
-  drawFactoryBuilding(cx0 + w - 38, GROUND_Y, 30, 85, '#6a4020', '#4a2010');
-}
-
-function drawFactoryBuilding(x, baseY, w, h, faceColor, roofColor) {
-  const top = baseY - h;
-  // corpo de tijolo
-  ctx.fillStyle = faceColor;
-  ctx.fillRect(x, top, w, h);
-  // padrão de tijolos (linhas horizontais)
-  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-  ctx.lineWidth = 1;
-  for (let y = top + 6; y < baseY - 6; y += 6) {
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.stroke();
-  }
-  // telhado plano escuro
-  ctx.fillStyle = roofColor;
-  ctx.fillRect(x - 2, top - 4, w + 4, 6);
-  // rodapé
-  ctx.fillStyle = '#1a0e06';
-  ctx.fillRect(x, baseY - 4, w, 4);
-  // chaminé com fumaça
-  const chimX = x + w - 10;
-  const chimTop = top - 36;
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(chimX, chimTop, 8, 36);
-  ctx.fillRect(chimX - 2, chimTop, 12, 4);
-  // fumaça animada
-  const t = performance.now() / 400;
-  for (let i = 0; i < 4; i++) {
-    const yOff = (t * 18 + i * 12) % 50;
-    ctx.fillStyle = `rgba(80,60,40,${0.5 - i * 0.1})`;
-    ctx.beginPath();
-    ctx.arc(chimX + 4, chimTop - yOff, 4 + i, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  // janelas industriais (grade)
-  ctx.fillStyle = '#a8c8d8';
-  for (let row = 0; row < Math.floor(h / 22); row++) {
-    for (let col = 0; col < Math.floor(w / 14); col++) {
-      ctx.fillRect(x + 4 + col * 14, top + 8 + row * 22, 8, 10);
-    }
-  }
-}
-
-function drawIndustrialBlock(x, baseY, w, h) {
-  const top = baseY - h;
-  // prédio cinza-escuro
-  ctx.fillStyle = '#5a5a5a';
-  ctx.fillRect(x, top, w, h);
-  ctx.fillStyle = '#3a3a3a';
-  ctx.fillRect(x, top, w, 8);
-  // rodapé
-  ctx.fillStyle = '#1a0e06';
-  ctx.fillRect(x, baseY - 4, w, 4);
-  // grade densa de janelas
-  ctx.fillStyle = '#ffd44a';
-  for (let row = 0; row < Math.floor(h / 14); row++) {
-    for (let col = 0; col < Math.floor(w / 9); col++) {
-      ctx.fillRect(x + 2 + col * 9, top + 12 + row * 14, 5, 6);
-    }
-  }
-  // antena/mastro no topo
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(x + w / 2 - 1, top - 16, 2, 16);
-  // luz piscante
-  const t = performance.now() / 300;
-  if (Math.sin(t) > 0) {
-    ctx.fillStyle = '#ff6040';
-    ctx.beginPath();
-    ctx.arc(x + w / 2, top - 18, 2.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
-
-function drawColonialHouse(x, baseY, w, h, faceColor, roofColor) {
-  // Escolhe sprite baseado em cor (yellow vs green) ou cai pro procedural
-  const spriteId = faceColor === '#e8c87a' ? 'house-yellow'
-                 : faceColor === '#b8c8a8' ? 'house-green'
-                 : null;
-  if (spriteId) {
-    const sprite = getSprite(spriteId);
-    if (sprite) {
-      const aspect = sprite.height / sprite.width;
-      // escala pra manter altura h (visual original)
-      const sh = h + 10;
-      const sw = sh / aspect;
-      ctx.drawImage(sprite, x + w / 2 - sw / 2, baseY - sh, sw, sh);
-      return;
-    }
-  }
-  // Fallback procedural (original)
-  const top = baseY - h;
-  // paredes
-  ctx.fillStyle = faceColor;
-  ctx.fillRect(x, top, w, h);
-  // rodapé escuro
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(x, baseY - 5, w, 5);
-  // telhado triangular
-  ctx.fillStyle = roofColor;
-  ctx.beginPath();
-  ctx.moveTo(x - 4, top);
-  ctx.lineTo(x + w / 2, top - 14);
-  ctx.lineTo(x + w + 4, top);
-  ctx.closePath();
-  ctx.fill();
-  // beirado sombreado
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ctx.fillRect(x - 4, top, w + 8, 2);
-  // ripas do telhado (telhas)
-  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-  ctx.lineWidth = 1;
-  for (let i = 1; i < 4; i++) {
-    const r = i / 4;
-    const lx = x - 4 + (w + 8) * r;
-    const ly = top - 14 * (1 - Math.abs(r - 0.5) * 2);
-    ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx, top); ctx.stroke();
-  }
-  // porta central
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(x + w / 2 - 4, baseY - 20, 8, 15);
-  // maçaneta
-  ctx.fillStyle = '#c69042';
-  ctx.fillRect(x + w / 2 + 2, baseY - 13, 1.5, 2);
-  // janelas (2 se cabe, 1 se for casa estreita)
-  const wins = w >= 28 ? 2 : 1;
-  for (let i = 0; i < wins; i++) {
-    const wx = wins === 2 ? (i === 0 ? x + 4 : x + w - 12) : x + w / 2 - 4;
-    const wy = top + 14;
-    ctx.fillStyle = '#a8c8d8';
-    ctx.fillRect(wx, wy, 8, 10);
-    ctx.strokeStyle = '#3a1f0a';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(wx, wy, 8, 10);
-    // cruz da janela
-    ctx.beginPath();
-    ctx.moveTo(wx + 4, wy); ctx.lineTo(wx + 4, wy + 10);
-    ctx.moveTo(wx, wy + 5); ctx.lineTo(wx + 8, wy + 5);
-    ctx.stroke();
-  }
-}
-
-function drawColonialChurch(x, baseY) {
-  const sprite = getSprite('church');
-  if (sprite) {
-    const h = 160; // altura visual mais imponente que o fallback
-    const w = (sprite.width / sprite.height) * h;
-    ctx.drawImage(sprite, x + 20 - w / 2, baseY - h, w, h);
-    return;
-  }
-  // Fallback procedural (original)
-  const w = 40, h = 110;
-  const top = baseY - h;
-  // corpo branco (caiado)
-  ctx.fillStyle = '#f1e3c2';
-  ctx.fillRect(x, top, w, h);
-  // rodapé
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(x, baseY - 5, w, 5);
-  // telhado triangular (cor da civ ou vermelho padrão)
-  ctx.fillStyle = civColor();
-  ctx.beginPath();
-  ctx.moveTo(x - 4, top);
-  ctx.lineTo(x + w / 2, top - 14);
-  ctx.lineTo(x + w + 4, top);
-  ctx.closePath();
-  ctx.fill();
-  // torre central (sobe acima do telhado)
-  const tx = x + w / 2 - 6;
-  const ty = top - 38;
-  ctx.fillStyle = '#f1e3c2';
-  ctx.fillRect(tx, ty, 12, 40);
-  // teto piramidal da torre (cor da civ)
-  ctx.fillStyle = civColor();
-  ctx.beginPath();
-  ctx.moveTo(tx - 3, ty);
-  ctx.lineTo(tx + 6, ty - 14);
-  ctx.lineTo(tx + 15, ty);
-  ctx.closePath();
-  ctx.fill();
-  // arco do sino
-  ctx.fillStyle = '#1a0e06';
-  ctx.beginPath();
-  ctx.arc(tx + 6, ty + 12, 5, Math.PI, Math.PI * 2);
-  ctx.fill();
-  ctx.fillRect(tx + 1, ty + 12, 10, 4);
-  // cruz no topo
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(tx + 5, ty - 22, 2, 10);
-  ctx.fillRect(tx + 3, ty - 18, 6, 2);
-  // porta arqueada principal
-  ctx.fillStyle = '#5a3416';
-  ctx.beginPath();
-  ctx.arc(x + w / 2, baseY - 14, 6, Math.PI, Math.PI * 2);
-  ctx.fill();
-  ctx.fillRect(x + w / 2 - 6, baseY - 14, 12, 9);
-  // detalhe vertical na porta
-  ctx.strokeStyle = '#3a1f0a';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(x + w / 2, baseY - 20);
-  ctx.lineTo(x + w / 2, baseY - 5);
-  ctx.stroke();
-  // janela arqueada acima da porta
-  const jy = top + 30;
-  ctx.fillStyle = '#a8c8d8';
-  ctx.beginPath();
-  ctx.arc(x + w / 2, jy, 5, Math.PI, Math.PI * 2);
-  ctx.fill();
-  ctx.fillRect(x + w / 2 - 5, jy, 10, 8);
-  ctx.strokeStyle = '#3a1f0a';
-  ctx.beginPath();
-  ctx.arc(x + w / 2, jy, 5, Math.PI, Math.PI * 2);
-  ctx.stroke();
-  ctx.strokeRect(x + w / 2 - 5, jy, 10, 8);
-}
-
-function drawCitySign(centerX, topY) {
-  const cityLabel = (state.currentCity || 'Florianópolis').toUpperCase();
-  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
-  const labelW = Math.max(120, ctx.measureText(cityLabel).width + 18);
-  const labelH = 18;
-  // moldura escura
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(centerX - labelW / 2 - 2, topY - 2, labelW + 4, labelH + 4);
-  // tabuleta de madeira
-  ctx.fillStyle = '#c69042';
-  ctx.fillRect(centerX - labelW / 2, topY, labelW, labelH);
-  // textura de grão da madeira
-  ctx.strokeStyle = 'rgba(122,75,37,0.4)';
-  ctx.lineWidth = 1;
-  for (let i = 1; i < 4; i++) {
-    const y = topY + (labelH / 4) * i;
-    ctx.beginPath(); ctx.moveTo(centerX - labelW / 2 + 4, y); ctx.lineTo(centerX + labelW / 2 - 4, y); ctx.stroke();
-  }
-  // texto
-  ctx.fillStyle = '#1a0e06';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(cityLabel, centerX, topY + labelH / 2);
-  // pregos nos cantos
-  ctx.fillStyle = '#5a3416';
-  for (const dx of [-labelW / 2 + 5, labelW / 2 - 5]) {
-    ctx.beginPath();
-    ctx.arc(centerX + dx, topY + labelH / 2, 1.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  // cordas pendurando da tabuleta (efeito "western swing")
-  ctx.strokeStyle = '#3a1f0a';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(centerX - labelW / 2, topY);
-  ctx.lineTo(centerX - labelW / 2 - 6, topY - 6);
-  ctx.moveTo(centerX + labelW / 2, topY);
-  ctx.lineTo(centerX + labelW / 2 + 6, topY - 6);
-  ctx.stroke();
-}
-
-// ---------- Estrada + carruagem ----------
-// Estrada sobre o rio: ponte de madeira (tier < 2) ou de pedra; trilhos no tier 6+
-function drawRoad() {
-  const tier = transportTier();
-  const y = ROAD.y;
-  const bw = BRIDGE.x2 - BRIDGE.x1;
-  if (tier >= 2) {
-    for (const [a, b] of [[ROAD.x1, BRIDGE.x1], [BRIDGE.x2, ROAD.x2]]) {
-      ctx.fillStyle = '#6e6a60';
-      ctx.fillRect(a, y - 7, b - a, 16);
-      ctx.fillStyle = 'rgba(30,26,20,0.35)';
-      for (let x = a + 2; x < b - 2; x += 6) ctx.fillRect(x, y - 5 + ((x / 6) % 2) * 6, 4, 4);
-    }
-  }
-  ctx.fillStyle = 'rgba(0,20,30,0.35)';
-  ctx.fillRect(BRIDGE.x1 + 4, y + 11, bw - 8, 6);
-  if (tier >= 2) {
-    ctx.fillStyle = '#9a9386';
-    ctx.fillRect(BRIDGE.x1, y - 9, bw, 20);
-    ctx.strokeStyle = 'rgba(50,44,36,0.45)';
-    ctx.lineWidth = 1;
-    for (let x = BRIDGE.x1 + 8; x < BRIDGE.x2; x += 9) {
-      ctx.beginPath(); ctx.moveTo(x, y - 9); ctx.lineTo(x, y + 11); ctx.stroke();
-    }
-    ctx.fillStyle = '#6a6458';
-    ctx.fillRect(BRIDGE.x1 - 2, y - 12, bw + 4, 4);
-    ctx.fillRect(BRIDGE.x1 - 2, y + 9, bw + 4, 4);
-  } else {
-    for (let x = BRIDGE.x1; x < BRIDGE.x2; x += 5) {
-      ctx.fillStyle = (x / 5) % 2 ? '#8a5a2e' : '#7a4e26';
-      ctx.fillRect(x, y - 8, 4.5, 18);
-    }
-    ctx.fillStyle = '#4a2a12';
-    ctx.fillRect(BRIDGE.x1 - 2, y - 11, bw + 4, 3);
-    ctx.fillRect(BRIDGE.x1 - 2, y + 9, bw + 4, 3);
-    for (let x = BRIDGE.x1; x <= BRIDGE.x2; x += 18) {
-      ctx.fillRect(x - 1.5, y - 15, 3, 7);
-      ctx.fillRect(x - 1.5, y + 9, 3, 7);
-    }
-  }
-  if (tier >= 6) {
-    ctx.fillStyle = '#3a1f0a';
-    for (let x = ROAD.x1; x < ROAD.x2; x += 10) ctx.fillRect(x, y - 5, 4, 12);
-    ctx.strokeStyle = '#9a9a9a';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(ROAD.x1, y - 2); ctx.lineTo(ROAD.x2, y - 2);
-    ctx.moveTo(ROAD.x1, y + 5); ctx.lineTo(ROAD.x2, y + 5);
-    ctx.stroke();
-  }
-}
-
 // Sombra elíptica reutilizável (visual AoE-flavor)
 function drawShadow(cx, cy, w, h = 3) {
   ctx.fillStyle = 'rgba(0,0,0,0.22)';
   ctx.beginPath();
   ctx.ellipse(cx, cy, w, h, 0, 0, Math.PI * 2);
   ctx.fill();
-}
-
-function drawWagon() {
-  const w = state.wagon;
-  const wx = ROAD.x1 + (ROAD.x2 - ROAD.x1) * w.pos;
-  const wy = ROAD.y - 12;
-  const facingRight = w.dir >= 0;
-  // Tenta sprite primeiro
-  const sprite = getSprite('wagon-horse');
-  if (sprite) {
-    const spriteW = 70;
-    const spriteH = (sprite.height / sprite.width) * spriteW;
-    if (facingRight) {
-      ctx.drawImage(sprite, wx - spriteW / 2, wy - spriteH + 32, spriteW, spriteH);
-    } else {
-      ctx.save();
-      ctx.translate(wx, wy - spriteH + 32);
-      ctx.scale(-1, 1);
-      ctx.drawImage(sprite, -spriteW / 2, 0, spriteW, spriteH);
-      ctx.restore();
-    }
-    // Overlay dos barris se com load (sobrepõe barris do sprite com cor do recurso)
-    if (w.load > 0 && w.product) {
-      ctx.fillStyle = R[w.product].color;
-      const nBarrels = Math.min(2, Math.ceil(w.load / 2));
-      const dir = facingRight ? -1 : 1;
-      for (let i = 0; i < nBarrels; i++) {
-        const bx = wx + dir * (8 + i * 5) - 2;
-        ctx.fillRect(bx, wy, 4, 6);
-        ctx.strokeStyle = '#3a1f0a';
-        ctx.lineWidth = 0.6;
-        ctx.strokeRect(bx, wy, 4, 6);
-      }
-    }
-    return;
-  }
-  // Fallback procedural (código original)
-  drawShadow(wx + (facingRight ? 6 : -6), wy + 20, 32, 4);
-  const trot = Math.sin(performance.now() / 140) * 2;
-  const hx = wx + (facingRight ? 20 : -20);
-  ctx.fillStyle = '#6a3f1a';
-  ctx.fillRect(hx - 7, wy + 2 + trot, 14, 9);
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(hx + (facingRight ? -7 : 3), wy + trot, 4, 4);
-  ctx.fillStyle = '#7a4b25';
-  ctx.fillRect(wx - 14, wy, 28, 12);
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(wx - 14, wy + 10, 28, 3);
-  ctx.fillStyle = '#1a0e06';
-  ctx.beginPath(); ctx.arc(wx - 10, wy + 14, 4, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(wx + 10, wy + 14, 4, 0, Math.PI * 2); ctx.fill();
-  if (w.load > 0 && w.product) {
-    ctx.fillStyle = R[w.product].color;
-    const barW = clamp(w.load / 5, 0, 1) * 24;
-    ctx.fillRect(wx - 12, wy + 2, barW, 6);
-  }
 }
 
 // ---------- Grid da mina ----------
@@ -896,14 +300,6 @@ function drawTile(px, py, cell, t) {
   }
 }
 
-function resAbbrev(id) {
-  return ({
-    coal:'CVO', iron_ore:'FRO', copper_ore:'CBR', zinc_ore:'ZNC', lead:'CHB',
-    silver_ore:'PRT', gold_ore:'OUR', sulfur:'ENX', saltpeter:'SLT', oil:'PET',
-    wood:'MAD', stone:'PED', clay:'ARG', sand:'ARE', diamond:'DIA', ruby:'RUB',
-  })[id] || id.slice(0, 3).toUpperCase();
-}
-
 function drawMinerSprite(cx, by) {
   // Prioridade: spritesheet animado 3-frames → sprite estático → procedural
   const anim = getSprite('miner-anim');
@@ -1040,256 +436,21 @@ function drawEventBanner() {
   ctx.fillText(`${Math.ceil(e.timeLeft)}s`, cx + bw / 2 - 10, baseY + 18);
 }
 
-// ---------- Cena OVERWORLD: mapa ----------
-function drawOverworldBg() {
-  ctx.drawImage(getTerrainCanvas(), 0, 0, W, H);
-  drawAmbientGround(ctx, {
-    activeMines: OVERWORLD.mineEntrances.map((_, i) => !!state.mines[i] && !state.mines[i].exhausted),
-    playerColor: civColor(),
-  });
-}
-
-/** @param {number} x @param {number} y @param {number} w @param {number} h */
-function isHovering(x, y, w, h) {
-  return state.mouseX >= x && state.mouseX < x + w && state.mouseY >= y && state.mouseY < y + h;
-}
-
-function drawTree(x, y) {
-  const sprite = getSprite('tree');
-  if (sprite) {
-    const w = 28;
-    const h = (sprite.height / sprite.width) * w;
-    ctx.drawImage(sprite, x - w / 2, y + 16 - h, w, h);
-    return;
-  }
-  // Fallback procedural
-  ctx.fillStyle = '#4a6a3a';
-  ctx.beginPath();
-  ctx.arc(x, y, 14, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#3a5a2a';
-  ctx.beginPath();
-  ctx.arc(x + 4, y - 4, 10, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(x - 2, y + 8, 4, 8);
-}
-
-function drawMineEntrances() {
-  // slots vazios primeiro: a névoa não pode cobrir a placa da mina vizinha
-  OVERWORLD.mineEntrances.forEach((rect, i) => { if (!state.mines[i]) drawEmptyMineSlot(rect, i); });
-  OVERWORLD.mineEntrances.forEach((rect, i) => {
-    const mine = state.mines[i];
-    if (mine) drawMineEntrance(rect, mine, i);
-  });
-}
-
-// Slot vazio = "terra inexplorada" coberta pela névoa negra do AoE
-function drawEmptyMineSlot(e, idx) {
-  const hovering = isHovering(e.x, e.y, e.w, e.h);
-  drawShroud(ctx, e, hovering);
-  const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = hovering ? '#ffe680' : '#c69042';
-  ctx.font = 'bold 30px Georgia, serif';
-  ctx.fillText('+', cx, cy - 12);
-  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
-  ctx.fillText('NOVA MINA', cx, cy + 12);
-  ctx.font = 'italic 9px Georgia, serif';
-  ctx.fillStyle = 'rgba(241,227,194,0.7)';
-  ctx.fillText(`terra inexplorada · slot ${idx + 1}`, cx, cy + 26);
-  if (hovering) drawSelectionEllipse(ctx, cx, e.y + e.h - 12, e.w * 0.42, 12);
-}
-
-function drawMineEntrance(e, mine, idx) {
-  // Tenta sprite primeiro
-  const sprite = getSprite('mine-entrance');
-  if (sprite) {
-    ctx.drawImage(sprite, e.x - 10, e.y - 10, e.w + 20, e.h + 20);
-    // Pula pra lógica da placa/badge (seção procedural abaixo)
-    drawMineEntranceOverlay(e, mine, idx);
-    return;
-  }
-  // Fallback procedural (código original mantido)
-  // Colina marrom com base maior
-  ctx.fillStyle = '#8a5a30';
-  ctx.beginPath();
-  ctx.moveTo(e.x - 10, e.y + e.h);
-  ctx.bezierCurveTo(e.x, e.y + e.h * 0.2, e.x + e.w * 0.4, e.y - 10, e.x + e.w * 0.5, e.y);
-  ctx.bezierCurveTo(e.x + e.w * 0.6, e.y - 10, e.x + e.w, e.y + e.h * 0.2, e.x + e.w + 10, e.y + e.h);
-  ctx.closePath();
-  ctx.fill();
-  // Sombra na base
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.fillRect(e.x - 10, e.y + e.h - 6, e.w + 20, 6);
-  // Pedrinhas na colina (textura)
-  ctx.fillStyle = 'rgba(0,0,0,0.2)';
-  for (let i = 0; i < 12; i++) {
-    const px = e.x + ((i * 23) % (e.w - 20)) + 10;
-    const py = e.y + 40 + ((i * 31) % (e.h - 80));
-    ctx.fillRect(px, py, 3, 2);
-  }
-  // Abertura da caverna (arco escuro)
-  const caveX = e.x + e.w / 2;
-  const caveY = e.y + e.h * 0.55;
-  const caveW = e.w * 0.42;
-  const caveH = e.h * 0.42;
-  ctx.fillStyle = '#1a0e06';
-  ctx.beginPath();
-  ctx.moveTo(caveX - caveW / 2, caveY + caveH);
-  ctx.lineTo(caveX - caveW / 2, caveY + caveH * 0.35);
-  ctx.bezierCurveTo(caveX - caveW / 2, caveY, caveX + caveW / 2, caveY, caveX + caveW / 2, caveY + caveH * 0.35);
-  ctx.lineTo(caveX + caveW / 2, caveY + caveH);
-  ctx.closePath();
-  ctx.fill();
-  // Vigas de madeira em volta da caverna
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(caveX - caveW / 2 - 5, caveY + caveH * 0.35, 5, caveH * 0.65);
-  ctx.fillRect(caveX + caveW / 2, caveY + caveH * 0.35, 5, caveH * 0.65);
-  ctx.fillRect(caveX - caveW / 2 - 5, caveY + caveH * 0.35 - 5, caveW + 10, 6);
-  // Trilhos saindo da caverna
-  ctx.strokeStyle = '#3a1f0a';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(caveX - 10, caveY + caveH);
-  ctx.lineTo(caveX - 22, e.y + e.h + 6);
-  ctx.moveTo(caveX + 10, caveY + caveH);
-  ctx.lineTo(caveX + 22, e.y + e.h + 6);
-  ctx.stroke();
-  // Mini carrinho parado na entrada (decorativo)
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(caveX - 12, caveY + caveH + 6, 24, 12);
-  ctx.fillStyle = '#222';
-  ctx.beginPath(); ctx.arc(caveX - 7, caveY + caveH + 20, 3, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(caveX + 7, caveY + caveH + 20, 3, 0, Math.PI * 2); ctx.fill();
-  // Placa com nome da mina + status
-  drawMineEntranceOverlay(e, mine, idx);
-}
-
-function drawMineEntranceOverlay(e, mine, idx) {
-  const caveX = e.x + e.w / 2;
-  const signCx = caveX;
-  const signCy = e.y + e.h + 24;
-  const exhausted = mine && mine.exhausted;
-  const isActive = idx === state.activeMineIdx && state.scene === 'mine';
-  const mineName = (mine && mine.name) ? mine.name.toUpperCase() : `MINA ${idx + 1}`;
-  const txt = exhausted ? `🚫 ${mineName} (ESGOTADA)` : `⛏ ${mineName}`;
-  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
-  const sw = ctx.measureText(txt).width + 22;
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(signCx - sw / 2 - 2, signCy - 14, sw + 4, 28);
-  ctx.fillStyle = exhausted ? '#7a5a3a' : civAccent();
-  ctx.fillRect(signCx - sw / 2, signCy - 12, sw, 24);
-  ctx.fillStyle = '#1a0e06';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(txt, signCx, signCy);
-  const hovering = isHovering(e.x, e.y, e.w, e.h + 40);
-  if (hovering) drawSelectionEllipse(ctx, caveX, e.y + e.h + 2, e.w * 0.5, 14);
-  // pilha de ouro/pedra ao pé da mina (recurso AoE)
-  if (!exhausted) drawOrePile(e.x + e.w - 6, e.y + e.h - 4);
-  const t = performance.now() / 600;
-  let pulse = (Math.sin(t) + 1) / 2 * (exhausted ? 0.2 : 0.6);
-  if (hovering) pulse = 1;
-  if (isActive) pulse = Math.max(pulse, 0.8);
-  const color = exhausted ? '120,120,120' : (isActive ? '255,180,80' : '255,220,80');
-  ctx.strokeStyle = `rgba(${color},${0.25 + 0.55 * pulse})`;
-  ctx.lineWidth = 2.5;
-  ctx.strokeRect(signCx - sw / 2, signCy - 12, sw, 24);
-  if (exhausted) {
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.fillRect(e.x - 14, e.y - 6, e.w + 28, e.h + 18);
-  }
-}
-
-/** @param {number} x @param {number} y */
-function drawOrePile(x, y) {
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.beginPath(); ctx.ellipse(x + 2, y + 3, 15, 4, 0, 0, Math.PI * 2); ctx.fill();
-  const nuggets = [[-8, 0, 5, '#8a8478'], [6, 1, 5, '#7d776c'], [-2, -3, 6, '#d4a520'], [4, -6, 4, '#e8c040'], [-6, -6, 3.5, '#f0d060']];
-  for (const [dx, dy, r, c] of nuggets) {
-    ctx.fillStyle = /** @type {string} */ (c);
-    ctx.beginPath(); ctx.ellipse(x + +dx, y + +dy, +r, +r * 0.75, 0, 0, Math.PI * 2); ctx.fill();
-  }
-  const glint = (Math.sin(performance.now() / 400) + 1) / 2;
-  ctx.fillStyle = `rgba(255,255,220,${0.4 + 0.6 * glint})`;
-  ctx.fillRect(x + 2, y - 8, 2, 2);
-  ctx.fillRect(x - 4, y - 5, 1.5, 1.5);
-}
-
-// ---------- Identidade visual da civilização ----------
-function civColor() {
-  const c = state.civilization ? CIV_BY_ID[state.civilization] : null;
-  return c ? c.color : '#5a3416';
-}
-function civAccent() {
-  const c = state.civilization ? CIV_BY_ID[state.civilization] : null;
-  return c ? c.accentColor : '#c69042';
-}
-
-function drawCivFlag() {
-  const civ = state.civilization ? CIV_BY_ID[state.civilization] : null;
-  if (!civ) return;
-  // Mastro no canto superior esquerdo do overworld (próximo ao topo da coluna de minas)
-  const mx = 220, my = 12;
-  // haste
-  ctx.fillStyle = '#5a3416';
-  ctx.fillRect(mx, my, 3, 48);
-  ctx.beginPath();
-  ctx.arc(mx + 1.5, my, 3, 0, Math.PI * 2);
-  ctx.fill();
-  // bandeira retangular
-  ctx.fillStyle = civ.color;
-  ctx.fillRect(mx + 3, my + 2, 54, 32);
-  // listra accent horizontal
-  ctx.fillStyle = civ.accentColor;
-  ctx.fillRect(mx + 3, my + 14, 54, 8);
-  // emoji centralizado
-  ctx.fillStyle = '#f1e3c2';
-  ctx.font = 'bold 16px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(civ.emoji, mx + 30, my + 18);
-  // nome embaixo
-  ctx.fillStyle = '#3a1f0a';
-  ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
-  ctx.fillText(civ.name.toUpperCase(), mx + 30, my + 46);
-}
-
-function drawOverworld() {
-  drawOverworldBg();
-  drawCivFlag(); // bandeira grande no canto superior esquerdo
-  for (const v of VILLAGES) drawVillage(v.x, v.y, v.name, v.scale);
-  drawMineEntrances();
-  drawMercadoNode();
-  drawPesquisaNode();
-  drawFactories();
-  drawCity();
-  drawRoad();
-  drawWagon();
-  drawAmbientSky(ctx);
-  drawFactoryRecipePanels();
-  drawActiveProjectPanel();
-  drawContractPanelOverworld();
-}
-
 function drawOverworldMinimap() {
   const cc = civColor();
   /** @type {{x:number,y:number,w:number,h:number,color:string}[]} */
   const markers = [];
-  OVERWORLD.mineEntrances.forEach((e, i) => {
+  MINE_FP.forEach((f, i) => {
     const m = state.mines[i];
-    if (!m) return;
-    markers.push({ x: e.x + 50, y: e.y + 40, w: e.w - 100, h: e.h - 70, color: m.exhausted ? '#777' : cc });
+    if (m) markers.push({ x: f.x + 25, y: f.y + 20, w: f.w - 50, h: f.d - 40, color: m.exhausted ? '#777' : cc });
   });
   for (let i = 0; i < state.factories.length; i++) {
-    const r = factoryRect(i);
-    markers.push({ x: r.x + 10, y: r.y + 40, w: r.w - 20, h: r.h - 60, color: cc });
+    const f = FACTORY_FP[i];
+    markers.push({ x: f.x + 10, y: f.y + 10, w: f.w - 20, h: f.d - 20, color: cc });
   }
-  markers.push({ x: CITY.x + 30, y: 440, w: CITY.w - 60, h: 140, color: cc });
-  for (const n of [OVERWORLD.mercadoNode, OVERWORLD.pesquisaNode]) {
-    markers.push({ x: n.x + 10, y: n.y + 10, w: n.w - 20, h: n.h - 20, color: '#e8c060' });
+  markers.push({ x: CITY_CENTER.x - 120, y: CITY_CENTER.y - 120, w: 240, h: 260, color: cc });
+  for (const f of [MERCADO_FP, PESQUISA_FP]) {
+    markers.push({ x: f.x + 10, y: f.y + 10, w: f.w - 20, h: f.d - 20, color: '#e8c060' });
   }
   const wx = ROAD.x1 + (ROAD.x2 - ROAD.x1) * state.wagon.pos;
   markers.push({ x: wx - 14, y: ROAD.y - 14, w: 28, h: 28, color: '#ffffff' });
@@ -1297,126 +458,12 @@ function drawOverworldMinimap() {
   drawMinimap(ctx, markers, minimapLayout(hs.w, hs.h), visibleWorldRect('overworld'));
 }
 
-// Nodo do Mercado — clicável (abre aba Mercado)
-function drawMercadoNode() {
-  const n = OVERWORLD.mercadoNode;
-  const sprite = getSprite('mercado');
-  if (sprite) {
-    ctx.drawImage(sprite, n.x, n.y - 10, n.w, n.h + 10);
-    drawNodeLabel(n.x, n.y + n.h, n.w, 'MERCADO', 'overworld');
-    drawNodeHoverHighlight(n);
-    return;
-  }
-  // Fallback procedural
-  const { x, y, w, h } = n;
-  // base / fundo de tijolo
-  ctx.fillStyle = '#8a3a1a';
-  ctx.fillRect(x, y + 8, w, h - 8);
-  // padrão de tijolos
-  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-  ctx.lineWidth = 1;
-  for (let yy = y + 14; yy < y + h - 4; yy += 6) {
-    ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + w, yy); ctx.stroke();
-  }
-  // toldo listrado amarelo/vermelho
-  ctx.fillStyle = '#e8c060';
-  ctx.fillRect(x - 6, y + 4, w + 12, 12);
-  ctx.fillStyle = '#a82e1c';
-  for (let i = 0; i < 5; i++) {
-    ctx.fillRect(x - 6 + i * (w + 12) / 5, y + 4, (w + 12) / 10, 12);
-  }
-  // mercadorias (caixas + barril)
-  ctx.fillStyle = '#7a4b25';
-  ctx.fillRect(x + 8, y + 26, 16, 18);
-  ctx.fillRect(x + 28, y + 26, 16, 18);
-  ctx.fillRect(x + 48, y + 26, 16, 18);
-  // moeda dourada na fachada
-  ctx.fillStyle = '#ffd700';
-  ctx.beginPath();
-  ctx.arc(x + w - 14, y + 32, 5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = '#1a0e06';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  // placa "MERCADO"
-  drawNodeLabel(x, y + h, w, 'MERCADO', 'overworld');
-  drawNodeHoverHighlight(n);
-}
-
-// Nodo da Pesquisa — clicável (abre Upgrades)
-function drawPesquisaNode() {
-  const n = OVERWORLD.pesquisaNode;
-  const sprite = getSprite('pesquisa');
-  if (sprite) {
-    ctx.drawImage(sprite, n.x, n.y - 10, n.w, n.h + 10);
-    drawNodeLabel(n.x, n.y + n.h, n.w, 'PESQUISA', 'overworld');
-    drawNodeHoverHighlight(n);
-    return;
-  }
-  // Fallback procedural
-  const { x, y, w, h } = n;
-  // corpo branco (estilo colonial caiado)
-  ctx.fillStyle = '#f1e3c2';
-  ctx.fillRect(x, y, w, h);
-  // base escura
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(x, y + h - 4, w, 4);
-  // telhado triangular azul (acadêmico)
-  ctx.fillStyle = '#2a4a7a';
-  ctx.beginPath();
-  ctx.moveTo(x - 6, y);
-  ctx.lineTo(x + w / 2, y - 16);
-  ctx.lineTo(x + w + 6, y);
-  ctx.closePath();
-  ctx.fill();
-  // livro/pergaminho na fachada
-  ctx.fillStyle = '#a82e1c';
-  ctx.fillRect(x + w / 2 - 14, y + 20, 28, 22);
-  ctx.fillStyle = '#f1e3c2';
-  ctx.fillRect(x + w / 2 - 12, y + 22, 24, 18);
-  ctx.strokeStyle = '#1a0e06';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(x + w / 2, y + 22);
-  ctx.lineTo(x + w / 2, y + 40);
-  ctx.stroke();
-  // estrelas (pontos de pesquisa)
-  ctx.fillStyle = '#ffd44a';
-  ctx.font = 'bold 12px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('★', x + 12, y + 14);
-  ctx.fillText('★', x + w - 12, y + 14);
-  // placa "PESQUISA"
-  drawNodeLabel(x, y + h, w, 'PESQUISA', 'overworld');
-  drawNodeHoverHighlight(n);
-}
-
-function drawNodeLabel(x, y, w, text, scene) {
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(x - 2, y + 2, w + 4, 16);
-  ctx.fillStyle = '#c69042';
-  ctx.fillRect(x, y + 4, w, 12);
-  ctx.fillStyle = '#1a0e06';
-  ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, x + w / 2, y + 10);
-  void scene;
-}
-
-function drawNodeHoverHighlight(n) {
-  if (isHovering(n.x, n.y, n.w, n.h + 22)) {
-    drawSelectionEllipse(ctx, n.x + n.w / 2, n.y + n.h - 2, n.w * 0.62, 13);
-  }
-}
-
 // ---------- Tutorial inicial (auto-avança baseado em ações) ----------
 const IS_TOUCH = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 const TUTORIAL_STEPS = [
   { scene: 'overworld', msg: IS_TOUCH
-    ? '👋 Toque na ENTRADA DA MINA (à esquerda) para começar a cavar. Arraste para mover o mapa e use dois dedos para zoom.'
-    : '👋 Clique na ENTRADA DA MINA à esquerda para começar a cavar.' },
+    ? '👋 Toque numa ENTRADA DE MINA (os morros com placa ⛏) para começar a cavar. Arraste para mover o mapa e use dois dedos para zoom.'
+    : '👋 Clique numa ENTRADA DE MINA (os morros com placa ⛏) para começar a cavar. Arraste para mover e use a roda para zoom.' },
   { scene: 'mine', msg: IS_TOUCH
     ? '⛏ Escolha 👤 Minerador na barra de ferramentas e toque num veio descoberto (Fe ou C).'
     : '⛏ Selecione a ferramenta MINERADOR (👤 ou tecla 4) e clique num veio descoberto (Fe ou C).' },
@@ -1470,166 +517,18 @@ function drawTutorial() {
   }
 }
 
-// Vilarejo decorativo (não interativo) — só pra dar densidade ao mapa
-function drawVillage(x, baseY, name, scale = 0.7) {
-  // sombra abaixo do vilarejo
-  drawShadow(x, baseY + 2, 26 * scale, 4);
-  const houses = [
-    { dx: -14, dy: 0, w: 18, h: 22, face: '#e8c87a', roof: '#a82e1c' },
-    { dx: 6,   dy: -4, w: 14, h: 26, face: '#b8c8a8', roof: '#8a4a2a' },
-  ];
-  for (const b of houses) {
-    const hx = x + b.dx * scale;
-    const top = baseY - b.h * scale;
-    const w = b.w * scale, h = b.h * scale;
-    ctx.fillStyle = b.face;
-    ctx.fillRect(hx, top, w, h);
-    ctx.fillStyle = '#3a1f0a';
-    ctx.fillRect(hx, baseY - 2, w, 2);
-    // telhado
-    ctx.fillStyle = b.roof;
-    ctx.beginPath();
-    ctx.moveTo(hx - 2, top);
-    ctx.lineTo(hx + w / 2, top - 6 * scale);
-    ctx.lineTo(hx + w + 2, top);
-    ctx.closePath();
-    ctx.fill();
-    // janelinha
-    ctx.fillStyle = '#a8c8d8';
-    ctx.fillRect(hx + 2, top + 4 * scale, 3 * scale, 4 * scale);
-  }
-  // mini árvore ao lado
-  drawTree(x + 22 * scale, baseY + 2);
-  // placa com nome
-  ctx.fillStyle = '#3a1f0a';
-  ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  const tw = ctx.measureText(name).width + 8;
-  ctx.fillStyle = 'rgba(241,227,194,0.85)';
-  ctx.fillRect(x - tw / 2, baseY + 6, tw, 13);
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillText(name, x, baseY + 8);
-}
-
-// ---------- Helpers: ícone de recurso + scroll/painel ----------
-function drawResourceIcon(x, y, size, resourceId) {
-  const res = R[resourceId];
-  if (!res) return;
-  ctx.fillStyle = res.color;
-  ctx.fillRect(x, y, size, size);
-  ctx.strokeStyle = '#1a0e06';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x, y, size, size);
-  // texto da abreviação em cima, com sombra escura por contraste
-  ctx.font = `bold ${Math.floor(size * 0.45)}px "Segoe UI", Arial, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'rgba(20,10,5,0.85)';
-  ctx.fillRect(x, y + size - Math.floor(size * 0.55), size, Math.floor(size * 0.55));
-  ctx.fillStyle = '#ffd44a';
-  ctx.fillText(resAbbrev(resourceId), x + size / 2, y + size - Math.floor(size * 0.28));
-}
-
-function drawScrollPanel(x, y, w, h) {
-  // moldura escura
-  ctx.fillStyle = '#3a1f0a';
-  ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
-  // papel envelhecido
-  ctx.fillStyle = '#f1e3c2';
-  ctx.fillRect(x, y, w, h);
-  // textura de linhas horizontais sutis
-  ctx.strokeStyle = 'rgba(122,75,37,0.12)';
-  ctx.lineWidth = 1;
-  for (let i = 10; i < h; i += 9) {
-    ctx.beginPath();
-    ctx.moveTo(x + 4, y + i);
-    ctx.lineTo(x + w - 4, y + i);
-    ctx.stroke();
-  }
-}
-
-// ---------- Mini painel de receita acima de cada fábrica ----------
-function drawFactoryRecipePanels() {
-  for (let i = 0; i < state.factories.length; i++) {
-    const f = state.factories[i];
-    const rect = factoryRect(i);
-    drawFactoryRecipePanel(rect, f);
-  }
-}
-
-function drawFactoryRecipePanel(rect, factory) {
-  const recipe = RECIPE_BY_ID[factory.recipeId];
-  if (!recipe) return;
-  const product = R[factory.recipeId];
-  // posição: pouco acima do prédio
-  const pw = rect.w;
-  const ph = 44;
-  const px = rect.x;
-  const py = rect.y - ph - 8;
-  drawScrollPanel(px, py, pw, ph);
-  // input principal (primeiro ingrediente da receita)
-  const inputs = Object.entries(recipe.in);
-  const [inputId, need] = inputs[0];
-  const have = ingredientHave(inputId);
-  const haveStr = R[inputId].free ? '∞' : Math.floor(have);
-  const inputOk = have >= need;
-  // ícone do input + texto have/need
-  const iconSize = 22;
-  drawResourceIcon(px + 4, py + 4, iconSize, inputId);
-  ctx.fillStyle = inputOk ? '#1a0e06' : '#a82e1c';
-  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(`${haveStr}/${need}`, px + 4 + iconSize + 4, py + 4 + iconSize / 2);
-  // se houver +1 ingredientes, marca discreto
-  if (inputs.length > 1) {
-    ctx.fillStyle = '#5a3416';
-    ctx.font = '9px "Segoe UI"';
-    ctx.fillText(`+${inputs.length - 1}`, px + 4 + iconSize + 4, py + iconSize + 10);
-  }
-  // seta no centro
-  ctx.fillStyle = '#c69042';
-  ctx.font = 'bold 16px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('→', px + pw / 2, py + ph / 2);
-  // output: ícone + estoque/cap
-  const outHave = state.products[factory.recipeId] || 0;
-  const outCap = CFG.factoryStockMax;
-  drawResourceIcon(px + pw - 4 - iconSize, py + 4, iconSize, factory.recipeId);
-  ctx.fillStyle = '#1a0e06';
-  ctx.font = 'bold 11px "Segoe UI"';
-  ctx.textAlign = 'right';
-  ctx.fillText(`${outHave}/${outCap}`, px + pw - 4 - iconSize - 4, py + 4 + iconSize / 2);
-  // barra fina de progresso da batelada em andamento
-  if (factory.brewing > 0) {
-    const pct = 1 - factory.brewing / recipe.time;
-    ctx.fillStyle = '#5a3416';
-    ctx.fillRect(px + 4, py + ph - 5, pw - 8, 3);
-    ctx.fillStyle = '#c69042';
-    ctx.fillRect(px + 4, py + ph - 5, (pw - 8) * pct, 3);
-  }
-  if (isHovering(px, py, pw, ph + rect.h + 8)) {
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(px - 2, py - 2, pw + 4, ph + 4);
-  }
-  // suprime nome do produto: já fica na placa amarela do prédio
-  product; // referenciada implicitamente via outHave/cap
-}
-
 // ---------- Banner do projeto ativo (overworld) ----------
 function drawActiveProjectPanel() {
   if (!state.projects.active) return;
   const def = getProjectDef(state.projects.active.id);
   if (!def) return;
   const prog = state.projects.active.progress;
-  const x = 20, y = 56;
   const w = 280;
   const reqs = Object.entries(def.requirements);
   const lineH = 18;
   const h = 34 + reqs.length * lineH + 8;
+  const x = 10;
+  const y = hudSize().h - h - 10 - (state.contract ? 112 : 0);
   drawScrollPanel(x, y, w, h);
   // título
   ctx.fillStyle = '#3a1f0a';
@@ -1673,10 +572,10 @@ function drawContractPanelOverworld() {
   if (!state.contract) return;
   const k = state.contract;
   const product = R[k.product];
-  const x = CITY.x + 10;
-  const y = 56;
-  const w = CITY.w - 20;
+  const w = 300;
   const h = 100;
+  const x = 10;
+  const y = hudSize().h - h - 10;
   drawScrollPanel(x, y, w, h);
   // título
   ctx.fillStyle = '#3a1f0a';
@@ -1774,7 +673,6 @@ function drawElevator() {
   }
 }
 
-
 function drawExhaustedOverlay() {
   const mine = activeMine();
   if (!mine || !mine.exhausted) return;
@@ -1824,10 +722,16 @@ export function draw() {
     drawMineScene();
     drawTileTooltip();
   } else {
-    drawOverworld();
+    drawOverworldIso(ctx, visibleWorldRect('overworld'), state.mouseX, state.mouseY);
   }
   applyHudTransform(ctx);
-  if (state.scene !== 'mine') drawOverworldMinimap();
+  if (state.scene !== 'mine') {
+    drawOverworldMinimap();
+    if (wideScreen()) {
+      drawActiveProjectPanel();
+      drawContractPanelOverworld();
+    }
+  }
   drawEventBanner();
   drawTutorial();
   drawAchievementToast();

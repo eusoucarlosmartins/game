@@ -1,8 +1,10 @@
 // camera.js — viewport responsivo: canvas na resolução do dispositivo, zoom/pan
-// por cena e conversão tela↔mundo. O mundo continua sendo 1280x720 lógico.
+// por cena e conversão tela↔mundo. Cada cena tem seu próprio tamanho de mundo:
+// a mina é 1280x720; o mapa é o espaço isométrico (ISO_W x ISO_H).
 import { W, H } from './geometry.js';
+import { ISO_W, ISO_H, proj } from './iso.js';
 
-/** @typedef {{ x: number, y: number, zoom: number, touched: boolean }} Cam */
+/** @typedef {{ x: number, y: number, zoom: number, touched: boolean, bw: number, bh: number, focus?: {x:number,y:number}, zoomBoost?: number }} Cam */
 
 export const view = {
   cw: W,   // largura CSS do canvas
@@ -15,8 +17,9 @@ export const view = {
 
 /** @type {Record<'overworld' | 'mine', Cam>} */
 const cams = {
-  overworld: { x: W / 2, y: H / 2, zoom: 1, touched: false },
-  mine: { x: W / 2, y: H / 2, zoom: 1, touched: false },
+  // o losango ocupa só metade do retângulo: abre mais perto, entre as minas e as fábricas
+  overworld: { x: ISO_W / 2, y: ISO_H / 2, zoom: 1, touched: false, bw: ISO_W, bh: ISO_H, focus: proj(420, 400), zoomBoost: 1.55 },
+  mine: { x: W / 2, y: H / 2, zoom: 1, touched: false, bw: W, bh: H },
 };
 
 /** @param {string} scene */
@@ -24,33 +27,36 @@ export function camFor(scene) {
   return scene === 'mine' ? cams.mine : cams.overworld;
 }
 
-export function containZoom() { return Math.min(view.cw / W, view.ch / H); }
-export function coverZoom() { return Math.max(view.cw / W, view.ch / H); }
-export function minZoom() { return containZoom(); }
-export function maxZoom() { return Math.max(coverZoom(), containZoom()) * 2.5; }
+/** @param {Cam} cam */
+const containZoom = (cam) => Math.min(view.cw / cam.bw, view.ch / cam.bh);
+/** @param {Cam} cam */
+const coverZoom = (cam) => Math.max(view.cw / cam.bw, view.ch / cam.bh);
+/** @param {Cam} cam */
+const maxZoom = (cam) => Math.max(coverZoom(cam), containZoom(cam)) * 2.5;
 
-// Telas grandes veem o mapa inteiro; celulares começam preenchendo a altura e arrastam.
-function defaultZoom() {
-  const c = containZoom();
-  return c >= 0.6 ? c : coverZoom();
+// Telas grandes veem o mundo inteiro; celulares começam preenchendo a altura e arrastam.
+/** @param {Cam} cam */
+function defaultZoom(cam) {
+  const c = containZoom(cam);
+  const base = c >= 0.6 ? c : coverZoom(cam);
+  return Math.max(base, c * (cam.zoomBoost || 1));
 }
 
 /** @param {Cam} cam */
 function clampCam(cam) {
-  cam.zoom = Math.min(maxZoom(), Math.max(minZoom(), cam.zoom));
+  cam.zoom = Math.min(maxZoom(cam), Math.max(containZoom(cam), cam.zoom));
   const vw = view.cw / cam.zoom;
   const vh = view.ch / cam.zoom;
-  cam.x = vw >= W ? W / 2 : Math.min(W - vw / 2, Math.max(vw / 2, cam.x));
-  cam.y = vh >= H ? H / 2 : Math.min(H - vh / 2, Math.max(vh / 2, cam.y));
+  cam.x = vw >= cam.bw ? cam.bw / 2 : Math.min(cam.bw - vw / 2, Math.max(vw / 2, cam.x));
+  cam.y = vh >= cam.bh ? cam.bh / 2 : Math.min(cam.bh - vh / 2, Math.max(vh / 2, cam.y));
 }
 
 /** @param {Cam} cam */
 function resetCam(cam) {
-  cam.zoom = defaultZoom();
-  const vw = view.cw / cam.zoom;
-  // Começa encostado à esquerda: no mapa ficam as minas (1º passo do tutorial), na mina o poço.
-  cam.x = vw / 2;
-  cam.y = H / 2;
+  cam.zoom = defaultZoom(cam);
+  // Sem foco definido (mina): começa encostado à esquerda.
+  cam.x = cam.focus ? cam.focus.x : view.cw / cam.zoom / 2;
+  cam.y = cam.focus ? cam.focus.y : cam.bh / 2;
   clampCam(cam);
 }
 
@@ -59,7 +65,7 @@ export function resizeCanvas(canvas) {
   const rect = canvas.getBoundingClientRect();
   const cw = Math.max(1, Math.round(rect.width));
   const ch = Math.max(1, Math.round(rect.height));
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const dpr = Math.min(3, window.devicePixelRatio || 1); // até 3x: texto nítido em celulares top
   if (cw === view.cw && ch === view.ch && dpr === view.dpr && canvas.width === Math.round(cw * dpr)) return;
   view.cw = cw;
   view.ch = ch;
@@ -150,7 +156,7 @@ export function centerOn(scene, x, y) {
 /** Alterna entre ver o mapa inteiro e o zoom padrão do aparelho. @param {string} scene */
 export function toggleFit(scene) {
   const cam = camFor(scene);
-  const fit = containZoom();
+  const fit = containZoom(cam);
   if (Math.abs(cam.zoom - fit) < 0.01) {
     resetCam(cam);
     if (Math.abs(cam.zoom - fit) < 0.01) cam.zoom = fit * 1.6;

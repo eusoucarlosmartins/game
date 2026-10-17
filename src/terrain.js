@@ -1,6 +1,9 @@
-// terrain.js — mapa estilo Age of Empires: terreno pré-renderizado (grama, penhasco,
-// rio, florestas, trilhas) + ambiente animado (água, animais, aldeões, nuvens, minimapa)
-import { W, H, OVERWORLD } from './geometry.js';
+// terrain.js — mapa estilo Age of Empires: chão pré-renderizado (grama, rio, trilhas),
+// planalto elevado com face de rocha, árvores/animais/aldeões em pé (isométrico),
+// mais minimapa e névoa. Desenhos de chão usam coordenadas de chão 1280x720.
+import { W, H } from './geometry.js';
+import { proj, unproj, groundTransform, ISO_W, ISO_H } from './iso.js';
+import { MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_CENTER, centerOf } from './layout.js';
 
 /** @typedef {[number, number]} Pt */
 
@@ -34,7 +37,7 @@ const OTHER_PATHS = [
   [[560, 654], [470, 622], [394, 590]],
   [[300, 218], [292, 285]],
   [[320, 214], [500, 202], [690, 206]],
-  [[878, 490], [930, 538], [990, 578]],
+  [[878, 490], [940, 470], [1000, 452]],
 ];
 
 export const VILLAGES = [
@@ -43,11 +46,12 @@ export const VILLAGES = [
   { x: 560, y: 660, name: 'CHAPECÓ', scale: 0.75 },
 ];
 
-/** @param {number} x */
-function cliffEdge(x) {
+/** Linha do penhasco: o planalto é gy < cliffEdge(gx). @param {number} x */
+export function cliffEdge(x) {
   return 76 + 13 * Math.sin(x * 0.012 + 0.5) + 7 * Math.sin(x * 0.037 + 2) + 3 * Math.sin(x * 0.11);
 }
-const CLIFF_FACE = 26;
+const CLIFF_FACE = 26; // profundidade da face no mapa plano (minimapa)
+export const CLIFF_H = 30; // altura do planalto no isométrico (px de tela)
 
 // ---------- Amostragem de polilinhas (pra animar coisas ao longo de trilhas/rio) ----------
 /** @param {Pt[]} pts */
@@ -351,7 +355,7 @@ function berryBush(g, x, y) {
 function inExclusion(x, y) {
   const zones = [
     [0, 115, 205, 720], [365, 215, 775, 480], [285, 515, 405, 640], [635, 515, 755, 645],
-    [868, 190, 1232, 640], [775, 0, 880, 720], [1100, 615, 1280, 720],
+    [868, 190, 1232, 640], [775, 0, 880, 720],
   ];
   for (const [x1, y1, x2, y2] of zones) if (x >= x1 && x <= x2 && y >= y1 && y <= y2) return true;
   for (const v of VILLAGES) if (Math.abs(x - v.x) < 40 && Math.abs(y - v.y) < 30) return true;
@@ -365,10 +369,15 @@ function inExclusion(x, y) {
   return false;
 }
 
-/** @param {CanvasRenderingContext2D} g @param {() => number} rnd */
-function paintForests(g, rnd) {
-  /** @type {{x:number,y:number,s:number,kind:'oak'|'pine'|'bush'}[]} */
+/** @typedef {{x:number,y:number,s:number,kind:'oak'|'pine'|'bush',z:number,v:number}} Tree */
+
+/** Lista determinística de árvores (chão). z>0 = sobre o planalto. @returns {Tree[]} */
+function generateTrees() {
+  const rnd = mulberry32(2024);
+  /** @type {Tree[]} */
   const trees = [];
+  /** @param {number} x @param {number} y @param {number} s @param {'oak'|'pine'|'bush'} kind */
+  const add = (x, y, s, kind) => trees.push({ x, y, s, kind, z: y < cliffEdge(x) ? CLIFF_H : 0, v: Math.floor(rnd() * 4) });
   /** @param {number} x1 @param {number} x2 @param {number} y1 @param {number} y2 @param {number} step */
   const block = (x1, x2, y1, y2, step) => {
     for (let y = y1; y <= y2; y += step) {
@@ -376,7 +385,7 @@ function paintForests(g, rnd) {
         const jx = x + (rnd() - 0.5) * step * 0.9;
         const jy = y + (rnd() - 0.5) * step * 0.7;
         if (jx > RIVER_GAP.x1 - 14 && jx < RIVER_GAP.x2 + 14) continue;
-        trees.push({ x: jx, y: jy, s: 0.85 + rnd() * 0.35, kind: rnd() < 0.62 ? 'oak' : 'pine' });
+        add(jx, jy, 0.85 + rnd() * 0.35, rnd() < 0.62 ? 'oak' : 'pine');
       }
     }
   };
@@ -384,18 +393,18 @@ function paintForests(g, rnd) {
   for (let x = 12; x < W; x += 26 + rnd() * 30) {
     if (x > RIVER_GAP.x1 - 20 && x < RIVER_GAP.x2 + 20) continue;
     const yMax = cliffEdge(x) - 4;
-    if (yMax > 34) trees.push({ x, y: 30 + rnd() * (yMax - 30), s: 0.75 + rnd() * 0.25, kind: rnd() < 0.5 ? 'pine' : 'oak' });
+    if (yMax > 34) add(x, 30 + rnd() * (yMax - 30), 0.75 + rnd() * 0.25, rnd() < 0.5 ? 'pine' : 'oak');
   }
   // linha de floresta densa sob o penhasco
   for (let x = 8; x < W - 4; x += 13) {
-    const top = cliffEdge(x) + CLIFF_FACE + 16;
+    const top = cliffEdge(x) + 12;
     const bottom = x < 205 ? 122 : 182;
     for (let y = top; y <= bottom; y += 13) {
       const jx = x + (rnd() - 0.5) * 10;
       const jy = y + (rnd() - 0.5) * 8;
       if (jx > RIVER_GAP.x1 - 22 && jx < RIVER_GAP.x2 + 22) continue;
       if (jy > bottom - 12 && rnd() < 0.5) continue;
-      trees.push({ x: jx, y: jy, s: 0.85 + rnd() * 0.35, kind: rnd() < 0.62 ? 'oak' : 'pine' });
+      add(jx, jy, 0.85 + rnd() * 0.35, rnd() < 0.62 ? 'oak' : 'pine');
     }
   }
   block(412, 516, 684, 728, 14);
@@ -406,10 +415,22 @@ function paintForests(g, rnd) {
   for (let i = 0; i < 220 && trees.length < 900; i++) {
     const x = rnd() * W, y = 190 + rnd() * (H - 190);
     if (inExclusion(x, y)) continue;
-    trees.push({ x, y, s: 0.8 + rnd() * 0.3, kind: rnd() < 0.7 ? 'oak' : 'pine' });
+    add(x, y, 0.8 + rnd() * 0.3, rnd() < 0.7 ? 'oak' : 'pine');
   }
-  for (const [x, y] of [[905, 652], [925, 662], [948, 650]]) trees.push({ x, y, s: 1, kind: 'bush' });
-  trees.sort((a, b) => a.y - b.y);
+  for (const [x, y] of [[905, 652], [925, 662], [948, 650]]) add(x, y, 1, 'bush');
+  return trees;
+}
+
+/** @type {Tree[] | null} */
+let treeList = null;
+export function getTrees() {
+  if (!treeList) treeList = generateTrees();
+  return treeList;
+}
+
+/** Árvores vistas de cima (mapa plano: minimapa/Phaser). @param {CanvasRenderingContext2D} g @param {() => number} rnd */
+function paintForests(g, rnd) {
+  const trees = [...getTrees()].sort((a, b) => a.y - b.y);
   for (const t of trees) {
     if (t.kind === 'oak') oak(g, t.x, t.y, t.s, rnd);
     else if (t.kind === 'pine') pine(g, t.x, t.y, t.s);
@@ -439,14 +460,29 @@ function paintEdgeFog(g) {
   }
 }
 
-// 2x: continua nítido com zoom e em telas retina
+/** @param {CanvasRenderingContext2D} g @param {() => number} rnd */
+function paintFoundations(g, rnd) {
+  const fa = FACTORY_FP;
+  dirtFoundation(g, (fa[0].x + fa[2].x + fa[2].w) / 2, fa[0].y + fa[0].d / 2 + 4, 250, 74, rnd);
+  for (const f of MINE_FP) { const c = centerOf(f); dirtFoundation(g, c.x + 20, c.y + 22, 82, 58, rnd); }
+  for (const f of [MERCADO_FP, PESQUISA_FP]) { const c = centerOf(f); dirtFoundation(g, c.x, c.y, 66, 52, rnd); }
+  for (const v of VILLAGES) dirtFoundation(g, v.x, v.y, 44, 30, rnd);
+  dirtFoundation(g, CITY_CENTER.x, CITY_CENTER.y + 20, 190, 210, rnd);
+}
+
+// 2x: o chão continua nítido com zoom e em telas retina
 export const TERRAIN_RES = 2;
 /** @type {HTMLCanvasElement | null} */
-let terrainCache = null;
+let groundCache = null;
+/** @type {HTMLCanvasElement | null} */
+let plateauCache = null;
+/** @type {HTMLCanvasElement | null} */
+let flatCache = null;
+const PLATEAU_GH = 112; // linhas de chão cobertas pelo planalto (cliffEdge máx ≈ 99)
 
-/** Canvas (1280x720 lógicos × TERRAIN_RES) com todo o terreno estático (gerado uma vez, determinístico). */
-export function getTerrainCanvas() {
-  if (terrainCache) return terrainCache;
+/** Chão plano (grama, fundações, trilhas, rio, névoa das bordas) — projetado pelo isométrico. */
+export function getGroundCanvas() {
+  if (groundCache) return groundCache;
   const c = document.createElement('canvas');
   c.width = W * TERRAIN_RES;
   c.height = H * TERRAIN_RES;
@@ -455,24 +491,185 @@ export function getTerrainCanvas() {
   g.scale(TERRAIN_RES, TERRAIN_RES);
   const rnd = mulberry32(1500);
   paintGrass(g, rnd);
-  // fundações de terra batida
-  const fa = OVERWORLD.factoryArea;
-  dirtFoundation(g, fa.x + fa.w / 2, fa.y + fa.h - 20, fa.w * 0.62, 70, rnd);
-  for (const e of OVERWORLD.mineEntrances) dirtFoundation(g, e.x + e.w / 2, e.y + e.h - 16, 92, 30, rnd);
-  for (const n of [OVERWORLD.mercadoNode, OVERWORLD.pesquisaNode]) {
-    dirtFoundation(g, n.x + n.w / 2, n.y + n.h - 6, 70, 26, rnd);
-  }
-  for (const v of VILLAGES) dirtFoundation(g, v.x, v.y - 2, 42, 16, rnd);
-  dirtFoundation(g, OVERWORLD.city.x + OVERWORLD.city.w / 2, 588, 200, 46, rnd);
+  paintFoundations(g, rnd);
   for (const p of [...OTHER_PATHS, ...MINE_PATHS]) dirtPath(g, p, rnd);
   paintRiver(g);
+  paintEdgeFog(g);
+  groundCache = c;
+  return c;
+}
+
+/** Recorte do chão acima do penhasco, um pouco mais escuro — desenhado elevado. */
+function getPlateauCanvas() {
+  if (plateauCache) return plateauCache;
+  const ground = getGroundCanvas();
+  const c = document.createElement('canvas');
+  c.width = W * TERRAIN_RES;
+  c.height = PLATEAU_GH * TERRAIN_RES;
+  const g = c.getContext('2d');
+  if (!g) return c;
+  g.scale(TERRAIN_RES, TERRAIN_RES);
+  g.beginPath();
+  g.moveTo(0, 0);
+  for (let x = 0; x <= W; x += 4) g.lineTo(x, cliffEdge(x));
+  g.lineTo(W, 0);
+  g.closePath();
+  g.clip();
+  g.drawImage(ground, 0, 0, W * TERRAIN_RES, PLATEAU_GH * TERRAIN_RES, 0, 0, W, PLATEAU_GH);
+  g.fillStyle = 'rgba(40,60,20,0.18)';
+  g.fillRect(0, 0, W, PLATEAU_GH);
+  plateauCache = c;
+  return c;
+}
+
+/** Mapa inteiro visto de cima (árvores e penhasco achatados) — minimapa e renderer Phaser. */
+export function getTerrainCanvas() {
+  if (flatCache) return flatCache;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d');
+  if (!g) return c;
+  g.drawImage(getGroundCanvas(), 0, 0, W, H);
+  const rnd = mulberry32(77);
   paintCliffs(g, rnd);
   paintForests(g, rnd);
-  // pedras e ouro decorativos na campina
-  for (const [x, y, r] of [[240, 470, 5], [252, 476, 4], [610, 560, 4], [360, 650, 5], [1110, 640, 4]]) boulder(g, x, y, r);
-  paintEdgeFog(g);
-  terrainCache = c;
+  flatCache = c;
   return c;
+}
+
+const cliffStreaks = (() => {
+  const rnd = mulberry32(9);
+  /** @type {{x:number, j:number, light:boolean}[]} */
+  const out = [];
+  for (let x = 3; x < W; x += 5 + rnd() * 6) out.push({ x, j: (rnd() - 0.5) * 6, light: rnd() > 0.6 });
+  return out;
+})();
+const FALL_X1 = 806, FALL_X2 = 848;
+
+/**
+ * Chão + planalto elevado + face do penhasco + cachoeira, no espaço iso.
+ * Chamar com a transformação da câmera ativa.
+ * @param {CanvasRenderingContext2D} ctx
+ */
+export function drawIsoTerrain(ctx) {
+  ctx.save();
+  groundTransform(ctx);
+  ctx.drawImage(getGroundCanvas(), 0, 0, W, H);
+  ctx.restore();
+  // planalto: o mesmo chão, levantado CLIFF_H px
+  ctx.save();
+  ctx.translate(0, -CLIFF_H);
+  groundTransform(ctx);
+  ctx.drawImage(getPlateauCanvas(), 0, 0, W, PLATEAU_GH);
+  ctx.restore();
+  // face de rocha (voltada para o sul/sudoeste, que é para onde o jogador olha)
+  /** @param {number} xa @param {number} xb */
+  const face = (xa, xb) => {
+    ctx.beginPath();
+    for (let x = xa; x <= xb; x += 4) { const p = proj(x, cliffEdge(x), CLIFF_H); if (x === xa) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }
+    for (let x = xb; x >= xa; x -= 4) { const p = proj(x, cliffEdge(x), 0); ctx.lineTo(p.x, p.y); }
+    ctx.closePath();
+  };
+  face(0, W);
+  const top = proj(0, 0).y, bot = proj(W, 110).y;
+  const grd = ctx.createLinearGradient(0, top, 0, bot);
+  grd.addColorStop(0, '#a08a6a');
+  grd.addColorStop(1, '#6a5640');
+  ctx.fillStyle = grd;
+  ctx.fill();
+  ctx.lineWidth = 1;
+  for (const st of cliffStreaks) {
+    if (st.x > FALL_X1 - 4 && st.x < FALL_X2 + 4) continue;
+    const e = cliffEdge(st.x);
+    const a = proj(st.x, e, CLIFF_H - 3), b = proj(st.x + st.j, e, 2);
+    ctx.strokeStyle = st.light ? 'rgba(200,184,150,0.35)' : 'rgba(40,28,18,0.4)';
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+  // borda de cima (luz) e pé do penhasco (sombra)
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 4) { const p = proj(x, cliffEdge(x), CLIFF_H); if (x) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); }
+  ctx.strokeStyle = '#c4b28c';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 4) { const p = proj(x, cliffEdge(x) + 4, 0); if (x) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); }
+  ctx.strokeStyle = 'rgba(15,25,8,0.3)';
+  ctx.lineWidth = 7;
+  ctx.stroke();
+  // cachoeira
+  ctx.beginPath();
+  for (let x = FALL_X1; x <= FALL_X2; x += 3) { const p = proj(x, cliffEdge(x), CLIFF_H); if (x === FALL_X1) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }
+  for (let x = FALL_X2; x >= FALL_X1; x -= 3) { const p = proj(x, cliffEdge(x), 0); ctx.lineTo(p.x, p.y); }
+  ctx.closePath();
+  const wg = ctx.createLinearGradient(0, proj(FALL_X1, cliffEdge(FALL_X1), CLIFF_H).y, 0, proj(FALL_X1, cliffEdge(FALL_X1), 0).y);
+  wg.addColorStop(0, '#9fd0e0');
+  wg.addColorStop(1, '#eef8fb');
+  ctx.fillStyle = wg;
+  ctx.fill();
+  const t = performance.now() / 1000;
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 1.2;
+  for (let x = FALL_X1 + 3; x < FALL_X2; x += 5) {
+    const e = cliffEdge(x);
+    const ph = ((t * 1.6 + x * 0.13) % 1);
+    const a = proj(x, e, CLIFF_H * (1 - ph)), b = proj(x, e, Math.max(0, CLIFF_H * (1 - ph) - 8));
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+  for (let i = 0; i < 7; i++) {
+    const ph = (t * 1.3 + i / 7) % 1;
+    const gx = FALL_X1 + 3 + i * 6;
+    const p = proj(gx, cliffEdge(gx) + 3 + ph * 10, 0);
+    ctx.fillStyle = `rgba(255,255,255,${0.75 * (1 - ph)})`;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, 3 + ph * 4, 1.6 + ph * 2, 0, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// ---------- Árvores em pé (sprites pré-renderizados) ----------
+const TREE_RES = 2;
+/** @type {Map<string, {img: HTMLCanvasElement, ax: number, ay: number}>} */
+const treeSprites = new Map();
+/** @param {'oak'|'pine'|'bush'} kind @param {number} v */
+function treeSprite(kind, v) {
+  const key = `${kind}${v}`;
+  const hit = treeSprites.get(key);
+  if (hit) return hit;
+  const Wd = 44, Ht = 46, ax = 18, ay = 40;
+  const c = document.createElement('canvas');
+  c.width = Wd * TREE_RES;
+  c.height = Ht * TREE_RES;
+  const g = c.getContext('2d');
+  const sprite = { img: c, ax, ay };
+  if (!g) return sprite;
+  g.scale(TREE_RES, TREE_RES);
+  const rnd = mulberry32(31 + v * 7 + kind.length);
+  if (kind === 'oak') oak(g, ax, ay, 1, rnd);
+  else if (kind === 'pine') pine(g, ax, ay, 1);
+  else berryBush(g, ax, ay);
+  treeSprites.set(key, sprite);
+  return sprite;
+}
+
+/**
+ * Objetos estáticos do terreno (árvores) prontos para ordenar por profundidade.
+ * @param {{x:number,y:number,w:number,h:number}} viewIso retângulo visível (iso) para descartar o que está fora
+ * @returns {{depth:number, draw:(ctx:CanvasRenderingContext2D)=>void}[]}
+ */
+export function treeObjects(viewIso) {
+  const out = [];
+  for (const t of getTrees()) {
+    const p = proj(t.x, t.y, t.z);
+    if (p.x < viewIso.x - 40 || p.x > viewIso.x + viewIso.w + 40 || p.y < viewIso.y - 10 || p.y > viewIso.y + viewIso.h + 50) continue;
+    const sp = treeSprite(t.kind, t.v);
+    const s = t.s * 0.85;
+    out.push({
+      depth: t.x + t.y - (t.z ? 400 : 0),
+      draw: (/** @type {CanvasRenderingContext2D} */ ctx) => {
+        ctx.drawImage(sp.img, p.x - sp.ax * s, p.y - sp.ay * s, sp.img.width / TREE_RES * s, sp.img.height / TREE_RES * s);
+      },
+    });
+  }
+  return out;
 }
 
 // ---------- Elementos animados ----------
@@ -482,7 +679,7 @@ function drawWater(ctx, t) {
   for (let k = 0; k < 46; k++) {
     const u = (k * 0.0217 + t * 0.012) % 1;
     const p = riverSampler.at(u);
-    if (p.y < cliffEdge(p.x) + CLIFF_FACE + 6 && p.y > 0) continue;
+    if (p.y < cliffEdge(p.x) + 6) continue;
     const off = ((k * 37) % 28) - 14;
     const x = p.x - p.dy * off, y = p.y + p.dx * off;
     const a = 0.25 + 0.25 * Math.sin(t * 2 + k);
@@ -502,15 +699,6 @@ function drawWater(ctx, t) {
     ctx.beginPath();
     ctx.ellipse(p.x, p.y, 2 + ph * 9, 1 + ph * 4, 0, 0, Math.PI * 2);
     ctx.stroke();
-  }
-  // espuma da cachoeira
-  const y0 = cliffEdge(828) + CLIFF_FACE + 6;
-  for (let i = 0; i < 6; i++) {
-    const ph = (t * 1.3 + i / 6) % 1;
-    ctx.fillStyle = `rgba(255,255,255,${0.7 * (1 - ph)})`;
-    ctx.beginPath();
-    ctx.arc(808 + i * 7, y0 + ph * 14, 2 + ph * 3, 0, Math.PI * 2);
-    ctx.fill();
   }
 }
 
@@ -586,23 +774,52 @@ export function drawVillager(ctx, x, y, dir, step, color, carry) {
 }
 
 /**
- * Camada animada sobre o terreno (antes dos prédios).
+ * Animações deitadas no chão (brilho da água, peixes, sombras de nuvens). Espaço iso.
  * @param {CanvasRenderingContext2D} ctx
- * @param {{ activeMines: boolean[], playerColor: string }} opts
  */
-export function drawAmbientGround(ctx, opts) {
+export function drawAmbientFlat(ctx) {
   const t = performance.now() / 1000;
+  ctx.save();
+  groundTransform(ctx);
   drawWater(ctx, t);
+  for (let k = 0; k < 3; k++) {
+    const x = ((t * 7 + k * 520) % (W + 500)) - 250;
+    const y = 120 + k * 230;
+    ctx.fillStyle = 'rgba(10,20,5,0.08)';
+    ctx.beginPath();
+    ctx.ellipse(x, y, 110, 60, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + 70, y + 20, 70, 45, 0, 0, Math.PI * 2);
+    ctx.ellipse(x - 60, y + 14, 60, 40, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** @typedef {{depth:number, draw:(ctx:CanvasRenderingContext2D)=>void}} SceneObj */
+
+/**
+ * Animais e aldeões em pé, para entrar na ordenação por profundidade.
+ * @param {{ activeMines: boolean[], playerColor: string }} opts
+ * @returns {SceneObj[]}
+ */
+export function ambientObjects(opts) {
+  const t = performance.now() / 1000;
+  /** @type {SceneObj[]} */
+  const out = [];
+  /** @param {number} gx @param {number} gy @param {(ctx:CanvasRenderingContext2D, x:number, y:number)=>void} fn */
+  const at = (gx, gy, fn) => {
+    const p = proj(gx, gy);
+    out.push({ depth: gx + gy, draw: (ctx) => fn(ctx, p.x, p.y) });
+  };
   const flock = [[915, 640], [962, 652], [1010, 638], [1060, 660], [990, 672]];
   flock.forEach(([bx, by], i) => {
     const ph = t * 0.12 + i * 1.7;
-    const x = bx + Math.sin(ph) * 12;
     const facing = Math.cos(ph) >= 0 ? 1 : -1;
     const graze = Math.sin(t * 1.5 + i) > 0.3 ? 1.5 : 0;
-    sheep(ctx, x, by, facing, graze);
+    at(bx + Math.sin(ph) * 12, by, (ctx, x, y) => sheep(ctx, x, y, facing, graze));
   });
-  deer(ctx, 575 + Math.sin(t * 0.08) * 20, 190, Math.cos(t * 0.08) >= 0 ? 1 : -1, t);
-  deer(ctx, 1150 + Math.sin(t * 0.06 + 2) * 16, 192, Math.cos(t * 0.06 + 2) >= 0 ? 1 : -1, t + 3);
+  at(575 + Math.sin(t * 0.08) * 20, 150, (ctx, x, y) => deer(ctx, x, y, Math.cos(t * 0.08) >= 0 ? 1 : -1, t));
+  at(1150 + Math.sin(t * 0.06 + 2) * 16, 165, (ctx, x, y) => deer(ctx, x, y, Math.cos(t * 0.06 + 2) >= 0 ? 1 : -1, t + 3));
   for (let i = 0; i < mineSamplers.length; i++) {
     if (!opts.activeMines[i]) continue;
     const s = mineSamplers[i];
@@ -610,30 +827,21 @@ export function drawAmbientGround(ctx, opts) {
       const u = (t * 26 / s.total + k * 0.95 + i * 0.37) % 2;
       const outbound = u < 1;
       const p = s.at(outbound ? u : 2 - u);
-      const dir = (outbound ? p.dx : -p.dx) >= 0 ? 1 : -1;
-      drawVillager(ctx, p.x, p.y + 2, dir, t * 9 + k, opts.playerColor, outbound);
+      const sdx = (outbound ? 1 : -1) * (p.dx - p.dy);
+      at(p.x, p.y, (ctx, x, y) => drawVillager(ctx, x, y, sdx >= 0 ? 1 : -1, t * 9 + k, opts.playerColor, outbound));
     }
   }
+  return out;
 }
 
-/** Nuvens e pássaros: passam por cima de tudo, abaixo dos painéis. @param {CanvasRenderingContext2D} ctx */
+/** Pássaros planando sobre o mapa (espaço iso). @param {CanvasRenderingContext2D} ctx */
 export function drawAmbientSky(ctx) {
   const t = performance.now() / 1000;
-  for (let k = 0; k < 3; k++) {
-    const x = ((t * 7 + k * 520) % (W + 500)) - 250;
-    const y = 170 + k * 200;
-    ctx.fillStyle = 'rgba(10,20,5,0.07)';
-    ctx.beginPath();
-    ctx.ellipse(x, y, 110, 40, 0, 0, Math.PI * 2);
-    ctx.ellipse(x + 70, y + 12, 70, 30, 0, 0, Math.PI * 2);
-    ctx.ellipse(x - 60, y + 10, 60, 26, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
   for (let k = 0; k < 2; k++) {
     const a = t * (0.22 + k * 0.07) + k * Math.PI;
-    const r = 200 - k * 60;
-    const x = 620 + Math.cos(a) * r;
-    const y = 360 + Math.sin(a) * r * 0.55;
+    const r = 260 - k * 80;
+    const x = ISO_W / 2 + Math.cos(a) * r;
+    const y = ISO_H / 2 + Math.sin(a) * r * 0.5;
     const flap = Math.sin(t * 7 + k) * 3;
     ctx.fillStyle = 'rgba(0,0,0,0.15)';
     ctx.beginPath(); ctx.ellipse(x + 30, y + 45, 5, 2, 0, 0, Math.PI * 2); ctx.fill();
@@ -733,9 +941,9 @@ export function minimapToWorld(L, hx, hy) {
  * @param {CanvasRenderingContext2D} ctx
  * @param {{x:number,y:number,w:number,h:number,color:string}[]} markers
  * @param {MinimapLayout} L
- * @param {{x:number,y:number,w:number,h:number}} viewRect
+ * @param {{x:number,y:number,w:number,h:number}} viewIso retângulo visível no espaço iso
  */
-export function drawMinimap(ctx, markers, L, viewRect) {
+export function drawMinimap(ctx, markers, L, viewIso) {
   const { cx, cy, hw, hh } = L;
   const diamond = () => {
     ctx.beginPath();
@@ -770,17 +978,21 @@ export function drawMinimap(ctx, markers, L, viewRect) {
     ctx.fillRect(m.x, m.y, m.w, m.h);
   }
   ctx.restore();
-  // área visível na tela
-  const x1 = Math.max(0, viewRect.x), y1 = Math.max(0, viewRect.y);
-  const x2 = Math.min(W, viewRect.x + viewRect.w), y2 = Math.min(H, viewRect.y + viewRect.h);
-  if (x2 - x1 < W - 1 || y2 - y1 < H - 1) {
-    const pts = [mmPoint(L, x1, y1), mmPoint(L, x2, y1), mmPoint(L, x2, y2), mmPoint(L, x1, y2)];
+  // área visível na tela (retângulo iso → quadrilátero no chão)
+  const fullyVisible = viewIso.w >= ISO_W - 1 && viewIso.h >= ISO_H - 1;
+  if (!fullyVisible) {
+    const corners = [[viewIso.x, viewIso.y], [viewIso.x + viewIso.w, viewIso.y], [viewIso.x + viewIso.w, viewIso.y + viewIso.h], [viewIso.x, viewIso.y + viewIso.h]];
+    const pts = corners.map(([ix, iy]) => { const g = unproj(ix, iy); return mmPoint(L, g.x, g.y); });
+    ctx.save();
+    diamond();
+    ctx.clip();
     ctx.beginPath();
     pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
     ctx.closePath();
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 1.5;
     ctx.stroke();
+    ctx.restore();
   }
   diamond();
   ctx.strokeStyle = '#c69042';

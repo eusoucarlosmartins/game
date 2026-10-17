@@ -18,11 +18,13 @@ import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgr
 import { sellRaw, sellAllRaw, sellProduct, sellAllProduct } from './market.js';
 import { chooseCivilization } from './civilizations.js';
 import { loadSprites } from './sprites.js';
-import { W, OVERWORLD, factoryRect } from './geometry.js';
+import { W } from './geometry.js';
 import { resizeCanvas, screenToWorld, screenToHud, hudSize, centerOn } from './camera.js';
 import { attachInput } from './input.js';
 import { initHud, syncHud, openPanel, haptic } from './hud.js';
 import { minimapLayout, minimapToWorld } from './terrain.js';
+import { pickOverworld } from './overworld.js';
+import { proj } from './iso.js';
 import { freshStartIfNeeded } from './reset.js';
 
 // ---------- Game over / vitória ----------
@@ -161,7 +163,8 @@ attachInput(canvas, {
       const h = screenToHud(sx, sy);
       const target = minimapToWorld(minimapLayout(hs.w, hs.h), h.x, h.y);
       if (target) {
-        centerOn('overworld', target.x, target.y);
+        const p = proj(target.x, target.y);
+        centerOn('overworld', p.x, p.y);
         if (pointerType !== 'mouse') haptic(6);
         return;
       }
@@ -178,46 +181,34 @@ attachInput(canvas, {
  */
 function handleWorldTap(x, y) {
   if (state.scene === 'overworld') {
-    // Toque em entrada de mina (ocupada → entra; vazia → abre catálogo)
-    for (let i = 0; i < OVERWORLD.mineEntrances.length; i++) {
-      if (hitTest(x, y, OVERWORLD.mineEntrances[i])) {
-        const m = state.mines[i];
-        if (m) {
-          setActiveMine(i);
-          state.scene = 'mine';
-          if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 0) {
-            state.tutorial.step = 1;
-          }
-          play('whoosh');
-          log(`Entrou em ${m.name}. Aloque mineradores em veios descobertos.`);
-        } else {
-          openBuyMineModal();
-          play('click');
-        }
-        return true;
+    const hit = pickOverworld(x, y);
+    if (!hit) return false;
+    if (hit.kind === 'mine') {
+      const m = state.mines[hit.idx];
+      setActiveMine(hit.idx);
+      state.scene = 'mine';
+      if (state.tutorial && !state.tutorial.dismissed && state.tutorial.step === 0) {
+        state.tutorial.step = 1;
       }
-    }
-    if (hitTest(x, y, OVERWORLD.mercadoNode)) {
+      play('whoosh');
+      log(`Entrou em ${m.name}. Aloque mineradores em veios descobertos.`);
+    } else if (hit.kind === 'mineSlot') {
+      openBuyMineModal();
+      play('click');
+    } else if (hit.kind === 'factory') {
+      openRecipeModal(hit.idx);
+      play('click');
+    } else if (hit.kind === 'factorySlot') {
+      openPanel('factory');
+      play('click');
+    } else if (hit.kind === 'mercado') {
       openPanel('market');
       play('click');
-      return true;
-    }
-    if (hitTest(x, y, OVERWORLD.pesquisaNode)) {
+    } else {
       openUpgradesModal();
       play('click');
-      return true;
     }
-    // Fábrica (prédio ou painel de receita acima) → modal de receita
-    for (let i = 0; i < state.factories.length; i++) {
-      const r = factoryRect(i);
-      const panelArea = { x: r.x, y: r.y - 52, w: r.w, h: 52 };
-      if (hitTest(x, y, r) || hitTest(x, y, panelArea)) {
-        openRecipeModal(i);
-        play('click');
-        return true;
-      }
-    }
-    return false;
+    return true;
   }
 
   // ----- Cena MINA -----
