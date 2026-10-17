@@ -266,11 +266,17 @@ export function tryTNT(r, c) {
 export function tryCompass(r, c) {
   const mine = activeMine();
   if (!mine || !mine.grid) return;
-  if (state.money < TOOLS.compass.costPerUse) { log('Sem dinheiro para a Bússola.', 'bad'); return; }
-  state.money -= TOOLS.compass.costPerUse;
-  revealAround(mine.grid, r, c, TOOLS.compass.radius);
+  if (!compassAt(mine, r, c)) { log('Sem dinheiro para a Bússola.', 'bad'); return; }
   log(`Bússola: área revelada (raio ${TOOLS.compass.radius}).`, 'good');
   play('whoosh');
+}
+
+/** Bússola numa mina qualquer (usada também pelos gerentes). @param {any} mine @param {number} r @param {number} c */
+export function compassAt(mine, r, c) {
+  if (!mine || !mine.grid || state.money < TOOLS.compass.costPerUse) return false;
+  state.money -= TOOLS.compass.costPerUse;
+  revealAround(mine.grid, r, c, TOOLS.compass.radius);
+  return true;
 }
 
 export function tryPlaceWorker(r, c) {

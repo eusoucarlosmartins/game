@@ -1,6 +1,7 @@
 // progression.js — eras, modificadores de equipamento/pesquisa, e cálculos derivados
 import { state, log } from './state.js';
 import { ERAS, ROMAN, EQ_BY_ID, RES_BY_ID, CFG, R, CIV_BY_ID } from './data.js';
+import { staffMod } from './staff.js';
 
 /**
  * Soma modificadores da civilização escolhida (Age of Tapuia).
@@ -77,9 +78,9 @@ export function transportTier() {
 // Modificadores derivados
 export const cartCapacity   = () => Math.floor(CFG.cartCapacityBase * (1 + eqMod('cartCap') + civMod('cartCap')));
 export const cartSpeed      = () => CFG.cartSpeedBase * (1 + eqMod('cartSpd') + civMod('cartSpd'));
-export const wagonCapacity  = () => Math.floor(CFG.wagonCapacityBase * (1 + eqMod('wagonCap') + civMod('wagonCap')));
-export const wagonSpeed     = () => CFG.wagonSpeedBase * (1 + eqMod('wagonSpd') + civMod('wagonSpd'));
-export const mineRateMul    = () => (1 + eqMod('mineRate') + civMod('mineRate')) * (state.eventMineMul !== undefined ? state.eventMineMul : 1);
-export const factSpdMul     = () => 1 + eqMod('factSpd') + civMod('factSpd');
+export const wagonCapacity  = () => Math.floor(CFG.wagonCapacityBase * (1 + eqMod('wagonCap') + civMod('wagonCap'))) + staffMod('wagonCapFlat');
+export const wagonSpeed     = () => CFG.wagonSpeedBase * (1 + eqMod('wagonSpd') + civMod('wagonSpd') + staffMod('wagonSpd'));
+export const mineRateMul    = () => (1 + eqMod('mineRate') + civMod('mineRate') + staffMod('mineRate')) * (state.eventMineMul !== undefined ? state.eventMineMul : 1);
+export const factSpdMul     = () => 1 + eqMod('factSpd') + civMod('factSpd') + staffMod('factSpd');
 export const pileMaxMul     = () => 1 + eqMod('pileMax') + civMod('pileMax');
 export const pileMax        = () => Math.floor(CFG.minePileMaxBase * pileMaxMul());

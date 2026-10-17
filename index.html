@@ -107,6 +107,7 @@
           <button data-tab="factory" class="tab">Fábricas</button>
           <button data-tab="market" class="tab">Mercado</button>
           <button data-tab="projects" class="tab">Projetos</button>
+          <button data-tab="staff" class="tab">Equipe</button>
           <button data-tab="shop" class="tab">Loja</button>
           <button data-tab="research" class="tab">Pesquisa</button>
           <button data-tab="stats" class="tab">Stats</button>
@@ -197,6 +198,14 @@
           </div>
         </section>
 
+        <section class="tab-panel" data-panel="staff">
+          <div class="panel">
+            <h3>Equipe <small id="staff-payroll" style="font-weight:normal;opacity:.75"></small></h3>
+            <p class="hint">Funcionários dão bônus; gerentes trabalham sozinhos. Novos cargos e níveis liberam a cada era. O salário sai todo dia — sem dinheiro, quem não recebe para.</p>
+            <div id="staff-list" class="staff-list"></div>
+          </div>
+        </section>
+
         <section class="tab-panel" data-panel="shop">
           <div class="panel">
             <h3>Loja de Equipamentos</h3>
@@ -256,6 +265,7 @@
       <button type="button" data-sheet="mine"><span class="nav-ico">⛏</span><span class="nav-lbl">Mina</span></button>
       <button type="button" data-sheet="factory"><span class="nav-ico">🏭</span><span class="nav-lbl">Fábricas</span></button>
       <button type="button" data-sheet="market"><span class="nav-ico">💰</span><span class="nav-lbl">Mercado</span></button>
+      <button type="button" data-sheet="staff"><span class="nav-ico">👔</span><span class="nav-lbl">Equipe</span></button>
       <button type="button" data-sheet="more"><span class="nav-ico">☰</span><span class="nav-lbl">Mais</span></button>
     </nav>
   </div>

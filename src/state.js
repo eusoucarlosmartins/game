@@ -71,6 +71,12 @@ export const state = {
   // Tutorial inicial (auto-avança baseado em ações)
   tutorial: { step: 0, dismissed: false, autoDismissIn: 12 },
 
+  // Equipe: nível de cada funcionário/gerente contratado e quem está sem salário
+  /** @type {Record<string, number>} */
+  staff: {},
+  /** @type {Record<string, boolean>} */
+  staffUnpaid: {},
+
   // Estado transitório (não persistido)
   mouseX: -1,
   mouseY: -1,

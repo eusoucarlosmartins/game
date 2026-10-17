@@ -1516,3 +1516,43 @@ html, body {
 .hud-advisor.info-only { cursor: default; background: linear-gradient(to bottom, #efe2bf, #d8c498); }
 .adv-ico { font-size: 18px; }
 @keyframes advisorIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+/* Equipe */
+.staff-list { display: flex; flex-direction: column; gap: 8px; }
+.staff-card {
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.35);
+  border: 1px solid rgba(122,75,37,0.4);
+  border-radius: 6px;
+}
+.staff-card.hired { background: rgba(198,144,66,0.18); border-color: var(--brass-dark); }
+.staff-card.unpaid { background: rgba(168,46,28,0.12); border-color: var(--bad); }
+.staff-face {
+  flex-shrink: 0;
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  background: var(--paper-dark);
+  border: 2px solid var(--wood-dark);
+  border-radius: 50%;
+}
+.staff-info { flex: 1; min-width: 0; font-size: 12px; }
+.staff-name { font-weight: bold; font-size: 13px; color: var(--ink); }
+.staff-stars { color: var(--brass-dark); letter-spacing: 1px; }
+.staff-role { opacity: 0.75; font-size: 11px; margin-bottom: 3px; }
+.staff-now { color: var(--good); margin-bottom: 2px; }
+.staff-next { color: var(--ink-soft); }
+.staff-btn { margin-top: 6px; }
+.staff-btn .mini-btn { min-height: 34px; padding: 0 12px; }
+.tab.attention, .bottom-nav button.attention { position: relative; }
+.tab.attention::after, .bottom-nav button.attention::after {
+  content: '';
+  position: absolute;
+  top: 4px; right: 6px;
+  width: 9px; height: 9px;
+  background: #e0553a;
+  border: 2px solid #f1e3c2;
+  border-radius: 50%;
+}

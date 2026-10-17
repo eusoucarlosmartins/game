@@ -8,6 +8,7 @@ import { currentEra, eraData, isRecipeUnlocked } from './progression.js';
 import { ingredientHave } from './factories.js';
 import { workersActive, getRevealedOreCounts, isResourceUnlocked } from './mine.js';
 import { openModal, closeModal } from './modals.js';
+import { STAFF, staffLevel, staffActive, nextLevel, canHire, totalSalary, staffAttention } from './staff.js';
 import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
 import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } from './projects.js';
 
@@ -326,6 +327,50 @@ function renderEquipment() {
   }).join('');
 }
 
+let lastStaffSig = '';
+function renderStaff() {
+  const cont = $('staff-list');
+  if (!cont) return;
+  const era = currentEra();
+  const sig = STAFF.map((d) => `${d.id}${staffLevel(d.id)}${canHire(d.id)}${staffActive(d.id)}`).join('|') + era;
+  const pay = $('staff-payroll');
+  if (pay) pay.textContent = totalSalary() > 0 ? `· folha ${fmtMoney(totalSalary())}/dia` : '';
+  const tab = document.querySelector('.tab[data-tab="staff"]');
+  if (tab) tab.classList.toggle('attention', staffAttention());
+  const navBtn = document.querySelector('#bottom-nav [data-sheet="staff"]');
+  if (navBtn) navBtn.classList.toggle('attention', staffAttention());
+  if (sig === lastStaffSig) return;
+  lastStaffSig = sig;
+  cont.innerHTML = STAFF.map((d) => {
+    const lv = staffLevel(d.id);
+    const cur = lv > 0 ? d.levels[lv - 1] : null;
+    const nl = nextLevel(d.id);
+    const status = canHire(d.id);
+    const stars = d.levels.map((_, i) => (i < lv ? '★' : '☆')).join('');
+    const unpaid = lv > 0 && !staffActive(d.id);
+    let btn = '';
+    if (nl) {
+      const label = lv === 0 ? 'Contratar' : `Promover p/ nível ${lv + 1}`;
+      btn = status === 'era'
+        ? `<button class="mini-btn" disabled>🔒 Era ${ROMAN[nl.era - 1]}</button>`
+        : `<button class="mini-btn" data-action="hire-staff" data-id="${d.id}" ${status !== 'ok' ? 'disabled' : ''}>${label} · ${fmtMoney(nl.cost)}</button>`;
+    } else {
+      btn = '<span class="eq-cost">Nível máximo</span>';
+    }
+    return `
+      <div class="staff-card${lv > 0 ? ' hired' : ''}${unpaid ? ' unpaid' : ''}">
+        <div class="staff-face">${d.emoji}</div>
+        <div class="staff-info">
+          <div class="staff-name">${d.name} <span class="staff-stars" title="Nível ${lv}/${d.levels.length}">${stars}</span></div>
+          <div class="staff-role">${d.role}${cur ? ` · salário ${fmtMoney(cur.salary)}/dia` : ''}${unpaid ? ' · <b>sem salário, parado</b>' : ''}</div>
+          ${cur ? `<div class="staff-now">Agora: ${cur.desc}</div>` : ''}
+          ${nl ? `<div class="staff-next">${lv === 0 ? 'Ao contratar' : 'Próximo nível'}: ${nl.desc} <em>(+${fmtMoney(nl.salary)}/dia)</em></div>` : ''}
+          <div class="staff-btn">${btn}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 function renderResearch() {
   const cont = $('research-list');
   let html = '';
@@ -491,6 +536,7 @@ export function syncUI() {
   renderProjects();
   renderStats();
   renderEquipment();
+  renderStaff();
   renderResearch();
   renderLog();
 

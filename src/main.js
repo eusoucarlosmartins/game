@@ -26,6 +26,7 @@ import { minimapLayout, minimapToWorld } from './terrain.js';
 import { pickOverworld } from './overworld.js';
 import { proj } from './iso.js';
 import { freshStartIfNeeded } from './reset.js';
+import { updateStaff, hireOrPromote } from './staff.js';
 
 // ---------- Game over / vitória ----------
 function fmt(n) { return Math.floor(n).toLocaleString('pt-BR'); }
@@ -98,6 +99,7 @@ function tick(dt) {
   updateEvents(dt);
   updateProjects(dt);
   updateDay(dt);
+  updateStaff(dt);
   checkAchievements();
   updateAchievementToast(dt);
   // Auto-dismiss do último passo do tutorial
@@ -314,6 +316,7 @@ document.addEventListener('click', (e) => {
     }
     case 'project-start':  activateProject(t.dataset.id); break;
     case 'project-cancel': cancelProject(); break;
+    case 'hire-staff':     if (hireOrPromote(t.dataset.id || '')) play('success'); break;
     case 'tool-select':    setTool(t.dataset.tool); play('click'); break;
     case 'confirm-buy-mine': {
       buyMine(t.dataset.id);

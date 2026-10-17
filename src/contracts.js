@@ -5,6 +5,7 @@ import { fmtMoney, rand, irand, clamp } from './util.js';
 import { currentEra, eraData, checkEraProgression } from './progression.js';
 import { play } from './audio.js';
 import { nobodyMakes } from './advisor.js';
+import { staffMod } from './staff.js';
 
 export function pickContractProduct() {
   const era = eraData(currentEra());
@@ -22,7 +23,7 @@ export function generateContract() {
   else need = irand(2, 5);
   if (currentEra() === 1) need = irand(3, 5);
   // produto que nenhuma fábrica faz: tempo extra para trocar a receita e produzir
-  const deadline = rand(CFG.cityDeadlineMin, CFG.cityDeadlineMax) + price * 0.15 + (nobodyMakes(productId) ? 30 : 0);
+  const deadline = rand(CFG.cityDeadlineMin, CFG.cityDeadlineMax) + price * 0.15 + (nobodyMakes(productId) ? 30 : 0) + staffMod('deadline');
   let city = CFG.cities[irand(0, CFG.cities.length - 1)];
   if (state.contract && city === state.contract.city) {
     city = CFG.cities[(CFG.cities.indexOf(city) + 1) % CFG.cities.length];
@@ -37,7 +38,7 @@ export function deliverProduct(amount) {
   state.contract.delivered += amount;
   if (state.contract.delivered >= state.contract.need) {
     const p = R[state.contract.product];
-    const bonus = (state.eventContractBonus || 0) + (state.permContractBonus || 0);
+    const bonus = (state.eventContractBonus || 0) + (state.permContractBonus || 0) + staffMod('contractReward');
     const reward = Math.round((CFG.contractReward + p.price * state.contract.need) * (1 + bonus));
     const rpGain = 5 + Math.floor(state.contract.need * 0.6 + p.price * 0.02);
     state.money += reward;
