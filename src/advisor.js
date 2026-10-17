@@ -109,7 +109,7 @@ export function resourcesInUse() {
 }
 
 /** @param {string} res */
-const siloFull = (res) => (state.warehouse[res] || 0) >= ((state.silos[res] && state.silos[res].cap) || SILO_DEFAULT_CAP) - 1;
+export const siloFull = (res) => (state.warehouse[res] || 0) >= ((state.silos[res] && state.silos[res].cap) || SILO_DEFAULT_CAP) - 1;
 
 /**
  * Libera UM trabalhador ocioso: num posto ou veio cujo silo encheu ou cujo

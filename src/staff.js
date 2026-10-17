@@ -2,10 +2,10 @@
 // Funcionários dão bônus fixos; gerentes também AGEM sozinhos usando o conselheiro
 // (sem mexer na tela do jogador) e registram o que fizeram.
 import { state, log } from './state.js';
-import { CFG, R, WORKER_COST, SILO_DEFAULT_CAP } from './data.js';
+import { CFG, R, RECIPE_BY_ID, WORKER_COST, SILO_DEFAULT_CAP } from './data.js';
 import { currentEra } from './progression.js';
-import { adviseContract, freeWorkers, freeIdleWorker, resourcesInUse } from './advisor.js';
-import { changeSiteWorkers, SITE_BY_ID } from './sites.js';
+import { adviseContract, freeWorkers, freeIdleWorker, resourcesInUse, findHiddenVein, siloFull } from './advisor.js';
+import { changeSiteWorkers, buildSite, siteState, siteUnlocked, SITE_BY_RESOURCE } from './sites.js';
 import { setRecipe, buyFactory } from './factories.js';
 import { compassAt, isResourceUnlocked } from './mine.js';
 import { sellProduct, sellRaw } from './market.js';
@@ -45,9 +45,9 @@ export const STAFF = [
   {
     id: 'gerenteMina', name: 'Gerente de Mina', emoji: '⛑️', role: 'Mina',
     levels: [
-      { era: 2, cost: 500, salary: 15, desc: 'Coloca mineradores livres (ou ociosos) nos veios que o pedido precisa.', auto: ['mine'] },
-      { era: 3, cost: 1100, salary: 22, desc: 'Também chama o geólogo e usa a Bússola sozinho ($40 por uso).', auto: ['mine', 'explore'] },
-      { era: 4, cost: 2200, salary: 32, desc: 'Também contrata mineradores quando todos estão ocupados (guarda $600 de reserva).', auto: ['mine', 'explore', 'hire'] },
+      { era: 2, cost: 500, salary: 15, desc: 'Mantém os trabalhadores ocupados nos veios e postos que as fábricas e o pedido usam (silo mais vazio primeiro).', auto: ['mine'] },
+      { era: 3, cost: 1100, salary: 22, desc: 'Também usa o geólogo e a Bússola ($40) e constrói os postos de coleta que faltam (guarda $300).', auto: ['mine', 'explore', 'build'] },
+      { era: 4, cost: 2200, salary: 32, desc: 'Também contrata trabalhadores quando falta gente (guarda $600 de reserva).', auto: ['mine', 'explore', 'build', 'hire'] },
     ],
   },
   {
@@ -161,6 +161,77 @@ function assignWorkerTo(resource) {
   return false;
 }
 
+/** Matérias-primas que as fábricas e o pedido usam, do silo mais vazio para o mais cheio. */
+export function neededRaw() {
+  const need = new Set();
+  /** @param {string} id @param {number} depth */
+  const add = (id, depth) => {
+    const rec = RECIPE_BY_ID[id];
+    if (!rec || depth > 3) return;
+    for (const ing in rec.in) {
+      if (R[ing].free) continue;
+      if (R[ing].kind === 'raw') need.add(ing);
+      else add(ing, depth + 1);
+    }
+  };
+  for (const f of state.factories) add(f.recipeId, 0);
+  if (state.contract) add(state.contract.product, 0);
+  return [...need]
+    .filter((id) => isResourceUnlocked(id) && !siloFull(id))
+    .sort((p, q) => (state.warehouse[p] || 0) - (state.warehouse[q] || 0));
+}
+
+/** @param {string} res */
+function workersOn(res) {
+  let n = 0;
+  for (const m of state.mines || []) {
+    if (!m || !m.grid) continue;
+    for (const row of m.grid) for (const t of row) if (t.worker && t.resource === res) n++;
+  }
+  const site = SITE_BY_RESOURCE[res];
+  if (site) n += siteState(site.id).workers || 0;
+  return n;
+}
+
+/** Gerente de Mina: mantém todo mundo trabalhando no que as fábricas precisam. */
+function mineManagerTick() {
+  const needs = neededRaw();
+  for (const res of needs) {
+    const name = R[res].name;
+    const site = SITE_BY_RESOURCE[res];
+    if (site) {
+      const st = siteState(site.id);
+      if (!st.built) {
+        if (can('gerenteMina', 'build') && siteUnlocked(site.id) && state.money >= site.cost + 300 && buildSite(site.id)) {
+          log(`⛑️ Gerente de Mina construiu o ${site.emoji} ${site.name}.`);
+        }
+        continue;
+      }
+      if (st.workers < 2 && (freeWorkers() > 0 || freeIdleWorker(res)) && changeSiteWorkers(site.id, +1, freeWorkers)) {
+        log(`⛑️ Gerente de Mina mandou um trabalhador para o ${site.name}.`);
+      }
+      continue;
+    }
+    // minério de mina: no máximo 2 por recurso, para dividir a equipe
+    if (workersOn(res) >= 2) continue;
+    if (freeWorkers() <= 0 && workersOn(res) === 0 && can('gerenteMina', 'hire') && state.money >= WORKER_COST + 600) {
+      state.money -= WORKER_COST;
+      state.workersTotal++;
+      log(`⛑️ Gerente de Mina contratou um trabalhador (${fmtMoney(WORKER_COST)}).`);
+    }
+    if ((freeWorkers() > 0 || workersOn(res) === 0) && assignWorkerTo(res)) {
+      log(`⛑️ Gerente de Mina pôs um minerador em ${name}.`);
+      continue;
+    }
+    if (workersOn(res) === 0 && can('gerenteMina', 'explore') && state.money >= 140) {
+      const hidden = findHiddenVein(res);
+      if (hidden && compassAt(state.mines[hidden.mineIdx], hidden.r, hidden.c)) {
+        log(`⛑️ Gerente de Mina usou a Bússola atrás de ${name}.`);
+      }
+    }
+  }
+}
+
 let actTimer = 0;
 let lastPaidDay = -1;
 let lastEraSeen = -1;
@@ -190,20 +261,9 @@ export function updateStaff(dt) {
     if (a.kind === 'switch' && can('gerenteContrato', 'switch') && a.factory !== undefined && a.recipe) {
       setRecipe(a.factory, a.recipe);
       log(`📋 Gerente de Contratos colocou a Fábrica ${a.factory + 1} em ${R[a.recipe].name}.`);
-    } else if (a.kind === 'mine' && a.resource && can('gerenteMina', 'mine')) {
-      if (freeWorkers() <= 0 && can('gerenteMina', 'hire') && state.money >= WORKER_COST + 600) {
-        state.money -= WORKER_COST;
-        state.workersTotal++;
-        log(`⛑️ Gerente de Mina contratou um minerador (${fmtMoney(WORKER_COST)}).`);
-      }
-      if (assignWorkerTo(a.resource)) log(`⛑️ Gerente de Mina pôs um minerador em ${R[a.resource].name}.`);
-    } else if (a.kind === 'siteWorker' && a.site && can('gerenteMina', 'mine')) {
-      if (freeWorkers() <= 0) freeIdleWorker(a.resource || '');
-      if (changeSiteWorkers(a.site, +1, freeWorkers)) log(`⛑️ Gerente de Mina mandou um trabalhador para o ${SITE_BY_ID[a.site].name}.`);
-    } else if (a.kind === 'explore' && can('gerenteMina', 'explore') && a.mineIdx !== undefined && a.r !== undefined && a.c !== undefined && state.money >= 140) {
-      if (compassAt(state.mines[a.mineIdx], a.r, a.c)) log(`⛑️ Gerente de Mina usou a Bússola e achou ${R[a.resource || 'coal'].name}.`);
     }
   }
+  if (can('gerenteMina', 'mine')) mineManagerTick();
 
   if (can('gerenteFabrica', 'sellProducts')) {
     const used = resourcesInUse();
