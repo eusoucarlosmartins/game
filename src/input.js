@@ -17,8 +17,12 @@ export function attachInput(canvas, handlers) {
   let multi = false;
   let pinchDist = 0;
   let pinchMid = { x: 0, y: 0 };
+  // Safari (iPhone/iPad) tem gestos próprios de pinça: ele faz o zoom por eles e os
+  // ponteiros só arrastam — senão o Safari cancela os toques e a pinça não pega.
+  const safariGestures = 'ongesturechange' in window;
+  let gesturing = false;
 
-  /** @param {PointerEvent | WheelEvent} e */
+  /** @param {{ clientX: number, clientY: number }} e */
   const local = (e) => {
     const r = canvas.getBoundingClientRect();
     return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -62,12 +66,13 @@ export function attachInput(canvas, handlers) {
     pointers.set(e.pointerId, p);
     if (pointers.size >= 2) {
       const t = twoFinger();
-      if (pinchDist > 0) zoomAt(state.scene, t.mid.x, t.mid.y, t.dist / pinchDist);
+      if (pinchDist > 0 && !safariGestures) zoomAt(state.scene, t.mid.x, t.mid.y, t.dist / pinchDist);
       panBy(state.scene, t.mid.x - pinchMid.x, t.mid.y - pinchMid.y);
       pinchDist = t.dist;
       pinchMid = t.mid;
       return;
     }
+    if (gesturing) return; // o dedo que sobrou de uma pinça não arrasta o mapa
     if (!dragging && Math.hypot(p.x - startX, p.y - startY) > TAP_SLOP) dragging = true;
     if (dragging) {
       panBy(state.scene, p.x - prev.x, p.y - prev.y);
@@ -116,4 +121,23 @@ export function attachInput(canvas, handlers) {
   }, { passive: false });
 
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  if (safariGestures) {
+    let lastScale = 1;
+    /** @param {Event} e */
+    const gesture = (e) => {
+      e.preventDefault();
+      const g = /** @type {any} */ (e);
+      if (e.type === 'gesturestart') { gesturing = true; multi = true; lastScale = 1; return; }
+      if (e.type === 'gestureend') { gesturing = false; return; }
+      const p = local(g);
+      if (g.scale > 0) zoomAt(state.scene, p.x, p.y, g.scale / lastScale);
+      lastScale = g.scale;
+    };
+    for (const t of ['gesturestart', 'gesturechange', 'gestureend']) canvas.addEventListener(t, gesture, { passive: false });
+    // fora do canvas a pinça não pode virar zoom da página inteira
+    document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+  }
+  // dois dedos no canvas nunca rolam nem ampliam a página
+  canvas.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 }
