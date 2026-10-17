@@ -518,6 +518,10 @@ html, body {
 }
 #game {
   display: block;
+  /* tamanho vem do palco, nunca do próprio canvas (no Safari o height:100%
+     podia cair no tamanho intrínseco e o canvas crescer a cada resize) */
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   touch-action: none;

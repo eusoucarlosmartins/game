@@ -34,6 +34,7 @@ import { updateTrade, buyCart } from './trade.js';
 import { updateArmy, buildBarracks, trainUnit, sendExpedition, setReserveUnits } from './military.js';
 import { checkVictory } from './victory.js';
 import { addSiteWorker } from './hud.js';
+import { initDebug } from './debug.js';
 
 // ---------- Game over / vitória ----------
 function fmt(n) { return Math.floor(n).toLocaleString('pt-BR'); }
@@ -163,6 +164,7 @@ function frame(now) {
 }
 
 // ---------- Canvas: gestos (toque/mouse) → câmera ou ação no mundo ----------
+initDebug();
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game'));
 resizeCanvas(canvas);
 new ResizeObserver(() => resizeCanvas(canvas)).observe(canvas);
