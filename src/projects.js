@@ -6,6 +6,8 @@ import { fmtMoney, clamp } from './util.js';
 import { currentEra } from './progression.js';
 import { play } from './audio.js';
 
+export const WONDER_HOLD = 120; // segundos que a Maravilha precisa ficar de pé
+
 /**
  * @typedef {object} ProjectDef
  * @property {string} id
@@ -14,7 +16,8 @@ import { play } from './audio.js';
  * @property {number} eraReq
  * @property {Record<string, number>} requirements
  * @property {{ money: number, approval: number, rp: number }} reward
- * @property {{ type: 'contract_bonus'|'passive_income'|'approval_floor', value: number } | null} [effect]
+ * @property {{ type: 'contract_bonus'|'passive_income'|'approval_floor'|'wonder', value: number } | null} [effect]
+ * @property {boolean} [wonder]
  */
 
 /** @type {ProjectDef[]} */
@@ -73,9 +76,49 @@ export const PROJECT_DEFS = [
     reward: { money: 5000, approval: 30, rp: 100 },
     effect: { type: 'approval_floor', value: 30 },
   },
+  {
+    id: 'maravilha',
+    wonder: true,
+    name: '🌉 Ponte Hercílio Luz (Maravilha)',
+    desc: 'A grande ponte pênsil de Santa Catarina. Concluída, precisa ficar de pé por 2 minutos: aí vem a vitória.',
+    eraReq: 6,
+    requirements: { steel_beam: 120, rails: 40, steam_engine: 10, brick: 150, wood_plank: 80 },
+    reward: { money: 10000, approval: 40, rp: 200 },
+    effect: { type: 'wonder', value: WONDER_HOLD },
+  },
 ];
 
 const PROJECT_BY_ID = Object.fromEntries(PROJECT_DEFS.map((p) => [p.id, p]));
+
+/** Fração 0..1 da obra (concluída = 1). @param {string} id */
+export function projectProgress(id) {
+  if (state.projects.completed.includes(id)) return 1;
+  const a = state.projects.active;
+  if (!a || a.id !== id) return 0;
+  const def = PROJECT_BY_ID[id];
+  let have = 0, need = 0;
+  for (const res in def.requirements) {
+    need += def.requirements[res];
+    have += Math.min(a.progress[res] || 0, def.requirements[res]);
+  }
+  return need ? have / need : 0;
+}
+
+/**
+ * Contagem da Maravilha de pé. Retorna true no instante da vitória.
+ * @param {number} dt
+ */
+export function updateWonder(dt) {
+  const w = state.wonder;
+  if (!w || !w.done || w.won) return false;
+  w.countdown -= dt;
+  if (w.countdown <= 0) {
+    w.countdown = 0;
+    w.won = true;
+    return true;
+  }
+  return false;
+}
 
 // Taxa de drenagem: 0.5 unidade/s por recurso, paralela em todos.
 const DRAIN_RATE = 0.5;
@@ -165,6 +208,9 @@ function applyEffect(eff) {
   } else if (eff.type === 'passive_income') {
     state.passiveIncome = (state.passiveIncome || 0) + eff.value;
     log(`Efeito permanente: +${fmtMoney(eff.value)} de renda diária.`, 'good');
+  } else if (eff.type === 'wonder') {
+    state.wonder = { done: true, countdown: eff.value, won: false };
+    log(`🌉 A Maravilha está de pé! Mantenha-a por ${eff.value}s para a vitória.`, 'good');
   } else if (eff.type === 'approval_floor') {
     state.approvalFloor = Math.max(state.approvalFloor || 0, eff.value);
     log(`Efeito permanente: aprovação nunca cai abaixo de ${eff.value}.`, 'good');

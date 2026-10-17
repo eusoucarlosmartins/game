@@ -18,6 +18,7 @@ import {
   VILLAGES, BRIDGE, CLIFF_H, drawVillager, choppableTrees,
 } from './terrain.js';
 import { SITES, siteState, siteUnlocked } from './sites.js';
+import { projectProgress } from './projects.js';
 import { drawScrollPanel, drawResourceIcon, plate, civColor, civAccent, UI_FONT } from './paint.js';
 
 /** @typedef {import('./layout.js').Footprint} Footprint */
@@ -948,6 +949,96 @@ function siteWorkers(def) {
   return out;
 }
 
+// ---------- Maravilha: Ponte Hercílio Luz sobre o rio ----------
+const WB = { x1: 752, x2: 900, y: 326, d: 14, t1: 790, t2: 856 };
+
+const wonderVisible = () => currentEra() >= 6 || projectProgress('maravilha') > 0;
+
+/** @param {CanvasRenderingContext2D} ctx */
+function drawWonderBridge(ctx) {
+  const p = projectProgress('maravilha');
+  const done = p >= 1;
+  const t = performance.now() / 1000;
+  const towerH = 92 * Math.min(1, p * 2.2);
+  const deckP = Math.max(0, Math.min(1, (p - 0.35) / 0.4));
+  const cableP = Math.max(0, Math.min(1, (p - 0.7) / 0.3));
+  const dz = 16;
+  // torres
+  for (const tx of [WB.t1, WB.t2]) {
+    if (towerH > 2) {
+      box(ctx, tx - 4, WB.y - 2, 8, 4, towerH, '#8a8f96');
+      box(ctx, tx - 4, WB.y + WB.d - 2, 8, 4, towerH, '#8a8f96');
+      if (towerH > 70) box(ctx, tx - 4, WB.y - 2, 8, WB.d + 4, 5, '#6a7078', towerH - 8);
+    }
+  }
+  // tabuleiro
+  if (deckP > 0) {
+    const x2 = WB.x1 + (WB.x2 - WB.x1) * deckP;
+    box(ctx, WB.x1, WB.y, x2 - WB.x1, WB.d, 3, done ? '#a8a29a' : '#9a948a', dz);
+    ctx.strokeStyle = '#4a4f56'; ctx.lineWidth = 1;
+    for (const gy of [WB.y, WB.y + WB.d]) {
+      const a = proj(WB.x1, gy, dz + 9), b = proj(x2, gy, dz + 9);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+  }
+  // cabos pênseis (catenária) + pendurais
+  if (cableP > 0) {
+    ctx.strokeStyle = done ? '#e8e0c8' : '#b8b2a0';
+    ctx.lineWidth = 1.6;
+    for (const gy of [WB.y, WB.y + WB.d]) {
+      const pts = [];
+      for (let i = 0; i <= 40 * cableP; i++) {
+        const gx = WB.x1 + ((WB.x2 - WB.x1) * i) / 40;
+        let z;
+        if (gx < WB.t1) z = dz + 6 + (towerH - dz - 6) * ((gx - WB.x1) / (WB.t1 - WB.x1));
+        else if (gx > WB.t2) z = dz + 6 + (towerH - dz - 6) * ((WB.x2 - gx) / (WB.x2 - WB.t2));
+        else { const u = (gx - WB.t1) / (WB.t2 - WB.t1); z = dz + 6 + (towerH - dz - 6) * (4 * (u - 0.5) * (u - 0.5)); }
+        pts.push(proj(gx, gy, z));
+        if (i % 4 === 0 && gx > WB.x1 + 4) {
+          const base = proj(gx, gy, dz + 3);
+          ctx.save(); ctx.lineWidth = 0.6; ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y); ctx.stroke(); ctx.restore();
+        }
+      }
+      ctx.beginPath();
+      pts.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
+      ctx.stroke();
+    }
+  }
+  // andaimes durante a obra
+  if (!done && p > 0) {
+    ctx.strokeStyle = 'rgba(122,82,40,0.8)'; ctx.lineWidth = 1;
+    for (const tx of [WB.t1, WB.t2]) {
+      for (let z = 10; z < towerH; z += 14) {
+        const a = proj(tx - 7, WB.y - 4, z), b = proj(tx + 7, WB.y + WB.d + 4, z);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      }
+    }
+  }
+  // luzes e fogos enquanto conta para a vitória
+  if (done) {
+    for (let i = 0; i < 14; i++) {
+      const gx = WB.x1 + ((WB.x2 - WB.x1) * (i + 0.5)) / 14;
+      const q = proj(gx, WB.y + WB.d, dz + 10);
+      ctx.fillStyle = `rgba(255,230,140,${0.6 + 0.4 * Math.sin(t * 3 + i)})`;
+      ctx.beginPath(); ctx.arc(q.x, q.y, 1.6, 0, Math.PI * 2); ctx.fill();
+    }
+    if (state.wonder && !state.wonder.won) {
+      for (let k = 0; k < 3; k++) {
+        const ph = (t * 0.6 + k / 3) % 1;
+        const c = proj(WB.t1 + (k - 1) * 30 + 30, WB.y, 130 + ph * 60);
+        const cols = ['#ffd44a', '#e0553a', '#7ad0ff'];
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * Math.PI * 2;
+          ctx.fillStyle = cols[k];
+          ctx.globalAlpha = 1 - ph;
+          ctx.fillRect(c.x + Math.cos(a) * ph * 26, c.y + Math.sin(a) * ph * 26, 2, 2);
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+}
+
 // ---------- Cena ----------
 /**
  * Desenha o mapa. Chamar com a transformação da câmera (espaço iso) ativa.
@@ -996,6 +1087,7 @@ export function drawOverworldIso(ctx, viewIso, hoverX, hoverY) {
     objs.push({ depth: def.x + def.y + def.w / 2 + def.d / 2, draw: (c) => drawSiteStructure(c, def) });
     objs.push(...siteWorkers(def));
   }
+  if (wonderVisible()) objs.push({ depth: WB.x1 + WB.y + 60, draw: drawWonderBridge });
   objs.push(...cityObjects(), ...villageObjects(), ...treeObjects(viewIso, lumberCut()));
   objs.push(...ambientObjects({
     activeMines: MINE_FP.map((_, i) => !!state.mines[i] && !state.mines[i].exhausted),
@@ -1078,6 +1170,14 @@ function drawLabels(ctx, hover) {
       });
     addRect('site', i, r);
   });
+  if (wonderVisible()) {
+    const wp = proj((WB.x1 + WB.x2) / 2, WB.y + WB.d + 18);
+    const prog = Math.round(projectProgress('maravilha') * 100);
+    const w = state.wonder;
+    const txt = w && w.done ? `🌉 PONTE HERCÍLIO LUZ · vitória em ${Math.ceil(w.countdown)}s`
+      : prog > 0 ? `🌉 PONTE HERCÍLIO LUZ · ${prog}%` : '🌉 MARAVILHA: inicie em Projetos';
+    plate(ctx, wp.x, wp.y, txt, { bg: w && w.done ? '#ffe680' : '#f1e3c2', size: 11 });
+  }
   const mc = centerOf(MERCADO_FP), pc = centerOf(PESQUISA_FP);
   const pm = proj(mc.x, MERCADO_FP.y + MERCADO_FP.d + 10);
   addRect('mercado', 0, plate(ctx, pm.x, pm.y, '💰 MERCADO', { bg: isTarget(hover, 'mercado', 0) ? '#ffe680' : '#e2b765' }));

@@ -9,7 +9,7 @@ import { buyFactory, setRecipe, updateFactories } from './factories.js';
 import { updateWagon } from './wagon.js';
 import { updateContract, updateDay } from './contracts.js';
 import { updateEvents } from './events.js';
-import { updateProjects, activateProject, cancelProject } from './projects.js';
+import { updateProjects, activateProject, cancelProject, updateWonder } from './projects.js';
 import { checkAchievements, updateAchievementToast } from './achievements.js';
 import { play, toggleMute, unlockOnFirstGesture } from './audio.js';
 import { draw } from './draw.js';
@@ -76,6 +76,15 @@ function populateGameOverModal(victory) {
 
 function checkEnd() {
   if (state.over) return;
+  if (state.wonder && state.wonder.won) {
+    state.over = true;
+    $('end-title').textContent = 'Vitória pela Maravilha!';
+    $('end-text').textContent = `A Ponte Hercílio Luz atravessa o rio, de pé e iluminada. Em ${state.day} dias, a Tapuia deixou sua marca em Santa Catarina.`;
+    populateGameOverModal(true);
+    $('game-over').classList.remove('hidden');
+    play('chime');
+    return;
+  }
   if (state.approval <= 0) {
     state.over = true;
     $('end-title').textContent = 'A população te destituiu';
@@ -103,6 +112,7 @@ function tick(dt) {
   updateProjects(dt);
   updateDay(dt);
   updateStaff(dt);
+  updateWonder(dt);
   checkAchievements();
   updateAchievementToast(dt);
   // Auto-dismiss do último passo do tutorial
