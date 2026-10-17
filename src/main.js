@@ -1,7 +1,7 @@
 // main.js — entry: loop, eventos, init
 import { state, log } from './state.js';
 import { $ } from './util.js';
-import { ROMAN, CFG, MINE, ACHIEVEMENTS, CIV_BY_ID } from './data.js';
+import { ROMAN, MINE, ACHIEVEMENTS, CIV_BY_ID } from './data.js';
 import { currentEra } from './progression.js';
 import { saveGame, loadGame, deleteSave, updateSaveStatus, AUTOSAVE_INTERVAL } from './save.js';
 import { initMines, connectToShaft, updateMine, tryDigClick, tryTNT, tryCompass, tryPlaceWorker, tryHireWorker, setTool, setActiveMine, buyMine, regenerateMine, activeMine as getActiveMine } from './mine.js';
@@ -31,6 +31,7 @@ import { buildSite } from './sites.js';
 import { placeRelics } from './relics.js';
 import { updateTrade, buyCart } from './trade.js';
 import { updateArmy, buildBarracks, trainUnit, sendExpedition } from './military.js';
+import { checkVictory } from './victory.js';
 import { addSiteWorker } from './hud.js';
 
 // ---------- Game over / vitória ----------
@@ -78,11 +79,14 @@ function populateGameOverModal(victory) {
 
 function checkEnd() {
   if (state.over) return;
-  if (state.wonder && state.wonder.won) {
+  const v = checkVictory();
+  if (v) {
+    state.victory = v.kind;
     state.over = true;
-    $('end-title').textContent = 'Vitória pela Maravilha!';
-    $('end-text').textContent = `A Ponte Hercílio Luz atravessa o rio, de pé e iluminada. Em ${state.day} dias, a Tapuia deixou sua marca em Santa Catarina.`;
+    $('end-title').textContent = v.title;
+    $('end-text').textContent = v.text;
     populateGameOverModal(true);
+    $('continue-btn').hidden = false;
     $('game-over').classList.remove('hidden');
     play('chime');
     return;
@@ -92,15 +96,9 @@ function checkEnd() {
     $('end-title').textContent = 'A população te destituiu';
     $('end-text').textContent = 'Sua aprovação caiu a zero. O governo central revogou seu mandato.';
     populateGameOverModal(false);
+    $('continue-btn').hidden = true;
     $('game-over').classList.remove('hidden');
     play('fail');
-  } else if (state.approval >= CFG.approvalMax && state.day >= 21 && state.contractsCompleted >= 10) {
-    state.over = true;
-    $('end-title').textContent = 'Vitória política!';
-    $('end-text').textContent = `Aprovação máxima após ${state.day} dias e ${state.contractsCompleted} contratos cumpridos. Santa Catarina prospera sob a Tapuia.`;
-    populateGameOverModal(true);
-    $('game-over').classList.remove('hidden');
-    play('chime');
   }
 }
 
@@ -375,6 +373,11 @@ document.querySelectorAll('.modal').forEach(m => {
   m.addEventListener('click', (e) => { if (e.target === m) m.classList.add('hidden'); });
 });
 
+$('continue-btn').addEventListener('click', () => {
+  state.over = false;
+  $('game-over').classList.add('hidden');
+  log('Você continua governando. Os outros caminhos de vitória seguem abertos na aba Stats.', 'good');
+});
 $('restart-btn').addEventListener('click', () => {
   deleteSave();
   location.reload();

@@ -12,6 +12,7 @@ import { STAFF, staffLevel, staffActive, nextLevel, canHire, totalSalary, staffA
 import { SITE_BY_ID, siteState, siteUnlocked } from './sites.js';
 import { freeWorkers } from './advisor.js';
 import { ROUTES, carts, routeUnlocked, canBuyCart, CART_COST } from './trade.js';
+import { victoryProgress, POLITICAL } from './victory.js';
 import { army, UNITS, BARRACKS, canTrain, costText, armyPower, rivals, garrisonPower, canConquer, tributePerDay, upkeepPerDay, nextThreat } from './military.js';
 import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
 import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } from './projects.js';
@@ -495,6 +496,15 @@ function renderStats() {
       ['⭐ Aprovação', Math.round(state.approval) + '%', state.approval >= 50 ? 'good' : 'bad'],
       ['🎓 Era atual', `${ROMAN[currentEra() - 1]} — ${eraData(currentEra()).name}`, ''],
       ['⛰ Minas (ativas / esgotadas)', `${minesOwned - minesExhausted} / ${minesExhausted}`, ''],
+      ...(() => {
+        const v = victoryProgress();
+        const pol = v.political;
+        return [
+          ['🌉 Vitória: Maravilha', v.wonder ? 'de pé!' : (state.projects && state.projects.active && state.projects.active.id === 'maravilha' ? 'em obra' : 'Era VI · Projetos'), v.wonder ? 'good' : ''],
+          ['⚔️ Vitória: Conquista', `${v.conquest.have}/${v.conquest.need} territórios`, v.conquest.have ? 'good' : ''],
+          ['⭐ Vitória: Política', `Era ${ROMAN[pol.era - 1]}/${ROMAN[POLITICAL.era - 1]} · ${pol.contracts}/${POLITICAL.contracts} contratos · dia ${pol.day}/${POLITICAL.day} · ${pol.approval}/${POLITICAL.approval}%`, ''],
+        ];
+      })(),
       ['🏺 Relíquias', `${state.relics || 0} (+${fmtMoney((state.relics || 0) * 30)}/dia)`, (state.relics || 0) > 0 ? 'good' : ''],
     ];
     summary.innerHTML = rows.map(([label, value, cls]) =>

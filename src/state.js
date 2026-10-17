@@ -79,6 +79,8 @@ export const state = {
   /** @type {Record<string, {built: boolean, workers: number, harvested: number}>} postos de superfície */
   sites: {},
   relics: 0,
+  /** @type {string | null} caminho de vitória já alcançado (permite continuar jogando) */
+  victory: null,
   /** @type {any} exército, ataques e territórios (criado em military.army()) */
   army: null,
   /** @type {{carts: any[], earned: number}} rotas comerciais */
