@@ -137,26 +137,26 @@ export const EQ_BY_ID = Object.fromEntries(EQUIPMENT.map(e => [e.id, e]));
 // ---------- PESQUISA (compra em PP) ----------
 export const RESEARCH = [
   // Transporte
-  { id: 'r_wagon_big',  cat: 'Transporte', name: 'Carruagem Reforçada', desc: 'Carruagem +30% capacidade',                cost: 40,   effect: 'wagonCap',  mod: 0.30, tier: 1 },
-  { id: 'r_car',        cat: 'Transporte', name: 'Carro a Combustão',   desc: '+50% capacidade, +30% velocidade',          cost: 120,  effect: 'wagonCap',  mod: 0.50, mod2: 0.30, e2: 'wagonSpd', tier: 2, req: 'r_wagon_big' },
-  { id: 'r_truck',      cat: 'Transporte', name: 'Caminhão',            desc: '+80% capacidade, +30% velocidade',          cost: 250,  effect: 'wagonCap',  mod: 0.80, mod2: 0.30, e2: 'wagonSpd', tier: 3, req: 'r_car' },
-  { id: 'r_bigtruck',   cat: 'Transporte', name: 'Caminhão Grande',     desc: '+120% capacidade, +20% velocidade',         cost: 450,  effect: 'wagonCap',  mod: 1.20, mod2: 0.20, e2: 'wagonSpd', tier: 4, req: 'r_truck' },
-  { id: 'r_carreta',    cat: 'Transporte', name: 'Carreta',             desc: '+200% capacidade',                          cost: 700,  effect: 'wagonCap',  mod: 2.00, tier: 5, req: 'r_bigtruck' },
-  { id: 'r_train',      cat: 'Transporte', name: 'Trem a Vapor',        desc: '+400% capacidade, +80% velocidade',         cost: 1200, effect: 'wagonCap',  mod: 4.00, mod2: 0.80, e2: 'wagonSpd', tier: 6, req: 'r_carreta' },
-  { id: 'r_diesel',     cat: 'Transporte', name: 'Locomotiva Diesel',   desc: '+600% capacidade, +120% velocidade',        cost: 2000, effect: 'wagonCap',  mod: 6.00, mod2: 1.20, e2: 'wagonSpd', tier: 7, req: 'r_train' },
+  { id: 'r_wagon_big',  cat: 'Transporte', name: 'Carruagem Reforçada', desc: 'Carruagem +30% capacidade',                cost: 25,   effect: 'wagonCap',  mod: 0.30, tier: 1 },
+  { id: 'r_car',        cat: 'Transporte', name: 'Carro a Combustão',   desc: '+50% capacidade, +30% velocidade',          cost: 60,  effect: 'wagonCap',  mod: 0.50, mod2: 0.30, e2: 'wagonSpd', tier: 2, req: 'r_wagon_big' },
+  { id: 'r_truck',      cat: 'Transporte', name: 'Caminhão',            desc: '+80% capacidade, +30% velocidade',          cost: 125,  effect: 'wagonCap',  mod: 0.80, mod2: 0.30, e2: 'wagonSpd', tier: 3, req: 'r_car' },
+  { id: 'r_bigtruck',   cat: 'Transporte', name: 'Caminhão Grande',     desc: '+120% capacidade, +20% velocidade',         cost: 225,  effect: 'wagonCap',  mod: 1.20, mod2: 0.20, e2: 'wagonSpd', tier: 4, req: 'r_truck' },
+  { id: 'r_carreta',    cat: 'Transporte', name: 'Carreta',             desc: '+200% capacidade',                          cost: 350,  effect: 'wagonCap',  mod: 2.00, tier: 5, req: 'r_bigtruck' },
+  { id: 'r_train',      cat: 'Transporte', name: 'Trem a Vapor',        desc: '+400% capacidade, +80% velocidade',         cost: 600, effect: 'wagonCap',  mod: 4.00, mod2: 0.80, e2: 'wagonSpd', tier: 6, req: 'r_carreta' },
+  { id: 'r_diesel',     cat: 'Transporte', name: 'Locomotiva Diesel',   desc: '+600% capacidade, +120% velocidade',        cost: 1000, effect: 'wagonCap',  mod: 6.00, mod2: 1.20, e2: 'wagonSpd', tier: 7, req: 'r_train' },
   // Mineração
-  { id: 'r_drill_manual',cat: 'Mineração', name: 'Broca Manual',         desc: '+20% velocidade de mineração',             cost: 80,   effect: 'mineRate',  mod: 0.20 },
-  { id: 'r_drill_pneu',  cat: 'Mineração', name: 'Broca Pneumática',     desc: '+35% adicional na mineração',              cost: 200,  effect: 'mineRate',  mod: 0.35, req: 'r_drill_manual' },
-  { id: 'r_steam_dig',   cat: 'Mineração', name: 'Escavadeira a Vapor',  desc: '+60% adicional na mineração',              cost: 500,  effect: 'mineRate',  mod: 0.60, req: 'r_drill_pneu' },
-  { id: 'r_hydro',       cat: 'Mineração', name: 'Britadeira Hidráulica', desc: '+100% adicional na mineração',            cost: 1000, effect: 'mineRate',  mod: 1.00, req: 'r_steam_dig' },
+  { id: 'r_drill_manual',cat: 'Mineração', name: 'Broca Manual',         desc: '+20% velocidade de mineração',             cost: 40,   effect: 'mineRate',  mod: 0.20 },
+  { id: 'r_drill_pneu',  cat: 'Mineração', name: 'Broca Pneumática',     desc: '+35% adicional na mineração',              cost: 100,  effect: 'mineRate',  mod: 0.35, req: 'r_drill_manual' },
+  { id: 'r_steam_dig',   cat: 'Mineração', name: 'Escavadeira a Vapor',  desc: '+60% adicional na mineração',              cost: 250,  effect: 'mineRate',  mod: 0.60, req: 'r_drill_pneu' },
+  { id: 'r_hydro',       cat: 'Mineração', name: 'Britadeira Hidráulica', desc: '+100% adicional na mineração',            cost: 500, effect: 'mineRate',  mod: 1.00, req: 'r_steam_dig' },
   // Produção
-  { id: 'r_line',        cat: 'Produção', name: 'Linha de Montagem',    desc: 'Fábricas +30% velocidade',                  cost: 150,  effect: 'factSpd',   mod: 0.30 },
-  { id: 'r_forge',       cat: 'Produção', name: 'Forja Industrial',     desc: '+50% adicional na produção',                cost: 380,  effect: 'factSpd',   mod: 0.50, req: 'r_line' },
-  { id: 'r_auto',        cat: 'Produção', name: 'Automação a Vapor',    desc: '+80% adicional na produção',                cost: 800,  effect: 'factSpd',   mod: 0.80, req: 'r_forge' },
+  { id: 'r_line',        cat: 'Produção', name: 'Linha de Montagem',    desc: 'Fábricas +30% velocidade',                  cost: 75,  effect: 'factSpd',   mod: 0.30 },
+  { id: 'r_forge',       cat: 'Produção', name: 'Forja Industrial',     desc: '+50% adicional na produção',                cost: 190,  effect: 'factSpd',   mod: 0.50, req: 'r_line' },
+  { id: 'r_auto',        cat: 'Produção', name: 'Automação a Vapor',    desc: '+80% adicional na produção',                cost: 400,  effect: 'factSpd',   mod: 0.80, req: 'r_forge' },
   // Logística
-  { id: 'r_dual_rails',  cat: 'Logística',name: 'Trilhos Duplos',       desc: 'Carrinho da mina +50% capacidade',          cost: 100,  effect: 'cartCap',   mod: 0.50 },
-  { id: 'r_elevator',    cat: 'Logística',name: 'Elevador Industrial',  desc: 'Carrinho +60% velocidade',                  cost: 250,  effect: 'cartSpd',   mod: 0.60, req: 'r_dual_rails' },
-  { id: 'r_pulley',      cat: 'Logística',name: 'Polias Múltiplas',     desc: 'Capacidade das pilhas +50%',                cost: 500,  effect: 'pileMax',   mod: 0.50 },
+  { id: 'r_dual_rails',  cat: 'Logística',name: 'Trilhos Duplos',       desc: 'Carrinho da mina +50% capacidade',          cost: 50,  effect: 'cartCap',   mod: 0.50 },
+  { id: 'r_elevator',    cat: 'Logística',name: 'Elevador Industrial',  desc: 'Carrinho +60% velocidade',                  cost: 125,  effect: 'cartSpd',   mod: 0.60, req: 'r_dual_rails' },
+  { id: 'r_pulley',      cat: 'Logística',name: 'Polias Múltiplas',     desc: 'Capacidade das pilhas +50%',                cost: 250,  effect: 'pileMax',   mod: 0.50 },
 ];
 export const RES_BY_ID = Object.fromEntries(RESEARCH.map(r => [r.id, r]));
 export const RES_CATS = [...new Set(RESEARCH.map(r => r.cat))];

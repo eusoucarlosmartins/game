@@ -125,3 +125,14 @@ describe('ERAS', () => {
     }
   });
 });
+
+describe('árvore de pesquisa cabe numa partida (eras dobradas)', () => {
+  it('custo total entre 4.000 e 5.000 PP e as 3 mais baratas cabem nos ~140 PP da Era III', async () => {
+    const { RESEARCH } = await import('../src/data.js');
+    const costs = RESEARCH.map((r) => r.cost).sort((a, b) => a - b);
+    const total = costs.reduce((a, b) => a + b, 0);
+    expect(total).toBeGreaterThanOrEqual(4000);
+    expect(total).toBeLessThanOrEqual(5000);
+    expect(costs[0] + costs[1] + costs[2]).toBeLessThanOrEqual(140);
+  });
+});
