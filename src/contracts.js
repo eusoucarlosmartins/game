@@ -6,6 +6,7 @@ import { currentEra, eraData, checkEraProgression } from './progression.js';
 import { play } from './audio.js';
 import { nobodyMakes } from './advisor.js';
 import { staffMod } from './staff.js';
+import { relicIncome } from './relics.js';
 
 export function pickContractProduct() {
   const era = eraData(currentEra());
@@ -83,6 +84,11 @@ export function updateDay(dt) {
     state.day++;
     state.rp += 2;
     // renda passiva diária (de projetos como Banco do Estado)
+    const relicGold = relicIncome();
+    if (relicGold > 0) {
+      state.money += relicGold;
+      state.totalEarnings = (state.totalEarnings || 0) + relicGold;
+    }
     if (state.passiveIncome && state.passiveIncome > 0) {
       state.money += state.passiveIncome;
       state.totalEarnings = (state.totalEarnings || 0) + state.passiveIncome;

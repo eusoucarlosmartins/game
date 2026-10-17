@@ -357,6 +357,27 @@ export function drawMineGridVol(ctx, mine) {
   }
   ctx.restore();
 
+  // relíquias reveladas: brilho dourado no bloco
+  for (let r = 0; r < MINE.rows; r++) {
+    for (let c = 0; c < MINE.cols; c++) {
+      const tile = mine.grid[r][c];
+      if (!tile.revealed || !tile.relic) continue;
+      const px = gx + c * cell + cell / 2, py = gy + r * cell + cell / 2;
+      const pulse = (Math.sin(t * 3 + c) + 1) / 2;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const glow = ctx.createRadialGradient(px, py, 2, px, py, 26);
+      glow.addColorStop(0, `rgba(255,220,120,${0.45 + 0.3 * pulse})`);
+      glow.addColorStop(1, 'rgba(255,200,80,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(px - 26, py - 26, 52, 52);
+      ctx.restore();
+      ctx.font = `20px ${UI_FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🏺', px, py + 1);
+    }
+  }
   for (let r = 0; r < MINE.rows; r++) {
     for (let c = 0; c < MINE.cols; c++) {
       const tile = mine.grid[r][c];

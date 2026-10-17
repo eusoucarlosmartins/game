@@ -420,6 +420,7 @@ function renderStats() {
       ['⭐ Aprovação', Math.round(state.approval) + '%', state.approval >= 50 ? 'good' : 'bad'],
       ['🎓 Era atual', `${ROMAN[currentEra() - 1]} — ${eraData(currentEra()).name}`, ''],
       ['⛰ Minas (ativas / esgotadas)', `${minesOwned - minesExhausted} / ${minesExhausted}`, ''],
+      ['🏺 Relíquias', `${state.relics || 0} (+${fmtMoney((state.relics || 0) * 30)}/dia)`, (state.relics || 0) > 0 ? 'good' : ''],
     ];
     summary.innerHTML = rows.map(([label, value, cls]) =>
       `<li><span class="label">${label}</span><span class="value ${cls}">${value}</span></li>`

@@ -1083,6 +1083,7 @@ function drawLabels(ctx, hover) {
   addRect('mercado', 0, plate(ctx, pm.x, pm.y, '💰 MERCADO', { bg: isTarget(hover, 'mercado', 0) ? '#ffe680' : '#e2b765' }));
   const pp = proj(pc.x, PESQUISA_FP.y + PESQUISA_FP.d + 10);
   addRect('pesquisa', 0, plate(ctx, pp.x, pp.y, '📚 PESQUISA', { bg: isTarget(hover, 'pesquisa', 0) ? '#ffe680' : '#e2b765' }));
+  if (state.relics > 0) plate(ctx, pp.x, pp.y + 20, `🏺 ${state.relics} relíquia${state.relics > 1 ? 's' : ''} · +$${state.relics * 30}/dia`, { bg: '#f1e3c2', size: 10 });
   const cs = proj(CITY_SIGN.x, CITY_SIGN.y);
   plate(ctx, cs.x, cs.y, `${(state.currentCity || 'Florianópolis').toUpperCase()} · ${cityTitle(state.contractsCompleted || 0)}`, { bg: '#c69042', size: 13 });
   const civ = state.civilization ? CIV_BY_ID[state.civilization] : null;

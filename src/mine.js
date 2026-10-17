@@ -3,6 +3,7 @@
 import { state, log } from './state.js';
 import { R, DEPOSIT_TYPES, MINE, TOOLS, SILO_DEFAULT_CAP, WORKER_COST, MINE_CATALOG } from './data.js';
 import { SURFACE_RESOURCES, siteWorkersTotal, updateSites } from './sites.js';
+import { placeRelics, collectRelicFrom } from './relics.js';
 import { irand, fmtMoney } from './util.js';
 import { mineRateMul, currentEra, eraData } from './progression.js';
 import { play } from './audio.js';
@@ -92,6 +93,8 @@ function buildMineGrid(mine, oreBias) {
   mine.grid[1][cc + 1] = oreTile('iron_ore', 25, true);
   revealAround(mine.grid, 0, cc, 2);
   revealAround(mine.grid, 1, cc, 1);
+  mine.relicsPlaced = false;
+  placeRelics(mine);
 }
 
 /**
@@ -226,6 +229,7 @@ function digTile(grid, r, c) {
   const t = tileAt(grid, r, c);
   if (!t) return;
   if (t.type === 'dirt' || t.type === 'stone') {
+    if (collectRelicFrom(t)) play('success');
     grid[r][c] = airTile(true);
     state.tilesDug++;
   } else if (t.type === 'ore') {
@@ -248,6 +252,7 @@ export function tryTNT(r, c) {
       const t = tileAt(mine.grid, nr, nc);
       if (!t || t.type === 'shaft') continue;
       if (t.type === 'dirt' || t.type === 'stone') {
+        collectRelicFrom(t);
         mine.grid[nr][nc] = airTile(true);
         dug++;
       } else if (t.type === 'ore') {

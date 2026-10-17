@@ -28,6 +28,7 @@ import { proj } from './iso.js';
 import { freshStartIfNeeded } from './reset.js';
 import { updateStaff, hireOrPromote } from './staff.js';
 import { buildSite } from './sites.js';
+import { placeRelics } from './relics.js';
 import { addSiteWorker } from './hud.js';
 
 // ---------- Game over / vitória ----------
@@ -378,7 +379,7 @@ if (loaded) {
   state.eraReached = Math.max(state.eraReached || 1, currentEra());
   // Garante array de minas válido após carregar (migração já feita em save.js)
   if (!state.mines || state.mines.length === 0) initMines();
-  for (const m of state.mines) connectToShaft(m);
+  for (const m of state.mines) { connectToShaft(m); placeRelics(m); }
   // Saves antigos sem campo tutorial: marca como dismissed (não atrapalha)
   if (!state.tutorial) state.tutorial = { step: 0, dismissed: true, autoDismissIn: 0 };
   log(`Partida carregada (dia ${state.day}, ${state.contractsCompleted} contratos, Era ${ROMAN[state.eraReached - 1]}).`, 'good');
