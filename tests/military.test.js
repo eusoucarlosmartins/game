@@ -6,7 +6,7 @@ describe('exército e fronteiras', () => {
   beforeEach(() => {
     state.army = null;
     state.civilization = 'catarinense';
-    state.contractsCompleted = 8; // Era III
+    state.contractsCompleted = 16; // Era III
     state.money = 10000;
     state.approval = 50;
     state.day = 1;
@@ -21,15 +21,15 @@ describe('exército e fronteiras', () => {
   });
 
   it('quartel exige Era III e dinheiro; unidades consomem os produtos de guerra', () => {
-    state.contractsCompleted = 3;
+    state.contractsCompleted = 6;
     expect(buildBarracks()).toBe(false);
-    state.contractsCompleted = 8;
+    state.contractsCompleted = 16;
     expect(canTrain('milicia')).toBe('barracks');
     expect(buildBarracks()).toBe(true);
     expect(trainUnit('milicia')).toBe(true);
     expect(armyPower()).toBe(1);
     expect(canTrain('fuzileiro')).toBe('era');
-    state.contractsCompleted = 25; // Era V
+    state.contractsCompleted = 50; // Era V
     expect(canTrain('fuzileiro')).toBe('cost');
     state.products.rifle = 1; state.products.bullets = 2;
     expect(trainUnit('fuzileiro')).toBe(true);

@@ -409,9 +409,9 @@ const CITY_LOTS = (() => {
 })();
 
 /** Quantas casas existem com c contratos cumpridos. @param {number} c */
-const housesFor = (c) => Math.min(CITY_LOTS.length, 4 + Math.floor(c * 0.75));
+const housesFor = (c) => Math.min(CITY_LOTS.length, 4 + Math.floor(c * 0.4));
 /** Contratos necessários para o lote i existir. @param {number} i */
-const contractsForLot = (i) => (i < 4 ? 0 : Math.ceil((i - 3) / 0.75));
+const contractsForLot = (i) => (i < 4 ? 0 : Math.ceil((i - 3) / 0.4));
 /** Era vigente com c contratos. @param {number} c */
 function eraAt(c) {
   let era = 1;
@@ -421,10 +421,10 @@ function eraAt(c) {
 
 /** @param {number} c */
 export function cityTitle(c) {
-  if (c < 3) return 'ARRAIAL';
-  if (c < 8) return 'VILA';
-  if (c < 15) return 'CIDADE';
-  if (c < 25) return 'CIDADE PRÓSPERA';
+  if (c < 6) return 'ARRAIAL';
+  if (c < 16) return 'VILA';
+  if (c < 30) return 'CIDADE';
+  if (c < 50) return 'CIDADE PRÓSPERA';
   return 'METRÓPOLE';
 }
 

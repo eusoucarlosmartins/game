@@ -134,7 +134,7 @@ describe('buyMine (catálogo de minas pagas)', () => {
 
   it('canBuyMine bloqueia se dinheiro insuficiente', () => {
     initMines();
-    state.contractsCompleted = 30; // era 5+
+    state.contractsCompleted = 60; // era 5+
     state.money = 100;
     expect(canBuyMine('mar')).toBe(false);
     expect(canBuyMine('serra')).toBe(false);
@@ -142,7 +142,7 @@ describe('buyMine (catálogo de minas pagas)', () => {
 
   it('buyMine adiciona mina ao estado, gasta dinheiro e aplica viés', () => {
     initMines();
-    state.contractsCompleted = 30;
+    state.contractsCompleted = 60;
     state.money = 5000;
     expect(state.mines.length).toBe(2);
     buyMine('mar');
@@ -166,7 +166,7 @@ describe('buyMine (catálogo de minas pagas)', () => {
   it('buyMine é no-op se já possui', () => {
     initMines();
     state.money = 5000;
-    state.contractsCompleted = 30;
+    state.contractsCompleted = 60;
     buyMine('central'); // já possuída
     expect(state.mines.length).toBe(2); // não mudou
     expect(state.money).toBe(5000);

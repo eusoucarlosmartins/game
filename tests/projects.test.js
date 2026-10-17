@@ -30,18 +30,18 @@ describe('canActivateProject', () => {
   });
 
   it('passa se era atual atende', () => {
-    state.contractsCompleted = 3; // era 2
+    state.contractsCompleted = 6; // era 2
     expect(canActivateProject('serraria')).toBe(true);
   });
 
   it('falha se outro projeto está ativo', () => {
-    state.contractsCompleted = 3;
+    state.contractsCompleted = 6;
     state.projects.active = { id: 'outro', progress: {} };
     expect(canActivateProject('serraria')).toBe(false);
   });
 
   it('falha se já concluído', () => {
-    state.contractsCompleted = 3;
+    state.contractsCompleted = 6;
     state.projects.completed = ['serraria'];
     expect(canActivateProject('serraria')).toBe(false);
   });
@@ -49,7 +49,7 @@ describe('canActivateProject', () => {
 
 describe('activateProject', () => {
   it('marca projeto como ativo com progresso vazio', () => {
-    state.contractsCompleted = 3;
+    state.contractsCompleted = 6;
     activateProject('serraria');
     expect(state.projects.active).toBeDefined();
     expect(state.projects.active?.id).toBe('serraria');
@@ -65,7 +65,7 @@ describe('activateProject', () => {
 
 describe('updateProjects (drenagem)', () => {
   it('consome recursos da warehouse (raw) e products (prod) com taxa 0.5/s', () => {
-    state.contractsCompleted = 3;
+    state.contractsCompleted = 6;
     state.warehouse = { wood: 100, stone: 100 };
     state.products = { iron_ingot: 100 };
     activateProject('serraria');
@@ -79,7 +79,7 @@ describe('updateProjects (drenagem)', () => {
   });
 
   it('não consome se warehouse vazia desse recurso', () => {
-    state.contractsCompleted = 3;
+    state.contractsCompleted = 6;
     state.warehouse = { wood: 100, stone: 0 };
     state.products = { iron_ingot: 100 };
     activateProject('serraria');
@@ -90,7 +90,7 @@ describe('updateProjects (drenagem)', () => {
   });
 
   it('completa o projeto e aplica recompensa', () => {
-    state.contractsCompleted = 3;
+    state.contractsCompleted = 6;
     // serraria: wood 40, stone 30 (raw), iron_ingot 5 (prod)
     state.warehouse = { wood: 200, stone: 200 };
     state.products = { iron_ingot: 200 };
@@ -106,7 +106,7 @@ describe('updateProjects (drenagem)', () => {
   });
 
   it('barragem aplica efeito de bônus permanente de contrato', () => {
-    state.contractsCompleted = 25; // era 5
+    state.contractsCompleted = 50; // era 5
     // gunpowder, steel_beam, brick — todos prod
     state.products = { gunpowder: 500, steel_beam: 500, brick: 500 };
     activateProject('barragem');
@@ -115,7 +115,7 @@ describe('updateProjects (drenagem)', () => {
   });
 
   it('banco aplica renda passiva', () => {
-    state.contractsCompleted = 25;
+    state.contractsCompleted = 50;
     // bank_safe, gold_ingot, steel_beam — todos prod
     state.products = { bank_safe: 100, gold_ingot: 100, steel_beam: 100 };
     activateProject('banco');
@@ -126,7 +126,7 @@ describe('updateProjects (drenagem)', () => {
 
 describe('cancelProject', () => {
   it('devolve 50% dos recursos contribuídos', () => {
-    state.contractsCompleted = 3;
+    state.contractsCompleted = 6;
     state.warehouse = { wood: 100, stone: 100, iron_ingot: 100 };
     activateProject('serraria');
     updateProjects(10); // contribuiu 5 de cada
@@ -140,14 +140,14 @@ describe('cancelProject', () => {
 
 describe('availableProjects', () => {
   it('lista apenas projetos da era atual ou anterior', () => {
-    state.contractsCompleted = 3; // era 2
+    state.contractsCompleted = 6; // era 2
     const avail = availableProjects();
     expect(avail.map(p => p.id)).toContain('serraria');
     expect(avail.map(p => p.id)).not.toContain('catedral'); // era 6
   });
 
   it('exclui projetos já concluídos', () => {
-    state.contractsCompleted = 25;
+    state.contractsCompleted = 50;
     state.projects.completed = ['serraria'];
     const avail = availableProjects();
     expect(avail.map(p => p.id)).not.toContain('serraria');

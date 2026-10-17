@@ -4,7 +4,7 @@ import { state } from './state.js';
 import { currentEra } from './progression.js';
 import { rivals, army } from './military.js';
 
-export const POLITICAL = { era: 6, contracts: 60, approval: 100, day: 60 };
+export const POLITICAL = { era: 6, contracts: 120, approval: 100, day: 90 };
 
 export function victoryProgress() {
   const rv = rivals();

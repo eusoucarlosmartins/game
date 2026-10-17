@@ -18,11 +18,11 @@ describe('caminhos para a vitória', () => {
     expect(checkVictory()).toBeNull();
   });
 
-  it('política exige Era VI, 60 contratos, 100% de aprovação e dia 60', () => {
-    state.contractsCompleted = 60;
-    state.day = 59;
+  it('política exige Era VI, 120 contratos, 100% de aprovação e dia 90', () => {
+    state.contractsCompleted = 120;
+    state.day = 89;
     expect(checkVictory()).toBeNull();
-    state.day = 60;
+    state.day = 90;
     expect(checkVictory()?.kind).toBe('political');
     state.approval = 99;
     expect(checkVictory()).toBeNull();

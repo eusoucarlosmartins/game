@@ -6,16 +6,16 @@ describe('Maravilha (Ponte Hercílio Luz)', () => {
   beforeEach(() => {
     state.projects = { active: null, completed: [] };
     state.wonder = null;
-    state.contractsCompleted = 40; // Era VI
+    state.contractsCompleted = 80; // Era VI
     for (const k in state.products) state.products[k] = 0;
     for (const k in state.warehouse) state.warehouse[k] = 0;
   });
 
   it('só pode ser iniciada na Era VI', () => {
-    state.contractsCompleted = 25;
+    state.contractsCompleted = 50;
     activateProject('maravilha');
     expect(state.projects.active).toBeNull();
-    state.contractsCompleted = 40;
+    state.contractsCompleted = 80;
     activateProject('maravilha');
     expect(state.projects.active?.id).toBe('maravilha');
   });

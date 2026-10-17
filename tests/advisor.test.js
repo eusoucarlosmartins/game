@@ -55,14 +55,14 @@ describe('conselheiro do contrato', () => {
   });
 
   it('não troca a única fábrica de lingote quando o aço depende dela e não há estoque', () => {
-    state.contractsCompleted = 8; // Era III: aço liberado
+    state.contractsCompleted = 16; // Era III: aço liberado
     contract('steel');
     const a = adviseContract();
     expect(a?.kind).toBe('buyFactory');
   });
 
   it('com lingotes em estoque, pode trocar a fábrica de lingote para aço', () => {
-    state.contractsCompleted = 8;
+    state.contractsCompleted = 16;
     contract('steel', 3);
     state.products.iron_ingot = 10;
     const a = adviseContract();

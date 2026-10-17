@@ -21,15 +21,15 @@ describe('currentEra', () => {
     expect(currentEra()).toBe(1);
   });
   it('era 2 ao bater 3 contratos', () => {
-    state.contractsCompleted = 3;
+    state.contractsCompleted = 6;
     expect(currentEra()).toBe(2);
   });
   it('era 3 ao bater 8 contratos', () => {
-    state.contractsCompleted = 8;
+    state.contractsCompleted = 16;
     expect(currentEra()).toBe(3);
   });
   it('era 6 (final) ao bater 40 contratos', () => {
-    state.contractsCompleted = 40;
+    state.contractsCompleted = 80;
     expect(currentEra()).toBe(6);
   });
 });
@@ -42,7 +42,7 @@ describe('isDepositUnlocked / isRecipeUnlocked', () => {
   it('wood só desbloqueia na era 2', () => {
     state.contractsCompleted = 0;
     expect(isDepositUnlocked('wood')).toBe(false);
-    state.contractsCompleted = 3;
+    state.contractsCompleted = 6;
     expect(isDepositUnlocked('wood')).toBe(true);
   });
   it('iron_ingot desbloqueado já na era 1', () => {
@@ -50,9 +50,9 @@ describe('isDepositUnlocked / isRecipeUnlocked', () => {
     expect(isRecipeUnlocked('iron_ingot')).toBe(true);
   });
   it('steam_engine só na era 5', () => {
-    state.contractsCompleted = 24; // ainda era 4
+    state.contractsCompleted = 49; // ainda era 4
     expect(isRecipeUnlocked('steam_engine')).toBe(false);
-    state.contractsCompleted = 25; // sobe pra era 5
+    state.contractsCompleted = 50; // sobe pra era 5
     expect(isRecipeUnlocked('steam_engine')).toBe(true);
   });
 });

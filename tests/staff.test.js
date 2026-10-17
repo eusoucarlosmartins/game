@@ -23,7 +23,7 @@ describe('equipe (funcionários e gerentes)', () => {
   it('libera cargos por era', () => {
     expect(canHire('capataz')).toBe('ok');
     expect(canHire('gerenteContrato')).toBe('era');
-    state.contractsCompleted = 3; // Era II
+    state.contractsCompleted = 6; // Era II
     expect(canHire('gerenteContrato')).toBe('ok');
   });
 
@@ -34,7 +34,7 @@ describe('equipe (funcionários e gerentes)', () => {
     expect(state.money).toBe(10000 - 150);
     expect(mineRateMul()).toBeCloseTo(base + 0.15);
     expect(hireOrPromote('capataz')).toBe(false); // nível 2 exige Era II
-    state.contractsCompleted = 3;
+    state.contractsCompleted = 6;
     expect(hireOrPromote('capataz')).toBe(true);
     expect(staffMod('mineRate')).toBeCloseTo(0.3);
   });
@@ -52,7 +52,7 @@ describe('equipe (funcionários e gerentes)', () => {
   });
 
   it('gerente de contratos troca a receita sozinho', () => {
-    state.contractsCompleted = 3;
+    state.contractsCompleted = 6;
     hireOrPromote('gerenteContrato');
     state.contract = { city: 'Lages', product: 'brick', need: 4, delivered: 0, deadline: 90, elapsed: 0 };
     updateStaff(3.1);
@@ -60,7 +60,7 @@ describe('equipe (funcionários e gerentes)', () => {
   });
 
   it('gerente de mina põe minerador livre no veio que falta', () => {
-    state.contractsCompleted = 3;
+    state.contractsCompleted = 6;
     hireOrPromote('gerenteMina');
     state.contract = { city: 'Lages', product: 'iron_ingot', need: 4, delivered: 0, deadline: 90, elapsed: 0 };
     state.warehouse.iron_ore = 10;
@@ -71,7 +71,7 @@ describe('equipe (funcionários e gerentes)', () => {
   });
 
   it('gerente de fábrica acelera a produção e vende produto encalhado', () => {
-    state.contractsCompleted = 8; // Era III
+    state.contractsCompleted = 16; // Era III
     const base = factSpdMul();
     hireOrPromote('gerenteFabrica');
     expect(factSpdMul()).toBeCloseTo(base + 0.2);
