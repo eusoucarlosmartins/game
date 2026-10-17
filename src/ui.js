@@ -16,15 +16,26 @@ import { victoryProgress, POLITICAL } from './victory.js';
 import { army, UNITS, BARRACKS, canTrain, costText, armyPower, rivals, garrisonPower, canConquer, tributePerDay, tributeEach, conquestLoot, conquestBonus, upkeepPerDay, nextThreat, RESERVE_CHOICES, reserveUnits, militaryReserve } from './military.js';
 import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
 
-/** Troca o HTML só quando muda — redesenhar a cada quadro recriava os botões e o clique se perdia. @param {Element | null} el @param {string} html */
+import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } from './projects.js';
+
+// Painéis são redesenhados a cada quadro. Trocar o HTML no meio de um toque
+// recriava o botão entre apertar e soltar e o clique se perdia: só troca
+// quando o conteúdo muda e nunca enquanto há um toque dentro do painel.
+/** @type {EventTarget | null} */
+let pressed = null;
+document.addEventListener('pointerdown', (e) => { pressed = e.target; }, true);
+const release = () => { setTimeout(() => { pressed = null; }, 0); };
+document.addEventListener('pointerup', release, true);
+document.addEventListener('pointercancel', release, true);
+
+/** @param {Element | null} el @param {string} html */
 function setHTML(el, html) {
   const e = /** @type {any} */ (el);
-  if (!e || (e._html === html && e.innerHTML === e._dom)) return;
+  if (!e || e._html === html) return;
+  if (pressed instanceof Node && e.contains(pressed)) return;
   e.innerHTML = html;
   e._html = html;
-  e._dom = e.innerHTML;
 }
-import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } from './projects.js';
 
 function statusWagon() {
   const w = state.wagon;

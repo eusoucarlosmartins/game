@@ -81,6 +81,18 @@ describe('updateProjects (drenagem)', () => {
     expect(state.products.iron_ingot).toBe(99);
   });
 
+  it('estoque vazio não acumula: quando o lote chega, o ritmo continua 0.5/s', () => {
+    state.contractsCompleted = 6;
+    state.warehouse = { wood: 100, stone: 100 };
+    state.products = { iron_ingot: 0 };
+    activateProject('serraria');
+    updateProjects(100);
+    state.products.iron_ingot = 5;
+    updateProjects(2);
+    expect(state.projects.active.progress.iron_ingot).toBe(1);
+    expect(state.products.iron_ingot).toBe(4);
+  });
+
   it('não consome se warehouse vazia desse recurso', () => {
     state.contractsCompleted = 6;
     state.warehouse = { wood: 100, stone: 0 };

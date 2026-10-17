@@ -174,9 +174,9 @@ export function updateProjects(dt) {
     if (have < need) {
       const source = R[res] && R[res].kind === 'raw' ? state.warehouse : state.products;
       const avail = Math.floor(source[res] || 0);
-      // consome só unidades inteiras: o ritmo acumula até completar 1
+      // consome só unidades inteiras no ritmo DRAIN_RATE; sem estoque não acumula
       const acc = state.projects.active.drainAcc || (state.projects.active.drainAcc = {});
-      acc[res] = Math.min(need - have, (acc[res] || 0) + DRAIN_RATE * dt);
+      acc[res] = Math.min(need - have, avail, (acc[res] || 0) + DRAIN_RATE * dt);
       const want = Math.min(Math.floor(acc[res]), need - have, avail);
       if (want > 0) {
         acc[res] -= want;
