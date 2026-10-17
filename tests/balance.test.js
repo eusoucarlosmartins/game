@@ -5,7 +5,8 @@ import { initMines, updateMine, tryPlaceWorker, tryHireWorker, tryDigClick, tryC
 import { updateFactories, setRecipe, buyFactory } from '../src/factories.js';
 import { updateWagon } from '../src/wagon.js';
 import { updateContract, updateDay } from '../src/contracts.js';
-import { adviseContract } from '../src/advisor.js';
+import { adviseContract, freeWorkers, freeIdleWorker } from '../src/advisor.js';
+import { buildSite, changeSiteWorkers } from '../src/sites.js';
 
 /** Robô que só faz o que o conselheiro sugere (1 ação a cada 2s de jogo). */
 function actOnAdvice() {
@@ -13,16 +14,15 @@ function actOnAdvice() {
   if (!a) return;
   if (a.kind === 'switch' && a.factory !== undefined && a.recipe) setRecipe(a.factory, a.recipe);
   else if (a.kind === 'buyFactory') buyFactory();
+  else if (a.kind === 'buildSite' && a.site) buildSite(a.site);
+  else if (a.kind === 'siteWorker' && a.site) {
+    if (freeWorkers() <= 0 && !freeIdleWorker(a.resource || '') && state.money >= 80) tryHireWorker();
+    changeSiteWorkers(a.site, +1, freeWorkers);
+  }
   else if (a.kind === 'mine' && a.mineIdx !== undefined) {
     setActiveMine(a.mineIdx);
     const g = state.mines[a.mineIdx].grid;
-    let busy = 0;
-    for (const row of g) for (const t of row) if (t.worker) busy++;
-    if (busy >= state.workersTotal && state.money >= 80) tryHireWorker();
-    if (busy >= state.workersTotal) {
-      // retira de um veio de outro recurso
-      for (const row of g) for (const t of row) if (t.worker && t.resource !== a.resource) { t.worker = false; busy = -1; break; }
-    }
+    if (freeWorkers() <= 0 && !freeIdleWorker(a.resource || '') && state.money >= 80) tryHireWorker();
     for (let r = 0; r < MINE.rows; r++) for (let c = 0; c < MINE.cols; c++) {
       const t = g[r][c];
       if (t.revealed && t.type === 'ore' && t.resource === a.resource && !t.worker) { tryPlaceWorker(r, c); return; }
@@ -73,6 +73,7 @@ function playSeed(seed) {
   state.contract = null;
   state.nextContractIn = 3;
   state.workersTotal = 2;
+  state.sites = {};
   state.wagon = { pos: 0, dir: 0, state: 'idle', load: 0, product: null, timer: 0 };
   for (const k in state.warehouse) state.warehouse[k] = 0;
   for (const k in state.products) state.products[k] = 0;

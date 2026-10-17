@@ -1556,3 +1556,8 @@ html, body {
   border: 2px solid #f1e3c2;
   border-radius: 50%;
 }
+
+/* Posto de coleta */
+.site-workers { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 12px 0; }
+.site-workers .big-btn { width: 56px; min-height: 48px; font-size: 22px; }
+.site-count { text-align: center; font-size: 14px; }

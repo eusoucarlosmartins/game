@@ -2,6 +2,7 @@
 // poço de elevador animado e depleção de recursos.
 import { state, log } from './state.js';
 import { R, DEPOSIT_TYPES, MINE, TOOLS, SILO_DEFAULT_CAP, WORKER_COST, MINE_CATALOG } from './data.js';
+import { SURFACE_RESOURCES, siteWorkersTotal, updateSites } from './sites.js';
 import { irand, fmtMoney } from './util.js';
 import { mineRateMul, currentEra, eraData } from './progression.js';
 import { play } from './audio.js';
@@ -123,6 +124,8 @@ function oreTile(resource, amount, revealed) {
 
 function placeOreVeins(grid, oreBias) {
   for (const dep of DEPOSIT_TYPES) {
+    // madeira, pedra, argila, areia e petróleo vêm dos postos de superfície
+    if (SURFACE_RESOURCES.has(dep.id)) continue;
     const cost = dep.cost;
     let veinCount, minDepth, veinSize;
     if (cost === 0)            { veinCount = 6; minDepth = 1;  veinSize = 5; }
@@ -317,7 +320,7 @@ export function workersActive() {
       }
     }
   }
-  return n;
+  return n + siteWorkersTotal();
 }
 
 export function tryHireWorker() {
@@ -378,6 +381,7 @@ export function updateMine(dt) {
     if (!mine.grid) continue;
     updateSingleMine(mine, dt, rate);
   }
+  updateSites(dt, tryAddToSilo);
 }
 
 function updateSingleMine(mine, dt, rate) {

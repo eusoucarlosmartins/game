@@ -9,6 +9,8 @@ import { ingredientHave } from './factories.js';
 import { workersActive, getRevealedOreCounts, isResourceUnlocked } from './mine.js';
 import { openModal, closeModal } from './modals.js';
 import { STAFF, staffLevel, staffActive, nextLevel, canHire, totalSalary, staffAttention } from './staff.js';
+import { SITE_BY_ID, siteState, siteUnlocked } from './sites.js';
+import { freeWorkers } from './advisor.js';
 import { MARKET_RAW_MULT, MARKET_PROD_MULT } from './market.js';
 import { PROJECT_DEFS, availableProjects, canActivateProject, getProjectDef } from './projects.js';
 
@@ -537,6 +539,7 @@ export function syncUI() {
   renderStats();
   renderEquipment();
   renderStaff();
+  if (openSiteId) renderSiteModal();
   renderResearch();
   renderLog();
 
@@ -603,6 +606,50 @@ export function openBuyMineModal() {
   }
   opts.innerHTML = html;
   openModal('modal-buy-mine');
+}
+
+let openSiteId = '';
+let lastSiteSig = '';
+/** @param {string} id */
+export function openSiteModal(id) {
+  openSiteId = id;
+  lastSiteSig = '';
+  renderSiteModal();
+  openModal('modal-site');
+}
+
+function renderSiteModal() {
+  const modal = $('modal-site');
+  if (!modal || modal.classList.contains('hidden') && lastSiteSig) return;
+  const def = SITE_BY_ID[openSiteId];
+  if (!def) return;
+  const st = siteState(def.id);
+  const res = R[def.resource];
+  const stock = Math.floor(state.warehouse[def.resource] || 0);
+  const free = freeWorkers();
+  const sig = `${def.id}${st.built}${st.workers}${free}${stock}${state.money >= def.cost}${siteUnlocked(def.id)}`;
+  if (sig === lastSiteSig) return;
+  lastSiteSig = sig;
+  $('site-title').textContent = `${def.emoji} ${def.name}`;
+  $('site-desc').textContent = def.desc;
+  const perMin = Math.round(def.rate * 60);
+  let body;
+  if (!st.built) {
+    body = siteUnlocked(def.id)
+      ? `<p>Produz <b>${res.name}</b> (≈${perMin}/min por trabalhador, até ${def.maxWorkers} trabalhadores).</p>
+         <button class="big-btn" data-action="site-build" data-id="${def.id}" ${state.money < def.cost ? 'disabled' : ''}>Construir — ${fmtMoney(def.cost)}</button>`
+      : `<p>🔒 Liberado na Era ${ROMAN[def.era - 1]}.</p>`;
+  } else {
+    body = `
+      <p>Produz <b>${res.name}</b>: ≈${perMin * st.workers}/min agora · estoque ${stock}.</p>
+      <div class="site-workers">
+        <button class="big-btn" data-action="site-worker" data-id="${def.id}" data-delta="-1" ${st.workers <= 0 ? 'disabled' : ''}>−</button>
+        <div class="site-count"><b>${st.workers}</b>/${def.maxWorkers} trabalhadores<br><small>${free} livre(s)</small></div>
+        <button class="big-btn" data-action="site-worker" data-id="${def.id}" data-delta="1" ${st.workers >= def.maxWorkers ? 'disabled' : ''}>+</button>
+      </div>
+      ${free <= 0 ? '<p class="hint">Sem trabalhador livre: o + libera um ocioso (silo cheio ou recurso sem uso) ou contrata um por $80.</p>' : ''}`;
+  }
+  $('site-body').innerHTML = body;
 }
 
 export function openRecipeModal(factoryIndex) {

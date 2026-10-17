@@ -13,7 +13,7 @@ import { updateProjects, activateProject, cancelProject } from './projects.js';
 import { checkAchievements, updateAchievementToast } from './achievements.js';
 import { play, toggleMute, unlockOnFirstGesture } from './audio.js';
 import { draw } from './draw.js';
-import { syncUI, openRecipeModal, openBuyMineModal, openCivilizationModal, closeModal } from './ui.js';
+import { syncUI, openRecipeModal, openBuyMineModal, openCivilizationModal, closeModal, openSiteModal } from './ui.js';
 import { openUpgradesModal, buyUpgrade, buyEquipment, buyResearch } from './upgrades.js';
 import { sellRaw, sellAllRaw, sellProduct, sellAllProduct } from './market.js';
 import { chooseCivilization } from './civilizations.js';
@@ -27,6 +27,8 @@ import { pickOverworld } from './overworld.js';
 import { proj } from './iso.js';
 import { freshStartIfNeeded } from './reset.js';
 import { updateStaff, hireOrPromote } from './staff.js';
+import { buildSite } from './sites.js';
+import { addSiteWorker } from './hud.js';
 
 // ---------- Game over / vitória ----------
 function fmt(n) { return Math.floor(n).toLocaleString('pt-BR'); }
@@ -203,6 +205,9 @@ function handleWorldTap(x, y) {
     } else if (hit.kind === 'factorySlot') {
       openPanel('factory');
       play('click');
+    } else if (hit.kind === 'site') {
+      openSiteModal(hit.site || '');
+      play('click');
     } else if (hit.kind === 'mercado') {
       openPanel('market');
       play('click');
@@ -317,6 +322,8 @@ document.addEventListener('click', (e) => {
     case 'project-start':  activateProject(t.dataset.id); break;
     case 'project-cancel': cancelProject(); break;
     case 'hire-staff':     if (hireOrPromote(t.dataset.id || '')) play('success'); break;
+    case 'site-build':     if (buildSite(t.dataset.id || '')) play('success'); break;
+    case 'site-worker':    if (addSiteWorker(t.dataset.id || '', +(t.dataset.delta || 1))) play('click'); break;
     case 'tool-select':    setTool(t.dataset.tool); play('click'); break;
     case 'confirm-buy-mine': {
       buyMine(t.dataset.id);

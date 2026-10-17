@@ -4,6 +4,7 @@
 import { W, H } from './geometry.js';
 import { proj, unproj, groundTransform, ISO_W, ISO_H } from './iso.js';
 import { MINE_FP, FACTORY_FP, MERCADO_FP, PESQUISA_FP, CITY_CENTER, centerOf } from './layout.js';
+import { SITES, SITE_BY_ID } from './sites.js';
 
 /** @typedef {[number, number]} Pt */
 
@@ -424,8 +425,38 @@ function generateTrees() {
 /** @type {Tree[] | null} */
 let treeList = null;
 export function getTrees() {
-  if (!treeList) treeList = generateTrees();
+  if (!treeList) {
+    // abre clareira onde ficam os postos de coleta
+    treeList = generateTrees().filter((t) => !SITES.some((f) =>
+      t.x > f.x - 16 && t.x < f.x + f.w + 16 && t.y > f.y - 14 && t.y < f.y + f.d + 22));
+  }
   return treeList;
+}
+
+/** Árvores que os lenhadores derrubam, da mais próxima do acampamento para a mais longe. */
+/** @type {Tree[] | null} */
+let choppable = null;
+export function choppableTrees() {
+  if (!choppable) {
+    const camp = SITE_BY_ID.lumber;
+    const cx = camp.x + camp.w / 2, cy = camp.y;
+    choppable = getTrees()
+      .filter((t) => t.kind !== 'bush' && !t.z && t.y < cy && Math.hypot(t.x - cx, t.y - cy) < 240)
+      .sort((p, q) => Math.hypot(p.x - cx, p.y - cy) - Math.hypot(q.x - cx, q.y - cy));
+  }
+  return choppable;
+}
+
+/** @param {CanvasRenderingContext2D} ctx @param {number} x @param {number} y */
+function stump(ctx, x, y) {
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath(); ctx.ellipse(x + 2, y + 1, 6, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#5a3a1e';
+  ctx.fillRect(x - 3.5, y - 5, 7, 5);
+  ctx.fillStyle = '#c8a06a';
+  ctx.beginPath(); ctx.ellipse(x, y - 5, 3.5, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(90,58,30,0.7)'; ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.ellipse(x, y - 5, 1.8, 0.8, 0, 0, Math.PI * 2); ctx.stroke();
 }
 
 /** Árvores vistas de cima (mapa plano: minimapa/Phaser). @param {CanvasRenderingContext2D} g @param {() => number} rnd */
@@ -653,13 +684,19 @@ function treeSprite(kind, v) {
 /**
  * Objetos estáticos do terreno (árvores) prontos para ordenar por profundidade.
  * @param {{x:number,y:number,w:number,h:number}} viewIso retângulo visível (iso) para descartar o que está fora
+ * @param {number} [cutCount] árvores já derrubadas pelos lenhadores
  * @returns {{depth:number, draw:(ctx:CanvasRenderingContext2D)=>void}[]}
  */
-export function treeObjects(viewIso) {
+export function treeObjects(viewIso, cutCount = 0) {
   const out = [];
+  const cut = new Set(choppableTrees().slice(0, cutCount));
   for (const t of getTrees()) {
     const p = proj(t.x, t.y, t.z);
     if (p.x < viewIso.x - 40 || p.x > viewIso.x + viewIso.w + 40 || p.y < viewIso.y - 10 || p.y > viewIso.y + viewIso.h + 50) continue;
+    if (cut.has(t)) {
+      out.push({ depth: t.x + t.y, draw: (/** @type {CanvasRenderingContext2D} */ ctx) => stump(ctx, p.x, p.y) });
+      continue;
+    }
     const sp = treeSprite(t.kind, t.v);
     const s = t.s * 0.85;
     out.push({

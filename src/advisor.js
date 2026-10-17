@@ -1,14 +1,15 @@
 // advisor.js — "conselheiro do contrato": descobre o que impede o pedido atual de
 // ser cumprido e sugere UMA ação concreta (de preferência resolvida com um toque).
 import { state } from './state.js';
-import { R, RECIPE_BY_ID, CFG, MINE } from './data.js';
+import { R, RECIPE_BY_ID, CFG, MINE, SILO_DEFAULT_CAP } from './data.js';
 import { isRecipeUnlocked, isDepositUnlocked } from './progression.js';
+import { SITE_BY_RESOURCE, SITES, siteState, siteUnlocked } from './sites.js';
 
 /**
  * @typedef {{
- *   kind: 'switch' | 'mine' | 'explore' | 'buyMine' | 'buyFactory' | 'locked',
+ *   kind: 'switch' | 'mine' | 'explore' | 'buyMine' | 'buyFactory' | 'buildSite' | 'siteWorker' | 'locked',
  *   text: string, factory?: number, recipe?: string, resource?: string, mineIdx?: number,
- *   r?: number, c?: number
+ *   r?: number, c?: number, site?: string
  * }} Advice
  */
 
@@ -95,12 +96,51 @@ export function findHiddenVein(res) {
   return best ? { mineIdx: best.mineIdx, r: best.r, c: best.c } : null;
 }
 
-function freeWorkers() {
+/** Recursos usados por alguma fábrica agora ou pelo pedido (não se mexe neles). */
+export function resourcesInUse() {
+  const used = new Set();
+  for (const f of state.factories) {
+    used.add(f.recipeId);
+    const rec = RECIPE_BY_ID[f.recipeId];
+    if (rec) for (const ing in rec.in) used.add(ing);
+  }
+  if (state.contract) used.add(state.contract.product);
+  return used;
+}
+
+/** @param {string} res */
+const siloFull = (res) => (state.warehouse[res] || 0) >= ((state.silos[res] && state.silos[res].cap) || SILO_DEFAULT_CAP) - 1;
+
+/**
+ * Libera UM trabalhador ocioso: num posto ou veio cujo silo encheu ou cujo
+ * recurso nenhuma fábrica usa. Postos primeiro (são os que mais "prendem" gente).
+ * @param {string} keep recurso que não deve perder trabalhador
+ */
+export function freeIdleWorker(keep) {
+  const used = resourcesInUse();
+  /** @param {string} res */
+  const idle = (res) => res !== keep && (siloFull(res) || !used.has(res));
+  for (const def of SITES) {
+    const st = state.sites && state.sites[def.id];
+    if (st && st.workers > 0 && idle(def.resource)) { st.workers--; return true; }
+  }
+  for (const m of state.mines || []) {
+    if (!m || !m.grid) continue;
+    for (const row of m.grid) {
+      const t = row.find((x) => x.worker && idle(x.resource));
+      if (t) { t.worker = false; return true; }
+    }
+  }
+  return false;
+}
+
+export function freeWorkers() {
   let busy = 0;
   for (const m of state.mines || []) {
     if (!m || !m.grid) continue;
     for (const row of m.grid) for (const t of row) if (t.worker) busy++;
   }
+  for (const id in state.sites || {}) busy += state.sites[id].workers || 0;
   return state.workersTotal - busy;
 }
 
@@ -134,6 +174,19 @@ function adviseProduce(product, keep, seen) {
     }
     const iname = R[ing].name;
     if (!isDepositUnlocked(ing)) return { kind: 'locked', text: `${iname} só pode ser extraído numa era mais avançada.` };
+    const site = SITE_BY_RESOURCE[ing];
+    if (site) {
+      const st = siteState(site.id);
+      if (!st.built) {
+        if (!siteUnlocked(site.id)) return { kind: 'locked', text: `${iname} vem do ${site.name}, liberado numa era mais avançada.` };
+        return { kind: 'buildSite', site: site.id, resource: ing, text: `Falta ${iname}: ela vem do ${site.emoji} ${site.name}. Toque para construir ($${site.cost}).` };
+      }
+      if (st.workers <= 0) {
+        const extra = freeWorkers() > 0 ? '' : ' (vai contratar um, $80)';
+        return { kind: 'siteWorker', site: site.id, resource: ing, text: `Falta ${iname}: o ${site.emoji} ${site.name} está sem gente. Toque para colocar um trabalhador${extra}.` };
+      }
+      continue;
+    }
     const vein = findVein(ing);
     if (vein && vein.worked) continue; // já está sendo extraído: é só esperar
     if (vein) {

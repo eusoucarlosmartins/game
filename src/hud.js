@@ -5,7 +5,9 @@ import { state } from './state.js';
 import { R, MINE } from './data.js';
 import { setActiveMine, activeMine, setTool } from './mine.js';
 import { setRecipe } from './factories.js';
-import { adviseContract } from './advisor.js';
+import { adviseContract, freeWorkers, freeIdleWorker } from './advisor.js';
+import { buildSite, changeSiteWorkers } from './sites.js';
+import { tryHireWorker } from './mine.js';
 import { openBuyMineModal } from './ui.js';
 import { play } from './audio.js';
 import { zoomCenter, toggleFit, view, centerOn } from './camera.js';
@@ -52,6 +54,21 @@ export function openPanel(tab) {
 }
 
 export function closeSheet() { setSheet(false); }
+
+/** Garante um trabalhador livre: libera um ocioso; se não houver, contrata. @param {string} keep */
+function ensureFreeWorker(keep) {
+  if (freeWorkers() > 0) return true;
+  if (freeIdleWorker(keep)) return true;
+  const before = state.workersTotal;
+  tryHireWorker();
+  return state.workersTotal > before;
+}
+
+/** Põe/tira trabalhador de um posto; o + libera ou contrata alguém se preciso. @param {string} id @param {number} delta */
+export function addSiteWorker(id, delta) {
+  if (delta > 0) ensureFreeWorker('');
+  return changeSiteWorkers(id, delta, freeWorkers);
+}
 
 function wireSheet() {
   nav.addEventListener('click', (e) => {
@@ -165,6 +182,7 @@ function wireStage() {
       setRecipe(a.factory, a.recipe);
       play('success');
     } else if ((a.kind === 'mine' || a.kind === 'explore') && a.mineIdx !== undefined) {
+      if (a.kind === 'mine' && freeWorkers() <= 0) ensureFreeWorker(a.resource || '');
       setActiveMine(a.mineIdx);
       state.scene = 'mine';
       setTool(a.kind === 'mine' ? 'miner' : a.r !== undefined ? 'compass' : 'pick');
@@ -174,6 +192,10 @@ function wireStage() {
         centerOn('mine', MINE.x + (a.c + 0.5) * MINE.cell, MINE.y + (a.r + 0.5) * MINE.cell);
       }
       play('whoosh');
+    } else if (a.kind === 'buildSite' && a.site) {
+      if (buildSite(a.site)) { addSiteWorker(a.site, 1); play('success'); }
+    } else if (a.kind === 'siteWorker' && a.site) {
+      if (addSiteWorker(a.site, 1)) play('success');
     } else if (a.kind === 'buyMine') {
       openBuyMineModal();
       play('click');

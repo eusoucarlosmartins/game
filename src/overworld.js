@@ -15,13 +15,14 @@ import {
 } from './layout.js';
 import {
   drawIsoTerrain, drawAmbientFlat, ambientObjects, drawAmbientSky, treeObjects, drawShroud,
-  VILLAGES, BRIDGE, CLIFF_H, drawVillager,
+  VILLAGES, BRIDGE, CLIFF_H, drawVillager, choppableTrees,
 } from './terrain.js';
+import { SITES, siteState, siteUnlocked } from './sites.js';
 import { drawScrollPanel, drawResourceIcon, plate, civColor, civAccent, UI_FONT } from './paint.js';
 
 /** @typedef {import('./layout.js').Footprint} Footprint */
 /** @typedef {{depth:number, draw:(ctx:CanvasRenderingContext2D)=>void}} SceneObj */
-/** @typedef {{kind:'mine'|'mineSlot'|'factory'|'factorySlot'|'mercado'|'pesquisa', idx:number}} Target */
+/** @typedef {{kind:'mine'|'mineSlot'|'factory'|'factorySlot'|'mercado'|'pesquisa'|'site', idx:number, site?: string}} Target */
 /** @typedef {Target & {fp: Footprint, h: number, rects: {x:number,y:number,w:number,h:number}[]}} Pickable */
 
 const MINE_H = 54;
@@ -49,13 +50,13 @@ const inFp = (f, gx, gy, pad = 0) => gx >= f.x - pad && gx < f.x + f.w + pad && 
  */
 export function pickOverworld(ix, iy) {
   for (const p of pickables) {
-    if (p.rects.some((r) => inRect(r, ix, iy))) return { kind: p.kind, idx: p.idx };
+    if (p.rects.some((r) => inRect(r, ix, iy))) return { kind: p.kind, idx: p.idx, site: p.site };
   }
   const byDepth = [...pickables].sort((a, b) => (b.fp.x + b.fp.y) - (a.fp.x + a.fp.y));
   for (const p of byDepth) {
     for (let z = 0; z <= p.h; z += 4) {
       const g = unproj(ix, iy + z);
-      if (inFp(p.fp, g.x, g.y, z === 0 ? 6 : 0)) return { kind: p.kind, idx: p.idx };
+      if (inFp(p.fp, g.x, g.y, z === 0 ? 6 : 0)) return { kind: p.kind, idx: p.idx, site: p.site };
     }
   }
   return null;
@@ -70,6 +71,9 @@ function rebuildPickables() {
   }));
   pickables.push({ kind: 'mercado', idx: 0, fp: MERCADO_FP, h: 44, rects: [] });
   pickables.push({ kind: 'pesquisa', idx: 0, fp: PESQUISA_FP, h: 80, rects: [] });
+  SITES.forEach((def, i) => {
+    if (siteVisible(def)) pickables.push({ kind: 'site', idx: i, site: def.id, fp: def, h: SITE_H[def.id] || 30, rects: [] });
+  });
   for (const p of pickables) p.rects = lastRects.get(`${p.kind}:${p.idx}`) || [];
 }
 
@@ -810,6 +814,140 @@ function drawRoadAndBridge(ctx) {
   }
 }
 
+// ---------- Postos de coleta (madeira, pedra, argila, areia, petróleo) ----------
+/** @type {Record<string, number>} */
+const SITE_H = { quarry: 34, claypit: 22, lumber: 44, sandbank: 22, oilwell: 96 };
+
+/** @param {import('./sites.js').SiteDef} def */
+const siteVisible = (def) => siteState(def.id).built || siteUnlocked(def.id);
+
+/** Árvores já derrubadas pelos lenhadores (cresce com a madeira colhida). */
+function lumberCut() {
+  const st = siteState('lumber');
+  if (!st.built) return 0;
+  return Math.max(0, Math.min(choppableTrees().length - 4, Math.floor((st.harvested || 0) / 10)));
+}
+
+/** Marca no chão de cada posto (ou o canteiro, se ainda não construído). @param {CanvasRenderingContext2D} ctx @param {import('./sites.js').SiteDef} def */
+function drawSiteGround(ctx, def) {
+  const { x, y, w, d } = def;
+  const st = siteState(def.id);
+  if (!st.built) {
+    poly(ctx, [[x, y, 0], [x + w, y, 0], [x + w, y + d, 0], [x, y + d, 0]]);
+    ctx.fillStyle = 'rgba(70,46,22,0.35)';
+    ctx.fill();
+    ctx.setLineDash([5, 3]);
+    ctx.strokeStyle = '#efe2bf';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    return;
+  }
+  /** @param {number} k @param {string} c */
+  const inset = (k, c) => {
+    poly(ctx, [[x + k, y + k, 0], [x + w - k, y + k, 0], [x + w - k, y + d - k, 0], [x + k, y + d - k, 0]]);
+    ctx.fillStyle = c;
+    ctx.fill();
+  };
+  if (def.id === 'quarry') { inset(0, '#a29c90'); inset(8, '#8a8478'); inset(16, '#726c62'); }
+  else if (def.id === 'claypit') { inset(0, '#9a6a48'); inset(8, '#7a4a30'); const p = proj(x + w * 0.4, y + d * 0.55); ctx.fillStyle = 'rgba(90,130,150,0.75)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, 10, 4, 0, 0, Math.PI * 2); ctx.fill(); }
+  else if (def.id === 'sandbank') { inset(0, '#e6d29a'); inset(10, '#f0e0b0'); }
+  else if (def.id === 'lumber') { inset(0, '#9a7a4a'); }
+  else if (def.id === 'oilwell') { inset(4, '#7a6a52'); const p = proj(x + w * 0.75, y + d * 0.8); ctx.fillStyle = '#141008'; ctx.beginPath(); ctx.ellipse(p.x, p.y, 9, 3.5, 0, 0, Math.PI * 2); ctx.fill(); }
+}
+
+/** @param {CanvasRenderingContext2D} ctx @param {import('./sites.js').SiteDef} def */
+function drawSiteStructure(ctx, def) {
+  const { x, y, w, d } = def;
+  const t = performance.now() / 1000;
+  if (def.id === 'quarry') {
+    box(ctx, x + w - 22, y + d - 16, 12, 10, 8, '#b8b2a6');
+    box(ctx, x + w - 20, y + d - 15, 10, 8, 7, '#a8a296', 8);
+    box(ctx, x + 6, y + d - 12, 14, 9, 8, '#b8b2a6');
+    // guindaste de madeira
+    const a = proj(x + w * 0.5, y + 6, 0), top = proj(x + w * 0.5, y + 6, 40), arm = proj(x + w * 0.5 + 18, y + 6, 36);
+    ctx.strokeStyle = '#5a3416'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(top.x, top.y); ctx.lineTo(arm.x, arm.y); ctx.stroke();
+    const sway = Math.sin(t) * 2;
+    ctx.strokeStyle = '#2a1a10'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(arm.x, arm.y); ctx.lineTo(arm.x + sway, arm.y + 14); ctx.stroke();
+    ctx.fillStyle = '#a8a296'; ctx.fillRect(arm.x + sway - 3, arm.y + 14, 6, 5);
+  } else if (def.id === 'claypit') {
+    for (let i = 0; i < 4; i++) box(ctx, x + w - 12, y + 4 + i * 9, 8, 6, 5, '#b0704a');
+  } else if (def.id === 'lumber') {
+    const hut = { x: x + 4, y: y + 4, w: 24, d: 20 };
+    box(ctx, hut.x, hut.y, hut.w, hut.d, 18, '#8a5a30');
+    facePatch(ctx, hut, 'L', 0.5, 0, 6, 11, '#3a2010');
+    gableRoof(ctx, hut.x, hut.y, hut.w, hut.d, 18, 11, '#6a4a2a', 'x', '#8a5a30');
+    for (let i = 0; i < 3; i++) {
+      const p = proj(x + w - 14, y + d - 8 - i * 2, 4 + i * 5);
+      ctx.fillStyle = '#7a4a22';
+      ctx.fillRect(p.x - 14, p.y - 3, 22, 6);
+      ctx.fillStyle = '#c8a06a';
+      ctx.beginPath(); ctx.ellipse(p.x + 8, p.y, 3, 3, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  } else if (def.id === 'sandbank') {
+    box(ctx, x + 8, y + 8, 18, 3, 12, '#8a5a30');
+    for (let i = 0; i < 3; i++) box(ctx, x + w - 14, y + 6 + i * 10, 8, 7, 6, '#d8c08a');
+  } else if (def.id === 'oilwell') {
+    // torre de perfuração (treliça)
+    const ap = proj(x + 14, y + 14, 92);
+    ctx.strokeStyle = '#3a2a1a'; ctx.lineWidth = 1.3;
+    for (const [gx, gy] of [[x + 2, y + 2], [x + 26, y + 2], [x + 26, y + 26], [x + 2, y + 26]]) {
+      const b = proj(gx, gy);
+      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(ap.x, ap.y); ctx.stroke();
+    }
+    for (let z = 18; z < 90; z += 18) {
+      const k = 1 - z / 92;
+      poly(ctx, [[x + 14 - 12 * k, y + 14 - 12 * k, z], [x + 14 + 12 * k, y + 14 - 12 * k, z], [x + 14 + 12 * k, y + 14 + 12 * k, z], [x + 14 - 12 * k, y + 14 + 12 * k, z]]);
+      ctx.stroke();
+    }
+    // cavalo-de-pau balançando
+    const pivot = proj(x + w - 10, y + d - 12, 18);
+    const nod = Math.sin(t * 2.2) * 0.35;
+    box(ctx, x + w - 14, y + d - 16, 8, 8, 16, '#4a4a4a');
+    ctx.save();
+    ctx.translate(pivot.x, pivot.y);
+    ctx.rotate(nod);
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(-16, -2, 30, 4);
+    ctx.fillStyle = '#5a5a5a';
+    ctx.fillRect(-20, -5, 6, 10);
+    ctx.restore();
+  }
+}
+
+/** Trabalhadores animados em cada posto. @param {import('./sites.js').SiteDef} def @returns {SceneObj[]} */
+function siteWorkers(def) {
+  const st = siteState(def.id);
+  if (!st.built || st.workers <= 0) return [];
+  const t = performance.now() / 1000;
+  /** @type {SceneObj[]} */
+  const out = [];
+  const cc = civColor();
+  for (let i = 0; i < st.workers; i++) {
+    let gx, gy, carry = false, dir = 1;
+    if (def.id === 'lumber') {
+      // vai até a próxima árvore de pé e volta com lenha
+      const tree = choppableTrees()[lumberCut() + (i % 3)] || { x: def.x + def.w / 2, y: def.y - 40 };
+      const u = (t * 0.18 + i * 0.37) % 2;
+      const k = u < 1 ? u : 2 - u;
+      gx = def.x + def.w / 2 + (tree.x + 6 - def.x - def.w / 2) * k;
+      gy = def.y + 4 + (tree.y + 4 - def.y - 4) * k;
+      carry = u >= 1;
+      dir = ((u < 1 ? 1 : -1) * ((tree.x - def.x) - (tree.y - def.y))) >= 0 ? 1 : -1;
+    } else {
+      const a = t * 0.5 + i * 2.1;
+      gx = def.x + def.w * (0.3 + 0.4 * ((i * 0.37) % 1)) + Math.sin(a) * 4;
+      gy = def.y + def.d * (0.35 + 0.3 * ((i * 0.61) % 1));
+      dir = Math.cos(a) >= 0 ? 1 : -1;
+    }
+    const p = proj(gx, gy);
+    out.push({ depth: gx + gy + 1, draw: (ctx) => drawVillager(ctx, p.x, p.y, dir, t * 8 + i, cc, carry) });
+  }
+  return out;
+}
+
 // ---------- Cena ----------
 /**
  * Desenha o mapa. Chamar com a transformação da câmera (espaço iso) ativa.
@@ -833,6 +971,7 @@ export function drawOverworldIso(ctx, viewIso, hoverX, hoverY) {
   castShadow(ctx, MERCADO_FP.x + 8, MERCADO_FP.y + 8, MERCADO_FP.w - 16, MERCADO_FP.d - 16, 30);
   castShadow(ctx, PESQUISA_FP.x + 6, PESQUISA_FP.y + 6, PESQUISA_FP.w - 12, PESQUISA_FP.d - 12, 50);
   FACTORY_FP.forEach((fp, i) => { if (i >= state.factories.length) drawFoundation(ctx, fp); });
+  for (const def of SITES) if (siteVisible(def)) drawSiteGround(ctx, def);
   if (hover) {
     const p = pickables.find((q) => q.kind === hover.kind && q.idx === hover.idx);
     if (p && p.kind !== 'mineSlot') selectFootprint(ctx, p.fp.x, p.fp.y, p.fp.w, p.fp.d);
@@ -852,7 +991,12 @@ export function drawOverworldIso(ctx, viewIso, hoverX, hoverY) {
   objs.push({ depth: PESQUISA_FP.x + PESQUISA_FP.y + 70, draw: drawPesquisa });
   objs.push({ depth: CIV_FLAG.x + CIV_FLAG.y - 400, draw: drawCivFlagPole });
   objs.push({ depth: ROAD.x1 + (ROAD.x2 - ROAD.x1) * state.wagon.pos + ROAD.y + 12, draw: drawWagon });
-  objs.push(...cityObjects(), ...villageObjects(), ...treeObjects(viewIso));
+  for (const def of SITES) {
+    if (!siteState(def.id).built) continue;
+    objs.push({ depth: def.x + def.y + def.w / 2 + def.d / 2, draw: (c) => drawSiteStructure(c, def) });
+    objs.push(...siteWorkers(def));
+  }
+  objs.push(...cityObjects(), ...villageObjects(), ...treeObjects(viewIso, lumberCut()));
   objs.push(...ambientObjects({
     activeMines: MINE_FP.map((_, i) => !!state.mines[i] && !state.mines[i].exhausted),
     playerColor: civColor(),
@@ -921,6 +1065,18 @@ function drawLabels(ctx, hover) {
       });
       addRect('factorySlot', i, r);
     }
+  });
+  SITES.forEach((def, i) => {
+    if (!siteVisible(def)) return;
+    const st = siteState(def.id);
+    const p = proj(def.x + def.w / 2, def.y + def.d + 10);
+    const hov = isTarget(hover, 'site', i);
+    const r = st.built
+      ? plate(ctx, p.x, p.y, `${def.emoji} ${def.name.toUpperCase()} · ${st.workers}👷`, { bg: hov ? '#ffe680' : (st.workers ? '#e2b765' : '#d8c8a0'), size: 11 })
+      : plate(ctx, p.x, p.y, `CONSTRUIR ${def.emoji} ${def.name.toUpperCase()} · ${fmtMoney(def.cost)}`, {
+        bg: hov ? '#ffe680' : 'rgba(26,14,6,0.85)', fg: hov ? '#1a0e06' : '#f1e3c2', size: 10,
+      });
+    addRect('site', i, r);
   });
   const mc = centerOf(MERCADO_FP), pc = centerOf(PESQUISA_FP);
   const pm = proj(mc.x, MERCADO_FP.y + MERCADO_FP.d + 10);

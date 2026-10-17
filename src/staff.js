@@ -2,9 +2,10 @@
 // Funcionários dão bônus fixos; gerentes também AGEM sozinhos usando o conselheiro
 // (sem mexer na tela do jogador) e registram o que fizeram.
 import { state, log } from './state.js';
-import { CFG, R, RECIPE_BY_ID, WORKER_COST, SILO_DEFAULT_CAP } from './data.js';
+import { CFG, R, WORKER_COST, SILO_DEFAULT_CAP } from './data.js';
 import { currentEra } from './progression.js';
-import { adviseContract } from './advisor.js';
+import { adviseContract, freeWorkers, freeIdleWorker, resourcesInUse } from './advisor.js';
+import { changeSiteWorkers, SITE_BY_ID } from './sites.js';
 import { setRecipe, buyFactory } from './factories.js';
 import { compassAt, isResourceUnlocked } from './mine.js';
 import { sellProduct, sellRaw } from './market.js';
@@ -143,39 +144,10 @@ export function payStaff() {
 }
 
 // ---------- Ações automáticas dos gerentes ----------
-/** @param {any} mine */
-const busyIn = (mine) => mine.grid.reduce((n, row) => n + row.filter((t) => t.worker).length, 0);
-function totalBusy() {
-  return (state.mines || []).reduce((n, m) => n + (m && m.grid ? busyIn(m) : 0), 0);
-}
-
-/** Recursos usados por alguma fábrica agora (não devem ser vendidos). */
-function resourcesInUse() {
-  const used = new Set();
-  for (const f of state.factories) {
-    used.add(f.recipeId);
-    const rec = RECIPE_BY_ID[f.recipeId];
-    if (rec) for (const ing in rec.in) used.add(ing);
-  }
-  if (state.contract) used.add(state.contract.product);
-  return used;
-}
-
 /** @param {string} resource */
 function assignWorkerTo(resource) {
-  // prefere minerador livre; senão tira de um veio cujo minério ninguém usa
-  if (state.workersTotal - totalBusy() <= 0) {
-    const used = resourcesInUse();
-    let freed = false;
-    for (const m of state.mines || []) {
-      if (!m || !m.grid || freed) continue;
-      for (const row of m.grid) {
-        const t = row.find((x) => x.worker && x.resource !== resource && !used.has(x.resource));
-        if (t) { t.worker = false; freed = true; break; }
-      }
-    }
-    if (!freed) return false;
-  }
+  // prefere trabalhador livre; senão tira de um veio cujo minério ninguém usa
+  if (freeWorkers() <= 0 && !freeIdleWorker(resource)) return false;
   for (const m of state.mines || []) {
     if (!m || !m.grid) continue;
     for (const row of m.grid) {
@@ -219,12 +191,15 @@ export function updateStaff(dt) {
       setRecipe(a.factory, a.recipe);
       log(`📋 Gerente de Contratos colocou a Fábrica ${a.factory + 1} em ${R[a.recipe].name}.`);
     } else if (a.kind === 'mine' && a.resource && can('gerenteMina', 'mine')) {
-      if (state.workersTotal - totalBusy() <= 0 && can('gerenteMina', 'hire') && state.money >= WORKER_COST + 600) {
+      if (freeWorkers() <= 0 && can('gerenteMina', 'hire') && state.money >= WORKER_COST + 600) {
         state.money -= WORKER_COST;
         state.workersTotal++;
         log(`⛑️ Gerente de Mina contratou um minerador (${fmtMoney(WORKER_COST)}).`);
       }
       if (assignWorkerTo(a.resource)) log(`⛑️ Gerente de Mina pôs um minerador em ${R[a.resource].name}.`);
+    } else if (a.kind === 'siteWorker' && a.site && can('gerenteMina', 'mine')) {
+      if (freeWorkers() <= 0) freeIdleWorker(a.resource || '');
+      if (changeSiteWorkers(a.site, +1, freeWorkers)) log(`⛑️ Gerente de Mina mandou um trabalhador para o ${SITE_BY_ID[a.site].name}.`);
     } else if (a.kind === 'explore' && can('gerenteMina', 'explore') && a.mineIdx !== undefined && a.r !== undefined && a.c !== undefined && state.money >= 140) {
       if (compassAt(state.mines[a.mineIdx], a.r, a.c)) log(`⛑️ Gerente de Mina usou a Bússola e achou ${R[a.resource || 'coal'].name}.`);
     }

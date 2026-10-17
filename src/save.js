@@ -17,7 +17,7 @@ const PERSIST_KEYS = [
   'muted','scene','tutorial',
   'totalEarnings','oreMined',
   'achievements','tntUseCount',
-  'civilization', 'staff', 'staffUnpaid',
+  'civilization', 'staff', 'staffUnpaid', 'sites',
 ];
 
 let lastSaveTime = 0;

@@ -76,6 +76,8 @@ export const state = {
   staff: {},
   /** @type {Record<string, boolean>} */
   staffUnpaid: {},
+  /** @type {Record<string, {built: boolean, workers: number, harvested: number}>} postos de superfície */
+  sites: {},
 
   // Estado transitório (não persistido)
   mouseX: -1,
