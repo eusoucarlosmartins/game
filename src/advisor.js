@@ -4,6 +4,7 @@ import { state } from './state.js';
 import { R, RECIPE_BY_ID, CFG, MINE, SILO_DEFAULT_CAP } from './data.js';
 import { isRecipeUnlocked, isDepositUnlocked } from './progression.js';
 import { SITE_BY_RESOURCE, SITES, siteState, siteUnlocked } from './sites.js';
+import { getProjectDef } from './projects.js';
 
 /**
  * @typedef {{
@@ -44,10 +45,14 @@ function collectKeep(product, units, keep) {
 
 /** Fábrica que pode trocar de receita sem prejudicar o pedido. @param {Set<string>} keep */
 function factoryToSwitch(keep) {
+  // ordem de preferência: fábrica parada > trabalhando > trabalhando para o projeto em obra
+  const project = projectShortfall();
+  /** @param {any} f */
+  const score = (f) => (project.has(f.recipeId) ? 2 : 0) + (f.brewing > 0 ? 1 : 0);
   let best = -1;
   state.factories.forEach((f, i) => {
     if (keep.has(f.recipeId)) return;
-    if (best < 0 || (state.factories[best].brewing > 0 && !(f.brewing > 0))) best = i;
+    if (best < 0 || score(f) < score(state.factories[best])) best = i;
   });
   return best;
 }
@@ -105,7 +110,53 @@ export function resourcesInUse() {
     if (rec) for (const ing in rec.in) used.add(ing);
   }
   if (state.contract) used.add(state.contract.product);
+  // o projeto em obra também "usa": não vender nem mandar nas caravanas
+  for (const [id] of projectShortfall()) {
+    used.add(id);
+    const rec = RECIPE_BY_ID[id];
+    if (rec) for (const ing in rec.in) used.add(ing);
+  }
   return used;
+}
+
+/**
+ * O que ainda falta para o projeto em obra (descontando o que já foi entregue e o
+ * que está em estoque), incluindo intermediários sem estoque suficiente.
+ * @returns {Map<string, number>} recurso → unidades que faltam
+ */
+export function projectShortfall() {
+  /** @type {Map<string, number>} */
+  const out = new Map();
+  const a = state.projects && state.projects.active;
+  const def = a && getProjectDef(a.id);
+  if (!def) return out;
+  /** @param {string} id @param {number} units @param {number} depth */
+  const add = (id, units, depth) => {
+    if (units <= 0 || depth > 4) return;
+    out.set(id, (out.get(id) || 0) + units);
+    const rec = RECIPE_BY_ID[id];
+    if (!rec) return;
+    for (const [ing, n] of Object.entries(rec.in)) {
+      if (R[ing].free) continue;
+      const lack = units * n - stockOf(ing);
+      if (lack > 0) add(ing, lack, depth + 1);
+    }
+  };
+  for (const [id, need] of Object.entries(def.requirements)) {
+    add(id, need - (a.progress[id] || 0) - stockOf(id), 0);
+  }
+  return out;
+}
+
+/** Fábricas que o pedido atual precisa manter (a cadeia do produto do contrato). */
+export function contractKeepSet() {
+  const keep = new Set();
+  const k = state.contract;
+  if (k && R[k.product]) {
+    const left = Math.max(0, k.need - k.delivered - (state.products[k.product] || 0));
+    if (left > 0) collectKeep(k.product, left, keep);
+  }
+  return keep;
 }
 
 /** @param {string} res */

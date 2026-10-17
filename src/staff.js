@@ -3,8 +3,8 @@
 // (sem mexer na tela do jogador) e registram o que fizeram.
 import { state, log } from './state.js';
 import { CFG, R, RECIPE_BY_ID, WORKER_COST, SILO_DEFAULT_CAP } from './data.js';
-import { currentEra } from './progression.js';
-import { adviseContract, freeWorkers, freeIdleWorker, resourcesInUse, findHiddenVein, siloFull } from './advisor.js';
+import { currentEra, isRecipeUnlocked } from './progression.js';
+import { adviseContract, freeWorkers, freeIdleWorker, resourcesInUse, findHiddenVein, siloFull, projectShortfall, contractKeepSet } from './advisor.js';
 import { changeSiteWorkers, buildSite, siteState, siteUnlocked, SITE_BY_RESOURCE } from './sites.js';
 import { setRecipe, buyFactory } from './factories.js';
 import { compassAt, isResourceUnlocked } from './mine.js';
@@ -53,9 +53,9 @@ export const STAFF = [
   {
     id: 'gerenteFabrica', name: 'Gerente de Fábrica', emoji: '🏭', role: 'Fábricas',
     levels: [
-      { era: 3, cost: 800, salary: 18, desc: 'Fábricas 20% mais rápidas; vende produtos encalhados com o estoque cheio.', mods: { factSpd: 0.2 }, auto: ['sellProducts'] },
-      { era: 4, cost: 1800, salary: 28, desc: 'Fábricas 35% mais rápidas; vende matéria-prima que nenhuma fábrica usa quando o silo enche.', mods: { factSpd: 0.35 }, auto: ['sellProducts', 'sellRaw'] },
-      { era: 5, cost: 3500, salary: 40, desc: 'Fábricas 50% mais rápidas; compra a próxima fábrica quando sobra dinheiro (reserva $1.500).', mods: { factSpd: 0.5 }, auto: ['sellProducts', 'sellRaw', 'buyFactory'] },
+      { era: 3, cost: 800, salary: 18, desc: 'Fábricas 20% mais rápidas; põe uma fábrica livre no que o projeto em obra precisa (sem atrapalhar o pedido); vende encalhados que ninguém usa.', mods: { factSpd: 0.2 }, auto: ['project', 'sellProducts'] },
+      { era: 4, cost: 1800, salary: 28, desc: 'Fábricas 35% mais rápidas; também vende matéria-prima parada que nem fábrica nem projeto usam.', mods: { factSpd: 0.35 }, auto: ['project', 'sellProducts', 'sellRaw'] },
+      { era: 5, cost: 3500, salary: 40, desc: 'Fábricas 50% mais rápidas; também compra a próxima fábrica quando sobra dinheiro (reserva $1.500).', mods: { factSpd: 0.5 }, auto: ['project', 'sellProducts', 'sellRaw', 'buyFactory'] },
     ],
   },
 ];
@@ -176,6 +176,10 @@ export function neededRaw() {
   };
   for (const f of state.factories) add(f.recipeId, 0);
   if (state.contract) add(state.contract.product, 0);
+  for (const [id] of projectShortfall()) {
+    if (R[id].kind === 'raw' && !R[id].free) need.add(id);
+    else add(id, 0);
+  }
   return [...need]
     .filter((id) => isResourceUnlocked(id) && !siloFull(id))
     .sort((p, q) => (state.warehouse[p] || 0) - (state.warehouse[q] || 0));
@@ -232,6 +236,29 @@ function mineManagerTick() {
   }
 }
 
+let gameClock = 0;
+/** @type {number[]} quando cada fábrica foi trocada pelo gerente (evita troca-troca) */
+const switchedAt = [];
+
+/** Gerente de Fábrica: põe uma fábrica livre no que o projeto em obra precisa. */
+function factoryProjectTick() {
+  const short = projectShortfall();
+  if (!short.size) return;
+  const keep = contractKeepSet();
+  const projectProducts = [...short.keys()].filter((id) => R[id].kind === 'prod' && RECIPE_BY_ID[id] && isRecipeUnlocked(id));
+  const projSet = new Set(projectProducts);
+  for (const id of projectProducts) {
+    if (state.factories.some((f) => f.recipeId === id)) continue;
+    const idx = state.factories.findIndex((f, i) =>
+      !keep.has(f.recipeId) && !projSet.has(f.recipeId) && gameClock - (switchedAt[i] ?? -1e9) > 20);
+    if (idx < 0) return;
+    setRecipe(idx, id);
+    switchedAt[idx] = gameClock;
+    log(`🏭 Gerente de Fábrica pôs a Fábrica ${idx + 1} em ${R[id].name} para o projeto em obra.`);
+    return;
+  }
+}
+
 let actTimer = 0;
 let lastPaidDay = -1;
 let lastEraSeen = -1;
@@ -252,6 +279,7 @@ export function updateStaff(dt) {
       if (lv >= 0) log(`👔 Equipe: ${s.emoji} ${s.name} nível ${lv + 1} disponível na aba Equipe.`, 'good');
     }
   }
+  gameClock += dt;
   actTimer += dt;
   if (actTimer < 3) return;
   actTimer = 0;
@@ -264,6 +292,7 @@ export function updateStaff(dt) {
     }
   }
   if (can('gerenteMina', 'mine')) mineManagerTick();
+  if (can('gerenteFabrica', 'project')) factoryProjectTick();
 
   if (can('gerenteFabrica', 'sellProducts')) {
     const used = resourcesInUse();
